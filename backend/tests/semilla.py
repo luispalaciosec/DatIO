@@ -7,7 +7,7 @@ from pathlib import Path
 RUTA_SEED = Path(__file__).resolve().parents[2] / "sql" / "seeds" / "metricas.sql"
 
 _RE_METRICA = re.compile(r"^\('([a-z_]+)',\s*'[^']*',\s*'[a-z]+',", re.M)
-_RE_MAPEO = re.compile(r"\('([a-z_0-9]+)',\s*'([A-Za-z_.]+)',\s*'([a-z_]+)',\s*([0-9.]+)\)")
+_RE_MAPEO = re.compile(r"\('([a-z_0-9]+)',\s*'([A-Za-z0-9_.]+)',\s*'([a-z_]+)',\s*([0-9.]+)\)")
 
 
 def metricas_del_seed() -> set[str]:

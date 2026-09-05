@@ -88,3 +88,32 @@ async def test_cron_requiere_secreto(http, config) -> None:  # type: ignore[no-u
     )
     assert r.status_code == 200
     assert r.json()["errores"] == {}
+
+
+async def test_importar_metricool_escribe_en_cuenta_linkedin(http, config, pool, cliente_a) -> None:  # type: ignore[no-untyped-def]
+    ext = "urn:li:organization:test"
+    await pool.execute(
+        "INSERT INTO cuentas_conectadas (cliente_id, plataforma, id_externo) "
+        "VALUES ($1, 'linkedin', $2)",
+        cliente_a.id,
+        ext,
+    )
+    cuerpo = {
+        "plataforma": "linkedin",
+        "id_externo": ext,
+        "desde": "2026-09-01",
+        "hasta": "2026-09-02",
+        "metricas": ["LIEV01", "LIEV08"],
+        "rows": [["156.0", "1.0", "20260901"], ["157.0", "1.0", "20260902"]],
+    }
+    r = await http.post(
+        "/etl/importar/metricool", json=cuerpo, headers={"X-Cron-Secret": config.cron_secret}
+    )
+    assert r.status_code == 200, r.text
+    assert r.json()["filas_escritas"] == 4 and r.json()["estado"] == "ok"
+    r2 = await http.post(
+        "/etl/importar/metricool",
+        json={**cuerpo, "id_externo": "no-existe"},
+        headers={"X-Cron-Secret": config.cron_secret},
+    )
+    assert r2.status_code == 404
