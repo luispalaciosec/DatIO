@@ -1,10 +1,11 @@
 """Configuración por variables de entorno (PT-01). Nunca credenciales en el código."""
 
+import json
 from functools import lru_cache
-from typing import Any
+from typing import Annotated, Any
 
-from pydantic import Field
-from pydantic_settings import BaseSettings, SettingsConfigDict
+from pydantic import Field, field_validator
+from pydantic_settings import BaseSettings, NoDecode, SettingsConfigDict
 
 MODELOS_LLM_POR_DEFECTO: dict[str, dict[str, Any]] = {
     # spec/07 §5. Se sobreescribe con LLM_MODELOS (JSON) en el ambiente.
@@ -23,10 +24,27 @@ class Configuracion(BaseSettings):
     zona_horaria: str = "America/Guayaquil"
     ventana_resync_dias: int = 28
 
-    # CORS del frontend (lista JSON en el ambiente: ORIGENES_PERMITIDOS)
-    origenes_permitidos: list[str] = Field(
-        default_factory=lambda: ["http://localhost:5173", "https://datio.vercel.app"]
+    # CORS del frontend. ORIGENES_PERMITIDOS acepta lista JSON o URLs separadas por coma.
+    origenes_permitidos: Annotated[list[str], NoDecode] = Field(
+        default_factory=lambda: ["http://localhost:5173", "http://localhost:5174"]
     )
+
+    @field_validator("origenes_permitidos", mode="before")
+    @classmethod
+    def _parsear_origenes(cls, valor: Any) -> list[str]:
+        if isinstance(valor, list):
+            return [str(v).strip().rstrip("/") for v in valor if str(v).strip()]
+        texto = str(valor).strip()
+        if texto.startswith("["):
+            try:
+                return [str(v).strip().rstrip("/") for v in json.loads(texto)]
+            except json.JSONDecodeError:
+                texto = texto.strip("[]")
+        return [
+            v.strip().strip("\"'").rstrip("/")
+            for v in texto.replace(";", ",").split(",")
+            if v.strip().strip("\"'")
+        ]
 
     # Supabase Auth (errata E-05)
     supabase_url: str = ""
