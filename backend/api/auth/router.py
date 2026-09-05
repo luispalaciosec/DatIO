@@ -17,8 +17,17 @@ router = APIRouter(tags=["auth"])
 
 
 @router.get("/yo")
-async def yo(usuario: Annotated[UsuarioActual, Depends(usuario_actual)]) -> dict[str, Any]:
-    return {"email": usuario.email, "rol": usuario.rol, "cliente_id": usuario.cliente_id}
+async def yo(
+    usuario: Annotated[UsuarioActual, Depends(usuario_actual)],
+    repo: Annotated[RepositorioAuth, Depends(obtener_repo_auth)],
+) -> dict[str, Any]:
+    cliente = await repo.cliente_por_id(usuario.cliente_id) if usuario.cliente_id else None
+    return {
+        "email": usuario.email,
+        "rol": usuario.rol,
+        "cliente_id": usuario.cliente_id,
+        "slug": cliente.slug if cliente else None,
+    }
 
 
 @router.get("/mi/cuentas")

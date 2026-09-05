@@ -12,3 +12,6 @@ __pycache__/
 node_modules/
 dist/
 backend/google-sa.json
+.claude/launch.json
+frontend/.env
+frontend/dist/

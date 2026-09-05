@@ -43,7 +43,12 @@ async def test_usuario_no_registrado_403(http) -> None:  # type: ignore[no-untyp
 async def test_yo_deriva_cliente_del_token(http, cliente_a) -> None:  # type: ignore[no-untyped-def]
     r = await http.get("/yo", headers=_auth(cliente_a.email))
     assert r.status_code == 200
-    assert r.json() == {"email": cliente_a.email, "rol": "cliente", "cliente_id": cliente_a.id}
+    assert r.json() == {
+        "email": cliente_a.email,
+        "rol": "cliente",
+        "cliente_id": cliente_a.id,
+        "slug": cliente_a.slug,
+    }
 
 
 async def test_mis_cuentas_solo_devuelve_las_propias(http, cliente_a, cliente_b) -> None:  # type: ignore[no-untyped-def]

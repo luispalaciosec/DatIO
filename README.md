@@ -140,7 +140,7 @@ Estructura del monorepo:
 | Carpeta | Contenido |
 |---|---|
 | `backend/` | API FastAPI, ETL, conectores y tests (Python) |
-| `frontend/` | Renderer React + Vite white-label (arranca en la Ola 3, PT-09) |
+| `frontend/` | Renderer React + Vite white-label (PT-09/10) |
 | `sql/` | Esquema canónico, migraciones y seeds (compartido) |
 | `spec/` | Especificación |
 
@@ -161,6 +161,8 @@ Migraciones nuevas: `sql/0NN_<descripcion>.sql`, aplicadas con Supabase CLI o el
 | PT-05 Meta IG + FB | listo, **capturando** para Geeks Ecuador (piloto) | `backend/api/etl/conectores/meta_fb.py`, `meta_ig.py`, `meta_base.py` |
 | PT-06 Meta Ads | listo, capturando (cuenta piloto sin pauta activa) | `backend/api/etl/conectores/meta_ads.py` |
 | PT-08 Resolvedores | listo: `POST /consulta`, `GET /reportes/{slug}`, plantilla RRSS Full (`sql/seeds/plantilla_rrss.sql`) | `backend/api/consulta/`, `backend/api/resolvedores/` |
+| PT-09 Renderer y tema | listo: React + Vite, `TemaProvider`, grid 12 col, ruteo por slug/red/página, estados por bloque | `frontend/src/reporte/`, `frontend/src/tema/` |
+| PT-10 Bloques | listo: los 6 base + `distribucion_geo`; página Métricas de Banco Amazonas renderiza con datos reales | `frontend/src/bloques/` |
 | PT-04d/e LinkedIn + TikTok | puente Metricool: `POST /etl/importar/metricool` alimentado por una rutina de Claude con el MCP de Metricool | `backend/api/etl/conectores/metricool.py` |
 
 Notas de los conectores Meta (v21): Meta retiró impresiones y alcance a nivel página de
