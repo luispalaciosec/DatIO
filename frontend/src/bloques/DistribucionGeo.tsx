@@ -8,7 +8,7 @@ export function DistribucionGeo({ respuesta }: { respuesta: RespuestaConsulta<Fi
   }
   const max = Math.max(...respuesta.datos.map((f) => f.valor));
   return (
-    <div className="serie">
+    <div className="geo">
       {respuesta.datos.map((f) => (
         <div key={f.etiqueta} style={{ display: "grid", gridTemplateColumns: "160px 1fr 80px", gap: 8, alignItems: "center", fontSize: 13, marginBottom: 6 }}>
           <span>{f.etiqueta}</span>

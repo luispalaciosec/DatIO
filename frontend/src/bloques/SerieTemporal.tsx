@@ -28,6 +28,7 @@ export function SerieTemporal({ respuesta, provisional }: { respuesta: Respuesta
               strokeWidth={2}
               dot={false}
               connectNulls
+              isAnimationActive={false}
             />
           ))}
         </LineChart>

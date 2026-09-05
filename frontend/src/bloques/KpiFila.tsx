@@ -4,8 +4,8 @@ import type { Kpi, RespuestaConsulta } from "../lib/tipos";
 export function KpiFila({ respuesta, provisional }: { respuesta: RespuestaConsulta<Kpi[]>; provisional: boolean }) {
   return (
     <div className="kpis">
-      {respuesta.datos.map((k) => (
-        <div className="kpi" key={k.metrica}>
+      {respuesta.datos.map((k, i) => (
+        <div className={`kpi ${i < 2 ? "heroe" : ""} ${i === 1 ? "segundo" : ""}`} key={k.metrica}>
           <div className="etiqueta">{k.etiqueta}{provisional && <span className="provisional">provisional</span>}</div>
           <div className="valor">{formatearValor(k.valor, k.formato, k.decimales)}</div>
           <Delta delta={k.delta} anterior={k.anterior} formato={k.formato} />
