@@ -140,7 +140,7 @@ Estructura del monorepo:
 | Carpeta | Contenido |
 |---|---|
 | `backend/` | API FastAPI, ETL, conectores y tests (Python) |
-| `frontend/` | Renderer React + Vite white-label (PT-09/10) |
+| `frontend/` | Renderer React + Vite white-label (PT-09/10), desplegado en https://dat-io.vercel.app |
 | `sql/` | Esquema canónico, migraciones y seeds (compartido) |
 | `spec/` | Especificación |
 
