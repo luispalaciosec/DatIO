@@ -25,7 +25,7 @@ export function Entrar() {
   return (
     <div className="entrar">
       <div className="tarjeta">
-        <h1>DatIO</h1>
+        <img src="/marca/logo.svg" alt="DatIO" style={{ width: 180, marginBottom: 12 }} />
         <p>Reportería de redes sociales y pauta</p>
         <button className="primario" onClick={conGoogle}>Entrar con Google</button>
         <form onSubmit={conCorreo}>
