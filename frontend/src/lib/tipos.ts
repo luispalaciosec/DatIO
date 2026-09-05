@@ -30,6 +30,7 @@ export interface Pagina {
   titulo: string;
   orden: number;
   icono: string | null;
+  cuentas: number; // cuentas activas del cliente en esta red
   bloques: Bloque[];
 }
 

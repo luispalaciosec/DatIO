@@ -83,10 +83,8 @@ BEGIN
         (v_pagina, 'kpi_fila',        3, 12, jsonb_build_object('items', r.kpis)),
         (v_pagina, 'separador',       4, 12, '{}'),
         (v_pagina, 'titulo_seccion',  5, 12, '{"titulo":"Evolutivo de los KPIs más importantes"}'),
-        (v_pagina, 'serie_temporal',  6, 12, jsonb_build_object('granularidad', 'dia', 'series', r.series, 'mostrar_notas', true)),
-        (v_pagina, 'separador',       7, 12, '{}'),
-        (v_pagina, 'titulo_seccion',  8, 12, '{"titulo":"Distribución de seguidores por ciudad"}'),
-        (v_pagina, 'distribucion_geo', 9, 12, '{"dimension":"ciudad"}');
+        (v_pagina, 'serie_temporal',  6, 12, jsonb_build_object('granularidad', 'dia', 'series', r.series, 'mostrar_notas', true));
+        -- distribucion_geo se agrega cuando exista el conector de audiencia (demografía, Ola 2)
 
         IF r.plataforma <> 'ga4' THEN
             INSERT INTO reporte_paginas (plantilla_id, plataforma, slug, titulo, orden, icono)

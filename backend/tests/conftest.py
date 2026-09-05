@@ -14,6 +14,8 @@ os.environ.setdefault("SUPABASE_URL", "https://tests.supabase.co")
 os.environ.setdefault("CLAVE_CIFRADO", "clave-cifrado-solo-para-tests")
 os.environ.setdefault("CRON_SECRET", "cron-solo-para-tests")
 os.environ.setdefault("AMBIENTE", "test")
+os.environ.setdefault("PDF_SECRET", "pdf-secreto-solo-para-tests")
+os.environ.setdefault("FRONTEND_URL", "http://front.test")
 HAY_DB = bool(os.environ.get("DATABASE_URL"))
 os.environ.setdefault("DATABASE_URL", "postgresql://sin-base")
 

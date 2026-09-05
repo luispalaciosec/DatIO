@@ -161,6 +161,7 @@ async def test_estructura_reporte(http, cliente_a, cliente_b, reporte) -> None: 
     assert r.status_code == 200, r.text
     cuerpo = r.json()
     assert cuerpo["instancia_id"] == reporte["instancia"]
+    assert cuerpo["paginas"][0]["cuentas"] == 1
     assert cuerpo["tema"]["color_primario"] == "#C8102E"  # default sin fila en cliente_tema
     assert [b["tipo"] for b in cuerpo["paginas"][0]["bloques"]] == [
         "kpi_fila",

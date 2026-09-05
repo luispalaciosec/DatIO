@@ -38,6 +38,10 @@ class Configuracion(BaseSettings):
     # Railway Cron → POST /etl/correr
     cron_secret: str = ""
 
+    # Export PDF (PT-11): URL pública del frontend y secreto para los tokens de render
+    frontend_url: str = "http://localhost:5174"
+    pdf_secret: str = ""
+
     # Service Account de Google (GA4 + Search Console). JSON completo.
     google_service_account_json: str = ""
 

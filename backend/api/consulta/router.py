@@ -83,9 +83,11 @@ async def estructura_reporte(
     paginas = []
     for p in await repo.paginas(instancia.plantilla_id):
         bloques = await repo.bloques_de_pagina(instancia.id, p["id"])
+        cuentas = await repo.cuentas_de_pagina(instancia.cliente_id, p["plataforma"])
         paginas.append(
             {
                 **p,
+                "cuentas": len(cuentas),
                 "bloques": [
                     {
                         "id": b.id,

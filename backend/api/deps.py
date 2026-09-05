@@ -9,6 +9,7 @@ from fastapi import Depends, Header, HTTPException, Request, status
 from api.auth.repositorio import RepositorioAuth
 from api.auth.supabase import TokenInvalidoError, verificar_token
 from api.config import Configuracion
+from api.pdf.render import RenderInvalidoError, verificar_token_render
 
 
 def obtener_config_app(request: Request) -> Configuracion:
@@ -47,6 +48,15 @@ async def usuario_actual(
     try:
         claims = verificar_token(token, config)
     except TokenInvalidoError as e:
+        # Token de render (PT-11): lo emitió la propia API para Playwright, dura 5 minutos.
+        if config.pdf_secret:
+            try:
+                principal = verificar_token_render(token, config)
+                return UsuarioActual(
+                    email="render@datio", rol="cliente", cliente_id=principal.cliente_id
+                )
+            except RenderInvalidoError:
+                pass
         raise HTTPException(status.HTTP_401_UNAUTHORIZED, str(e)) from e
 
     email = str(claims.get("email") or "").lower()

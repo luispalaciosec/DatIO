@@ -31,6 +31,7 @@ export function Bloque({ reporte, pagina, bloque, rango }: {
 
   switch (bloque.tipo) {
     case "hero_banner":
+      if (document.body.classList.contains("modo-print")) return null; // la hoja ya lleva cabecera
       return <HeroBanner tema={reporte.tema} titulo={reporte.nombre_publico ?? reporte.tema.nombre} pagina={pagina} rango={rango} config={bloque.config} />;
     case "titulo_seccion":
       return <TituloSeccion config={bloque.config} />;

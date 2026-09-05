@@ -67,6 +67,7 @@ export function Reporte() {
             ))}
           </nav>
           <div className="acciones">
+            <BotonPdf slug={slug} rango={rango} />
             <button className="boton-redondo" title="Cerrar sesión" onClick={() => supabase.auth.signOut()}>⏻</button>
           </div>
         </header>
@@ -117,5 +118,29 @@ function SelectorRango({ rango, onChange }: { rango: Rango; onChange: (r: Rango)
       <span className="comparado">vs. período anterior</span>
       <button type="submit">Aplicar</button>
     </form>
+  );
+}
+
+function BotonPdf({ slug, rango }: { slug: string; rango: Rango }) {
+  const [estado, setEstado] = useState<"listo" | "generando" | "error">("listo");
+  async function descargar() {
+    setEstado("generando");
+    try {
+      const blob = await api.pdf(slug, rango);
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `${slug}_${rango.desde}_${rango.hasta}.pdf`;
+      a.click();
+      URL.revokeObjectURL(url);
+      setEstado("listo");
+    } catch {
+      setEstado("error");
+    }
+  }
+  return (
+    <button className="boton-pdf" onClick={descargar} disabled={estado === "generando"}>
+      {estado === "generando" ? "Generando PDF…" : estado === "error" ? "Error, reintentar" : "Descargar PDF"}
+    </button>
   );
 }

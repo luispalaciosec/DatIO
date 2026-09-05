@@ -9,7 +9,13 @@ export class ErrorApi extends Error {
   }
 }
 
+export function tokenRender(): string | null {
+  return new URLSearchParams(window.location.search).get("render");
+}
+
 async function token(): Promise<string> {
+  const render = tokenRender();
+  if (render) return render; // PT-11: Playwright abre la vista con un token emitido por la API
   const { data } = await supabase.auth.getSession();
   if (!data.session) throw new ErrorApi(401, "Sesión no iniciada");
   return data.session.access_token;
@@ -43,5 +49,13 @@ export const api = {
       method: "POST",
       body: JSON.stringify({ instancia_id, bloque_id, ...rango, comparar }),
     }),
+  pdf: async (slug: string, rango: Rango): Promise<Blob> => {
+    const q = new URLSearchParams({ desde: rango.desde, hasta: rango.hasta });
+    const r = await fetch(`${BASE}/reportes/${encodeURIComponent(slug)}/pdf?${q}`, {
+      headers: { Authorization: `Bearer ${await token()}` },
+    });
+    if (!r.ok) throw new ErrorApi(r.status, r.statusText);
+    return r.blob();
+  },
   yo: () => llamar<{ email: string; rol: string; cliente_id: number | null; slug: string | null }>("/yo"),
 };

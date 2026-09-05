@@ -11,6 +11,7 @@ from api.config import Configuracion, obtener_config
 from api.consulta.router import router as router_consulta
 from api.db import crear_pool
 from api.etl.router import router as router_etl
+from api.pdf.router import router as router_pdf
 
 
 def crear_app(config: Configuracion | None = None) -> FastAPI:
@@ -29,6 +30,7 @@ def crear_app(config: Configuracion | None = None) -> FastAPI:
     app.include_router(router_auth)
     app.include_router(router_etl)
     app.include_router(router_consulta)
+    app.include_router(router_pdf)
     app.add_middleware(
         CORSMiddleware,
         allow_origins=cfg.origenes_permitidos,

@@ -2,6 +2,8 @@ import { useEffect, useState } from "react";
 import { Navigate, Route, Routes, useLocation } from "react-router-dom";
 import type { Session } from "@supabase/supabase-js";
 import { supabase } from "./lib/supabase";
+import { tokenRender } from "./lib/api";
+import { Imprimir } from "./reporte/Imprimir";
 import { Entrar } from "./reporte/Entrar";
 import { Reporte } from "./reporte/Reporte";
 import { Inicio } from "./reporte/Inicio";
@@ -21,6 +23,14 @@ export function App() {
     document.body.classList.toggle("modo-print", print);
   }, [print]);
 
+  if (tokenRender()) {
+    return (
+      <Routes>
+        <Route path="/:slug/imprimir" element={<Imprimir />} />
+        <Route path="*" element={<Navigate to="/" replace />} />
+      </Routes>
+    );
+  }
   if (sesion === undefined) return null; // resolviendo sesión
   if (!sesion) return <Entrar />;
 
@@ -28,6 +38,7 @@ export function App() {
     <Routes>
       <Route path="/" element={<Inicio />} />
       <Route path="/:slug" element={<Reporte />} />
+      <Route path="/:slug/imprimir" element={<Imprimir />} />
       <Route path="/:slug/:plataforma/:pagina" element={<Reporte />} />
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>

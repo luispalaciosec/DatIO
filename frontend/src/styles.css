@@ -43,6 +43,8 @@ h1, h2, h3 { font-family: var(--fuente-titulos); font-weight: 300; letter-spacin
 .tabs a { padding: 9px 16px; border-radius: 999px; font-size: 14px; text-decoration: none; color: var(--gris-700); font-weight: 400; white-space: nowrap; }
 .tabs a.activa { background: var(--color-secundario); color: #fff; }
 .acciones { display: flex; gap: 8px; align-items: center; }
+.boton-pdf { padding: 9px 16px; border-radius: 999px; border: 0; background: var(--color-secundario); color: #fff; font: inherit; font-size: 13px; font-weight: 400; cursor: pointer; }
+.boton-pdf:disabled { opacity: .6; cursor: wait; }
 .boton-redondo { width: 40px; height: 40px; border-radius: 999px; border: 1px solid var(--gris-200); background: rgba(255,255,255,.75); display: grid; place-items: center; cursor: pointer; font-size: 14px; color: var(--gris-700); }
 
 /* Título y subpestañas */
@@ -128,3 +130,23 @@ table.publicaciones .num { text-align: right; font-variant-numeric: tabular-nums
 .modo-print .tabs, .modo-print .rango, .modo-print .acciones, .modo-print .subtabs { display: none; }
 .modo-print .bloque { break-inside: avoid; }
 @media print { .tabs, .rango, .acciones, .subtabs { display: none; } .lienzo { box-shadow: none; } }
+
+/* Vista de impresión (PT-11) */
+@page { size: A4 landscape; margin: 0; }
+.impresion { background: #fff; }
+.hoja { padding: 22px 28px 14px; break-after: page; page-break-after: always; display: flex; flex-direction: column; gap: 14px; }
+.hoja .titulo-seccion h3 { font-size: 22px; }
+.hoja .kpi { min-height: 140px; padding: 16px 18px; }
+.hoja .kpi .valor { font-size: 34px; }
+.hoja .serie .recharts-responsive-container { height: 230px !important; }
+.hoja:last-child { break-after: auto; page-break-after: auto; }
+.hoja-cabecera { display: flex; justify-content: space-between; align-items: center; gap: 16px; border-bottom: 1px solid var(--gris-200); padding-bottom: 12px; }
+.hoja-titulo h1 { margin: 0; font-size: 30px; font-weight: 200; text-align: right; }
+.hoja-titulo h1 small { font-size: 16px; font-weight: 300; color: var(--gris-500); margin-left: 8px; }
+.hoja-rango { text-align: right; font-size: 12px; color: var(--gris-500); }
+.hoja .grid { gap: 14px; }
+.hoja .kpi, .hoja .serie, .hoja .geo, .hoja .tabla { box-shadow: none; border: 1px solid var(--gris-200); }
+.hoja-pie { margin-top: 6px; display: flex; justify-content: space-between; align-items: center; font-size: 11px; color: var(--gris-500); border-top: 1px solid var(--gris-200); padding-top: 8px; }
+.pie-datio { display: inline-flex; align-items: center; gap: 6px; font-family: var(--fuente-titulos); font-weight: 400; color: var(--gris-700); }
+.pie-datio img { width: 16px; height: 16px; border-radius: 4px; }
+.modo-print .impresion .kpi.heroe { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
