@@ -36,6 +36,7 @@ function Selector() {
           <input placeholder="banco-amazonas" value={slug} onChange={(e) => setSlug(e.target.value)} />
           <button className="primario" type="submit">Abrir reporte</button>
         </form>
+        <button onClick={() => { window.location.href = "/admin"; }}>Administración</button>
         <button onClick={() => supabase.auth.signOut()}>Salir</button>
       </div>
     </div>

@@ -6,6 +6,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 
+from api.admin.router import router as router_admin
 from api.auth.router import router as router_auth
 from api.config import Configuracion, obtener_config
 from api.consulta.router import router as router_consulta
@@ -31,10 +32,11 @@ def crear_app(config: Configuracion | None = None) -> FastAPI:
     app.include_router(router_etl)
     app.include_router(router_consulta)
     app.include_router(router_pdf)
+    app.include_router(router_admin)
     app.add_middleware(
         CORSMiddleware,
         allow_origins=cfg.origenes_permitidos,
-        allow_methods=["GET", "POST"],
+        allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE"],
         allow_headers=["Authorization", "Content-Type", "X-Cron-Secret"],
     )
 

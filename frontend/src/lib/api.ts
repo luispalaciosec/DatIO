@@ -1,5 +1,7 @@
 import { supabase } from "./supabase";
-import type { Rango, Reporte, RespuestaConsulta } from "./tipos";
+import type {
+  Captura, Catalogos, ClienteAdmin, ClienteDetalle, Rango, Reporte, RespuestaConsulta, TemaAdmin, UsuarioAdmin,
+} from "./tipos";
 
 const BASE = import.meta.env.VITE_API_URL as string;
 
@@ -56,6 +58,27 @@ export const api = {
     });
     if (!r.ok) throw new ErrorApi(r.status, r.statusText);
     return r.blob();
+  },
+  admin: {
+    clientes: () => llamar<ClienteAdmin[]>("/admin/clientes"),
+    cliente: (id: number) => llamar<ClienteDetalle>(`/admin/clientes/${id}`),
+    crearCliente: (cuerpo: { nombre: string; slug: string; sector?: string | null }) =>
+      llamar<{ id: number; slug: string }>("/admin/clientes", { method: "POST", body: JSON.stringify(cuerpo) }),
+    editarCliente: (id: number, cuerpo: Partial<{ nombre: string; sector: string | null; activo: boolean }>) =>
+      llamar<ClienteAdmin>(`/admin/clientes/${id}`, { method: "PATCH", body: JSON.stringify(cuerpo) }),
+    guardarTema: (id: number, cuerpo: Partial<TemaAdmin>) =>
+      llamar<TemaAdmin>(`/admin/clientes/${id}/tema`, { method: "PUT", body: JSON.stringify(cuerpo) }),
+    crearCuenta: (id: number, cuerpo: { plataforma: string; id_externo: string; nombre_cuenta?: string; credencial?: string }) =>
+      llamar<{ id: number }>(`/admin/clientes/${id}/cuentas`, { method: "POST", body: JSON.stringify(cuerpo) }),
+    editarCuenta: (id: number, cuerpo: { nombre_cuenta?: string; activo?: boolean; credencial?: string }) =>
+      llamar<{ estado: string }>(`/admin/cuentas/${id}`, { method: "PATCH", body: JSON.stringify(cuerpo) }),
+    guardarUsuario: (cuerpo: { email: string; rol: "cliente" | "equipo"; cliente_id?: number | null }) =>
+      llamar<{ email: string }>("/admin/usuarios", { method: "POST", body: JSON.stringify(cuerpo) }),
+    desactivarUsuario: (email: string) =>
+      llamar<{ estado: string }>(`/admin/usuarios/${encodeURIComponent(email)}`, { method: "DELETE" }),
+    usuarios: () => llamar<UsuarioAdmin[]>("/admin/usuarios"),
+    catalogos: () => llamar<Catalogos>("/admin/catalogos"),
+    capturas: (limite = 50) => llamar<Captura[]>(`/admin/capturas?limite=${limite}`),
   },
   yo: () => llamar<{ email: string; rol: string; cliente_id: number | null; slug: string | null }>("/yo"),
 };

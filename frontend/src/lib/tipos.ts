@@ -87,3 +87,79 @@ export interface Rango {
   desde: string; // AAAA-MM-DD
   hasta: string;
 }
+
+// ---- administración ----------------------------------------------------------
+
+export interface ClienteAdmin {
+  id: number;
+  nombre: string;
+  slug: string;
+  sector: string | null;
+  activo: boolean;
+  creado_en: string;
+  cuentas: number;
+  usuarios: number;
+  slug_publico: string | null;
+  color_primario: string | null;
+  logo_url: string | null;
+}
+
+export interface TemaAdmin {
+  logo_url: string | null;
+  banner_url: string | null;
+  color_primario: string;
+  color_secundario: string;
+  color_acento: string;
+  fuente_titulos: string;
+  fuente_cuerpo: string;
+  modo_oscuro: boolean;
+}
+
+export interface CuentaAdmin {
+  id: number;
+  plataforma: string;
+  plataforma_nombre: string;
+  id_externo: string;
+  nombre_cuenta: string | null;
+  activo: boolean;
+  tiene_credencial: boolean;
+  ultima_captura: string | null;
+}
+
+export interface UsuarioAdmin {
+  email: string;
+  rol: "cliente" | "equipo";
+  cliente_id: number | null;
+  cliente_nombre: string | null;
+  activo: boolean;
+}
+
+export interface ClienteDetalle {
+  id: number;
+  nombre: string;
+  slug: string;
+  sector: string | null;
+  activo: boolean;
+  tema: TemaAdmin;
+  cuentas: CuentaAdmin[];
+  usuarios: UsuarioAdmin[];
+}
+
+export interface Catalogos {
+  plataformas: Array<{ codigo: string; nombre: string }>;
+  plantillas: Array<{ id: number; nombre: string; descripcion: string | null }>;
+  sectores: string[];
+}
+
+export interface Captura {
+  id: number;
+  conector: string;
+  cuenta_id: number | null;
+  cliente: string | null;
+  nombre_cuenta: string | null;
+  estado: string;
+  filas_escritas: number;
+  error_detalle: string | null;
+  iniciado_en: string;
+  finalizado_en: string | null;
+}

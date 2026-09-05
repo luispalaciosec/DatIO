@@ -164,6 +164,7 @@ Migraciones nuevas: `sql/0NN_<descripcion>.sql`, aplicadas con Supabase CLI o el
 | PT-09 Renderer y tema | listo: React + Vite, `TemaProvider`, grid 12 col, ruteo por slug/red/página, estados por bloque | `frontend/src/reporte/`, `frontend/src/tema/` |
 | PT-10 Bloques | listo: los 6 base + `distribucion_geo`; página Métricas de Banco Amazonas renderiza con datos reales | `frontend/src/bloques/` |
 | PT-11 Export PDF | listo: `GET /reportes/{slug}/pdf?desde&hasta`, Playwright sobre `/{slug}/imprimir?modo=print` con token de render de 5 min; botón Descargar PDF | `backend/api/pdf/`, `frontend/src/reporte/Imprimir.tsx` |
+| Administración | listo (fuera de spec, documentado): `/admin` para rol equipo — clientes, marca (logo/banner a Supabase Storage, bucket `marcas`), cuentas con token cifrado, usuarios, capturas | `backend/api/admin/`, `frontend/src/admin/`, `sql/003_storage_marcas.sql` |
 | PT-04d/e LinkedIn + TikTok | puente Metricool: `POST /etl/importar/metricool` alimentado por una rutina de Claude con el MCP de Metricool | `backend/api/etl/conectores/metricool.py` |
 
 Notas de los conectores Meta (v21): Meta retiró impresiones y alcance a nivel página de

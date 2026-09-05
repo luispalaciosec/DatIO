@@ -7,6 +7,7 @@ import { Imprimir } from "./reporte/Imprimir";
 import { Entrar } from "./reporte/Entrar";
 import { Reporte } from "./reporte/Reporte";
 import { Inicio } from "./reporte/Inicio";
+import { Admin } from "./admin/Admin";
 
 export function App() {
   const [sesion, setSesion] = useState<Session | null | undefined>(undefined);
@@ -37,6 +38,7 @@ export function App() {
   return (
     <Routes>
       <Route path="/" element={<Inicio />} />
+      <Route path="/admin/*" element={<Admin />} />
       <Route path="/:slug" element={<Reporte />} />
       <Route path="/:slug/imprimir" element={<Imprimir />} />
       <Route path="/:slug/:plataforma/:pagina" element={<Reporte />} />
