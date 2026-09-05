@@ -166,8 +166,9 @@ Facebook; quedan a nivel publicación. En Instagram `impressions` fue reemplazad
 y las métricas de cuenta solo salen como `total_value`, por lo que se consulta un día por
 llamada. Los tokens de System User van cifrados en `cuentas_conectadas` con `appsecret_proof`.
 
-Captura diaria: Railway Cron a las 06:00 (America/Guayaquil) hace
-`POST /etl/correr` con el header `X-Cron-Secret`.
+Captura diaria: en Railway, un segundo servicio del mismo repo (root `backend/`) con
+`Cron Schedule = 0 11 * * *` (06:00 Ecuador) y Start Command `python -m api.etl.cli`.
+El endpoint `POST /etl/correr` con header `X-Cron-Secret` queda para disparos manuales.
 
 Luego abrir `spec/06-paquetes-de-trabajo.md` y arrancar PT-01.
 
