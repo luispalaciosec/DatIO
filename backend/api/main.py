@@ -4,9 +4,11 @@ from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, Request
+from fastapi.middleware.cors import CORSMiddleware
 
 from api.auth.router import router as router_auth
 from api.config import Configuracion, obtener_config
+from api.consulta.router import router as router_consulta
 from api.db import crear_pool
 from api.etl.router import router as router_etl
 
@@ -26,6 +28,13 @@ def crear_app(config: Configuracion | None = None) -> FastAPI:
     app = FastAPI(title="DatIO", version="0.1.0", lifespan=ciclo_de_vida)
     app.include_router(router_auth)
     app.include_router(router_etl)
+    app.include_router(router_consulta)
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=cfg.origenes_permitidos,
+        allow_methods=["GET", "POST"],
+        allow_headers=["Authorization", "Content-Type", "X-Cron-Secret"],
+    )
 
     @app.get("/health")
     async def health(request: Request) -> dict[str, str]:

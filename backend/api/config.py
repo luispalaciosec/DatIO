@@ -23,6 +23,11 @@ class Configuracion(BaseSettings):
     zona_horaria: str = "America/Guayaquil"
     ventana_resync_dias: int = 28
 
+    # CORS del frontend (lista JSON en el ambiente: ORIGENES_PERMITIDOS)
+    origenes_permitidos: list[str] = Field(
+        default_factory=lambda: ["http://localhost:5173", "https://datio.vercel.app"]
+    )
+
     # Supabase Auth (errata E-05)
     supabase_url: str = ""
     supabase_jwt_secret: str = ""

@@ -160,6 +160,7 @@ Migraciones nuevas: `sql/0NN_<descripcion>.sql`, aplicadas con Supabase CLI o el
 | PT-04 GA4 + GSC | listo, **capturando** para geeks.com.ec (piloto) | `backend/api/etl/conectores/ga4.py`, `gsc.py` |
 | PT-05 Meta IG + FB | listo, **capturando** para Geeks Ecuador (piloto) | `backend/api/etl/conectores/meta_fb.py`, `meta_ig.py`, `meta_base.py` |
 | PT-06 Meta Ads | listo, capturando (cuenta piloto sin pauta activa) | `backend/api/etl/conectores/meta_ads.py` |
+| PT-08 Resolvedores | listo: `POST /consulta`, `GET /reportes/{slug}`, plantilla RRSS Full (`sql/seeds/plantilla_rrss.sql`) | `backend/api/consulta/`, `backend/api/resolvedores/` |
 | PT-04d/e LinkedIn + TikTok | puente Metricool: `POST /etl/importar/metricool` alimentado por una rutina de Claude con el MCP de Metricool | `backend/api/etl/conectores/metricool.py` |
 
 Notas de los conectores Meta (v21): Meta retiró impresiones y alcance a nivel página de
