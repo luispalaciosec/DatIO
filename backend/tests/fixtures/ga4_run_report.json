@@ -1,0 +1,33 @@
+{
+  "dimensionHeaders": [{"name": "date"}],
+  "metricHeaders": [
+    {"name": "sessions", "type": "TYPE_INTEGER"},
+    {"name": "activeUsers", "type": "TYPE_INTEGER"},
+    {"name": "newUsers", "type": "TYPE_INTEGER"},
+    {"name": "totalUsers", "type": "TYPE_INTEGER"},
+    {"name": "screenPageViews", "type": "TYPE_INTEGER"},
+    {"name": "bounceRate", "type": "TYPE_FLOAT"},
+    {"name": "engagementRate", "type": "TYPE_FLOAT"},
+    {"name": "averageSessionDuration", "type": "TYPE_SECONDS"},
+    {"name": "keyEvents", "type": "TYPE_FLOAT"}
+  ],
+  "rows": [
+    {
+      "dimensionValues": [{"value": "20260901"}],
+      "metricValues": [
+        {"value": "1250"}, {"value": "980"}, {"value": "410"}, {"value": "1010"},
+        {"value": "3320"}, {"value": "0.4212"}, {"value": "0.5788"}, {"value": "84.5"}, {"value": "17"}
+      ]
+    },
+    {
+      "dimensionValues": [{"value": "20260902"}],
+      "metricValues": [
+        {"value": "1310"}, {"value": "1020"}, {"value": "455"}, {"value": "1055"},
+        {"value": "3501"}, {"value": "0.39"}, {"value": "0.61"}, {"value": "90.1"}, {"value": "21"}
+      ]
+    }
+  ],
+  "rowCount": 2,
+  "metadata": {"currencyCode": "USD", "timeZone": "America/Guayaquil"},
+  "kind": "analyticsData#runReport"
+}

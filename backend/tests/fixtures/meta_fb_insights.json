@@ -1,0 +1,26 @@
+[{"tipo": "insights", "data": [
+  {"name": "page_follows", "period": "day", "values": [
+    {"value": 15450, "end_time": "2026-09-02T07:00:00+0000"},
+    {"value": 15451, "end_time": "2026-09-03T07:00:00+0000"}]},
+  {"name": "page_daily_follows", "period": "day", "values": [
+    {"value": 3, "end_time": "2026-09-02T07:00:00+0000"},
+    {"value": 1, "end_time": "2026-09-03T07:00:00+0000"}]},
+  {"name": "page_daily_unfollows", "period": "day", "values": [
+    {"value": 1, "end_time": "2026-09-02T07:00:00+0000"},
+    {"value": 0, "end_time": "2026-09-03T07:00:00+0000"}]},
+  {"name": "page_post_engagements", "period": "day", "values": [
+    {"value": 12, "end_time": "2026-09-02T07:00:00+0000"},
+    {"value": 0, "end_time": "2026-09-03T07:00:00+0000"}]},
+  {"name": "page_views_total", "period": "day", "values": [
+    {"value": 9, "end_time": "2026-09-02T07:00:00+0000"},
+    {"value": 4, "end_time": "2026-09-03T07:00:00+0000"}]},
+  {"name": "page_video_views", "period": "day", "values": [
+    {"value": 30, "end_time": "2026-09-02T07:00:00+0000"},
+    {"value": 1, "end_time": "2026-09-03T07:00:00+0000"}]},
+  {"name": "page_actions_post_reactions_total", "period": "day", "values": [
+    {"value": {"like": 7, "love": 2, "wow": 1}, "end_time": "2026-09-02T07:00:00+0000"},
+    {"value": {}, "end_time": "2026-09-03T07:00:00+0000"}]},
+  {"name": "page_total_actions", "period": "day", "values": [
+    {"value": 2, "end_time": "2026-09-02T07:00:00+0000"},
+    {"value": 0, "end_time": "2026-09-03T07:00:00+0000"}]}
+]}]

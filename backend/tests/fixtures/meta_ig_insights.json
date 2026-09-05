@@ -1,0 +1,25 @@
+[
+  {"tipo": "dia", "fecha": "2026-09-01", "data": [
+    {"name": "reach", "period": "day", "total_value": {"value": 9}},
+    {"name": "views", "period": "day", "total_value": {"value": 13}},
+    {"name": "profile_views", "period": "day", "total_value": {"value": 5}},
+    {"name": "website_clicks", "period": "day", "total_value": {"value": 0}},
+    {"name": "accounts_engaged", "period": "day", "total_value": {"value": 1}},
+    {"name": "total_interactions", "period": "day", "total_value": {"value": 2}},
+    {"name": "likes", "period": "day", "total_value": {"value": 0}},
+    {"name": "comments", "period": "day", "total_value": {"value": 0}},
+    {"name": "shares", "period": "day", "total_value": {"value": 1}},
+    {"name": "saves", "period": "day", "total_value": {"value": 0}}]},
+  {"tipo": "dia", "fecha": "2026-09-02", "data": [
+    {"name": "reach", "period": "day", "total_value": {"value": 16}},
+    {"name": "views", "period": "day", "total_value": {"value": 23}},
+    {"name": "profile_views", "period": "day", "total_value": {"value": 3}},
+    {"name": "website_clicks", "period": "day", "total_value": {"value": 0}},
+    {"name": "accounts_engaged", "period": "day", "total_value": {"value": 0}},
+    {"name": "total_interactions", "period": "day", "total_value": {"value": 0}},
+    {"name": "likes", "period": "day", "total_value": {"value": 0}},
+    {"name": "comments", "period": "day", "total_value": {"value": 0}},
+    {"name": "shares", "period": "day", "total_value": {"value": 0}},
+    {"name": "saves", "period": "day", "total_value": {"value": 0}}]},
+  {"tipo": "perfil", "fecha": "2026-09-02", "data": {"followers_count": 3518, "media_count": 422, "id": "17841400820950123"}}
+]

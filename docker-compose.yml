@@ -1,0 +1,36 @@
+# Arranque local para quien tenga Docker. En Supabase el esquema se aplica con
+# las migraciones de sql/ (ver README §Arranque).
+services:
+  db:
+    image: postgres:17
+    environment:
+      POSTGRES_USER: datio
+      POSTGRES_PASSWORD: datio
+      POSTGRES_DB: datio
+    ports: ["5432:5432"]
+    volumes:
+      - ./sql/001_schema_inicial.sql:/docker-entrypoint-initdb.d/001_schema_inicial.sql:ro
+      - ./sql/002_usuarios_llm_uso.sql:/docker-entrypoint-initdb.d/002_usuarios_llm_uso.sql:ro
+      - ./sql/seeds/metricas.sql:/docker-entrypoint-initdb.d/900_seed_metricas.sql:ro
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U datio"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  api:
+    build: ./backend
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgresql://datio:datio@db:5432/datio
+      AMBIENTE: desarrollo
+    env_file:
+      - path: backend/.env
+        required: false
+    ports: ["8000:8000"]
+
+volumes:
+  pgdata:

@@ -1,0 +1,179 @@
+-- PT-02: poblar dim_metrica y map_metrica_plataforma.
+-- Ver spec/03-capa-presentacion.md, seccion de capa semantica, y spec/01 §3.4.
+-- Idempotente: ON CONFLICT DO UPDATE. Se puede correr las veces que haga falta.
+--
+-- Convenciones:
+--  * unidad: 'conteo' | 'porcentaje' (0-100) | 'moneda' (USD) | 'segundos' | 'posicion'
+--  * agregacion: 'suma' | 'promedio' | 'ultimo' | 'maximo'
+--  * es_acumulada TRUE = valor lifetime (seguidores). proyectable FALSE = ratios volátiles.
+--  * factor en el mapeo normaliza unidades: ratios 0-1 → ×100, micros → ×0.000001,
+--    minutos → ×60.
+
+-- ---------------------------------------------------------------------------
+-- dim_metrica — diccionario canónico
+-- ---------------------------------------------------------------------------
+INSERT INTO dim_metrica (codigo, nombre_es, unidad, agregacion, es_acumulada, proyectable, categoria) VALUES
+-- AUDIENCIA
+('seguidores',                'Seguidores',                        'conteo',     'ultimo',   TRUE,  TRUE,  'audiencia'),
+('seguidores_nuevos',         'Seguidores nuevos',                 'conteo',     'suma',     FALSE, TRUE,  'audiencia'),
+('seguidores_perdidos',       'Seguidores perdidos',               'conteo',     'suma',     FALSE, TRUE,  'audiencia'),
+('alcance',                   'Alcance',                           'conteo',     'suma',     FALSE, TRUE,  'audiencia'),
+('impresiones',               'Impresiones',                       'conteo',     'suma',     FALSE, TRUE,  'audiencia'),
+('visitas_perfil',            'Visitas al perfil',                 'conteo',     'suma',     FALSE, TRUE,  'audiencia'),
+('cuentas_con_interaccion',   'Cuentas que interactuaron',         'conteo',     'suma',     FALSE, TRUE,  'audiencia'),
+('frecuencia',                'Frecuencia',                        'conteo',     'promedio', FALSE, FALSE, 'audiencia'),
+-- CONTENIDO
+('interacciones',             'Interacciones',                     'conteo',     'suma',     FALSE, TRUE,  'contenido'),
+('me_gusta',                  'Me gusta',                          'conteo',     'suma',     FALSE, TRUE,  'contenido'),
+('comentarios',               'Comentarios',                       'conteo',     'suma',     FALSE, TRUE,  'contenido'),
+('compartidos',               'Compartidos',                       'conteo',     'suma',     FALSE, TRUE,  'contenido'),
+('guardados',                 'Guardados',                         'conteo',     'suma',     FALSE, TRUE,  'contenido'),
+('clics',                     'Clics',                             'conteo',     'suma',     FALSE, TRUE,  'contenido'),
+('clics_enlace',              'Clics en enlace',                   'conteo',     'suma',     FALSE, TRUE,  'contenido'),
+('clics_sitio_web',           'Clics al sitio web',                'conteo',     'suma',     FALSE, TRUE,  'contenido'),
+('tasa_engagement',           'Tasa de engagement',                'porcentaje', 'promedio', FALSE, FALSE, 'contenido'),
+('reproducciones_video',      'Reproducciones de video',           'conteo',     'suma',     FALSE, TRUE,  'contenido'),
+('tiempo_visualizacion_seg',  'Tiempo de visualización',           'segundos',   'suma',     FALSE, TRUE,  'contenido'),
+('duracion_vista_promedio_seg','Duración promedio de vista',       'segundos',   'promedio', FALSE, FALSE, 'contenido'),
+('publicaciones',             'Publicaciones',                     'conteo',     'suma',     FALSE, TRUE,  'contenido'),
+('visualizaciones_pagina',    'Visualizaciones de la página',      'conteo',     'suma',     FALSE, TRUE,  'contenido'),
+-- PAUTA
+('inversion',                 'Inversión',                         'moneda',     'suma',     FALSE, TRUE,  'pauta'),
+('cpm',                       'CPM',                               'moneda',     'promedio', FALSE, FALSE, 'pauta'),
+('cpc',                       'CPC',                               'moneda',     'promedio', FALSE, FALSE, 'pauta'),
+('ctr',                       'CTR',                               'porcentaje', 'promedio', FALSE, FALSE, 'pauta'),
+('conversiones',              'Conversiones',                      'conteo',     'suma',     FALSE, TRUE,  'pauta'),
+('costo_por_conversion',      'Costo por conversión',              'moneda',     'promedio', FALSE, FALSE, 'pauta'),
+('valor_conversiones',        'Valor de conversiones',             'moneda',     'suma',     FALSE, TRUE,  'pauta'),
+('roas',                      'ROAS',                              'porcentaje', 'promedio', FALSE, FALSE, 'pauta'),
+('clics_pauta',               'Clics de pauta',                    'conteo',     'suma',     FALSE, TRUE,  'pauta'),
+('impresiones_pauta',         'Impresiones de pauta',              'conteo',     'suma',     FALSE, TRUE,  'pauta'),
+('alcance_pauta',             'Alcance de pauta',                  'conteo',     'suma',     FALSE, TRUE,  'pauta'),
+-- WEB
+('sesiones',                  'Sesiones',                          'conteo',     'suma',     FALSE, TRUE,  'web'),
+('usuarios_activos',          'Usuarios activos',                  'conteo',     'suma',     FALSE, TRUE,  'web'),
+('usuarios_nuevos',           'Usuarios nuevos',                   'conteo',     'suma',     FALSE, TRUE,  'web'),
+('usuarios_totales',          'Usuarios totales',                  'conteo',     'suma',     FALSE, TRUE,  'web'),
+('paginas_vistas',            'Páginas vistas',                    'conteo',     'suma',     FALSE, TRUE,  'web'),
+('tasa_rebote',               'Tasa de rebote',                    'porcentaje', 'promedio', FALSE, FALSE, 'web'),
+('tasa_interaccion_web',      'Tasa de interacción web',           'porcentaje', 'promedio', FALSE, FALSE, 'web'),
+('duracion_sesion_promedio_seg','Duración promedio de sesión',     'segundos',   'promedio', FALSE, FALSE, 'web'),
+('conversiones_web',          'Conversiones web',                  'conteo',     'suma',     FALSE, TRUE,  'web'),
+('clics_busqueda',            'Clics desde búsqueda',              'conteo',     'suma',     FALSE, TRUE,  'web'),
+('impresiones_busqueda',      'Impresiones en búsqueda',           'conteo',     'suma',     FALSE, TRUE,  'web'),
+('ctr_busqueda',              'CTR en búsqueda',                   'porcentaje', 'promedio', FALSE, FALSE, 'web'),
+('posicion_promedio',         'Posición promedio',                 'posicion',   'promedio', FALSE, FALSE, 'web')
+ON CONFLICT (codigo) DO UPDATE SET
+    nombre_es    = EXCLUDED.nombre_es,
+    unidad       = EXCLUDED.unidad,
+    agregacion   = EXCLUDED.agregacion,
+    es_acumulada = EXCLUDED.es_acumulada,
+    proyectable  = EXCLUDED.proyectable,
+    categoria    = EXCLUDED.categoria;
+
+-- ---------------------------------------------------------------------------
+-- map_metrica_plataforma — equivalencias por red
+-- ---------------------------------------------------------------------------
+INSERT INTO map_metrica_plataforma (plataforma, metrica_nativa, metrica_codigo, factor) VALUES
+-- Instagram (Graph API insights, nivel cuenta)
+('meta_ig', 'reach',                     'alcance',                 1),
+('meta_ig', 'impressions',               'impresiones',             1),
+('meta_ig', 'views',                     'impresiones',             1),
+('meta_ig', 'follower_count',            'seguidores_nuevos',       1),
+('meta_ig', 'followers_count',           'seguidores',              1),
+('meta_ig', 'total_interactions',        'interacciones',           1),
+('meta_ig', 'likes',                     'me_gusta',                1),
+('meta_ig', 'comments',                  'comentarios',             1),
+('meta_ig', 'shares',                    'compartidos',             1),
+('meta_ig', 'saves',                     'guardados',               1),
+('meta_ig', 'profile_views',             'visitas_perfil',          1),
+('meta_ig', 'website_clicks',            'clics_sitio_web',         1),
+('meta_ig', 'accounts_engaged',          'cuentas_con_interaccion', 1),
+('meta_ig', 'media_count',               'publicaciones',           1),
+-- Facebook (Page insights)
+('meta_fb', 'page_impressions',          'impresiones',             1),
+('meta_fb', 'page_impressions_unique',   'alcance',                 1),
+('meta_fb', 'page_fans',                 'seguidores',              1),
+('meta_fb', 'page_follows',              'seguidores',              1),
+('meta_fb', 'page_daily_follows',        'seguidores_nuevos',       1),
+('meta_fb', 'page_daily_unfollows',      'seguidores_perdidos',     1),
+('meta_fb', 'page_post_engagements',     'interacciones',           1),
+('meta_fb', 'page_views_total',          'visualizaciones_pagina',  1),
+('meta_fb', 'page_video_views',          'reproducciones_video',    1),
+('meta_fb', 'page_actions_post_reactions_total', 'me_gusta',        1),
+('meta_fb', 'page_total_actions',        'clics',                   1),
+-- Meta Ads (Insights API). ctr ya viene 0-100.
+('meta_ads', 'impressions',              'impresiones_pauta',       1),
+('meta_ads', 'reach',                    'alcance_pauta',           1),
+('meta_ads', 'clicks',                   'clics_pauta',             1),
+('meta_ads', 'inline_link_clicks',       'clics_enlace',            1),
+('meta_ads', 'spend',                    'inversion',               1),
+('meta_ads', 'cpm',                      'cpm',                     1),
+('meta_ads', 'cpc',                      'cpc',                     1),
+('meta_ads', 'ctr',                      'ctr',                     1),
+('meta_ads', 'frequency',                'frecuencia',              1),
+('meta_ads', 'conversions',              'conversiones',            1),
+('meta_ads', 'cost_per_conversion',      'costo_por_conversion',    1),
+('meta_ads', 'conversion_values',        'valor_conversiones',      1),
+('meta_ads', 'purchase_roas',            'roas',                    100),
+('meta_ads', 'video_play_actions',       'reproducciones_video',    1),
+-- TikTok (Business API). video_views cuenta como impresiones (spec/01 §3.4).
+('tiktok', 'video_views',                'impresiones',             1),
+('tiktok', 'reach',                      'alcance',                 1),
+('tiktok', 'likes',                      'me_gusta',                1),
+('tiktok', 'comments',                   'comentarios',             1),
+('tiktok', 'shares',                     'compartidos',             1),
+('tiktok', 'follower_count',             'seguidores',              1),
+('tiktok', 'new_followers',              'seguidores_nuevos',       1),
+('tiktok', 'profile_views',              'visitas_perfil',          1),
+('tiktok', 'engagement',                 'interacciones',           1),
+-- LinkedIn (Pages / organizationalEntityShareStatistics). engagement viene 0-1.
+('linkedin', 'impressionCount',          'impresiones',             1),
+('linkedin', 'uniqueImpressionsCount',   'alcance',                 1),
+('linkedin', 'likeCount',                'me_gusta',                1),
+('linkedin', 'commentCount',             'comentarios',             1),
+('linkedin', 'shareCount',               'compartidos',             1),
+('linkedin', 'clickCount',               'clics',                   1),
+('linkedin', 'engagement',               'tasa_engagement',         100),
+('linkedin', 'followerCount',            'seguidores',              1),
+('linkedin', 'followerGains',            'seguidores_nuevos',       1),
+-- YouTube (Analytics API). views cuenta como impresiones. Minutos → segundos.
+('youtube', 'views',                     'impresiones',             1),
+('youtube', 'likes',                     'me_gusta',                1),
+('youtube', 'comments',                  'comentarios',             1),
+('youtube', 'shares',                    'compartidos',             1),
+('youtube', 'subscribersGained',         'seguidores_nuevos',       1),
+('youtube', 'subscribersLost',           'seguidores_perdidos',     1),
+('youtube', 'subscriberCount',           'seguidores',              1),
+('youtube', 'estimatedMinutesWatched',   'tiempo_visualizacion_seg', 60),
+('youtube', 'averageViewDuration',       'duracion_vista_promedio_seg', 1),
+-- GA4 (Data API). Ratios vienen 0-1 → ×100.
+('ga4', 'sessions',                      'sesiones',                1),
+('ga4', 'activeUsers',                   'usuarios_activos',        1),
+('ga4', 'newUsers',                      'usuarios_nuevos',         1),
+('ga4', 'totalUsers',                    'usuarios_totales',        1),
+('ga4', 'screenPageViews',               'paginas_vistas',          1),
+('ga4', 'bounceRate',                    'tasa_rebote',             100),
+('ga4', 'engagementRate',                'tasa_interaccion_web',    100),
+('ga4', 'averageSessionDuration',        'duracion_sesion_promedio_seg', 1),
+('ga4', 'conversions',                   'conversiones_web',        1),
+('ga4', 'keyEvents',                     'conversiones_web',        1),
+-- Search Console. ctr viene 0-1 → ×100.
+('gsc', 'clicks',                        'clics_busqueda',          1),
+('gsc', 'impressions',                   'impresiones_busqueda',    1),
+('gsc', 'ctr',                           'ctr_busqueda',            100),
+('gsc', 'position',                      'posicion_promedio',       1),
+-- Google Ads (GAQL). Micros → unidades; ctr viene 0-1.
+('google_ads', 'metrics.impressions',    'impresiones_pauta',       1),
+('google_ads', 'metrics.clicks',         'clics_pauta',             1),
+('google_ads', 'metrics.cost_micros',    'inversion',               0.000001),
+('google_ads', 'metrics.average_cpc',    'cpc',                     0.000001),
+('google_ads', 'metrics.average_cpm',    'cpm',                     0.000001),
+('google_ads', 'metrics.ctr',            'ctr',                     100),
+('google_ads', 'metrics.conversions',    'conversiones',            1),
+('google_ads', 'metrics.cost_per_conversion', 'costo_por_conversion', 0.000001),
+('google_ads', 'metrics.conversions_value', 'valor_conversiones',   1),
+('google_ads', 'metrics.video_views',    'reproducciones_video',    1)
+ON CONFLICT (plataforma, metrica_nativa) DO UPDATE SET
+    metrica_codigo = EXCLUDED.metrica_codigo,
+    factor         = EXCLUDED.factor;

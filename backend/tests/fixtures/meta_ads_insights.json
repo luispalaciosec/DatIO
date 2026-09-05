@@ -1,0 +1,13 @@
+[{"tipo": "insights", "data": [
+  {"date_start": "2026-09-01", "date_stop": "2026-09-01",
+   "impressions": "12500", "reach": "9800", "clicks": "210", "inline_link_clicks": "150",
+   "spend": "48.75", "cpm": "3.9", "cpc": "0.232143", "ctr": "1.68", "frequency": "1.275510",
+   "conversions": [{"action_type": "purchase", "value": "4"}, {"action_type": "lead", "value": "6"}],
+   "conversion_values": [{"action_type": "purchase", "value": "320.5"}],
+   "cost_per_conversion": [{"action_type": "purchase", "value": "12.1875"}],
+   "purchase_roas": [{"action_type": "omni_purchase", "value": "6.574359"}],
+   "video_play_actions": [{"action_type": "video_view", "value": "800"}]},
+  {"date_start": "2026-09-02", "date_stop": "2026-09-02",
+   "impressions": "9000", "reach": "7100", "clicks": "140", "inline_link_clicks": "95",
+   "spend": "31.20", "cpm": "3.466667", "cpc": "0.222857", "ctr": "1.555556", "frequency": "1.267606"}
+]}]
