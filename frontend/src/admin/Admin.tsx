@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Link, Route, Routes, useNavigate } from "react-router-dom";
+import { Link, useLocation, useNavigate, useParams } from "react-router-dom";
 import { api, ErrorApi } from "../lib/api";
 import type { Catalogos, ClienteAdmin } from "../lib/tipos";
 import { supabase } from "../lib/supabase";
@@ -14,22 +14,26 @@ export function Admin() {
       <header className="admin-cabecera">
         <Link to="/admin" className="marca"><img src="/marca/isotipo.svg" alt="" /><span>DatIO · Administración</span></Link>
         <nav className="tabs">
-          <Link to="/admin">Clientes</Link>
-          <Link to="/admin/usuarios">Usuarios</Link>
-          <Link to="/admin/capturas">Capturas</Link>
+          {[["/admin", "Clientes"], ["/admin/usuarios", "Usuarios"], ["/admin/capturas", "Capturas"]].map(([ruta, nombre]) => (
+            <Link key={ruta} to={ruta} className={window.location.pathname === ruta || (ruta === "/admin" && window.location.pathname.startsWith("/admin/clientes")) ? "activa" : ""}>{nombre}</Link>
+          ))}
         </nav>
         <div className="acciones">
           <button className="boton-redondo" title="Cerrar sesión" onClick={() => supabase.auth.signOut()}>⏻</button>
         </div>
       </header>
-      <Routes>
-        <Route path="/" element={<ListaClientes />} />
-        <Route path="/clientes/:id" element={<FichaCliente />} />
-        <Route path="/usuarios" element={<Usuarios />} />
-        <Route path="/capturas" element={<Capturas />} />
-      </Routes>
+      <Seccion />
     </div>
   );
+}
+
+function Seccion() {
+  const { pathname } = useLocation();
+  const { id } = useParams();
+  if (id) return <FichaCliente />;
+  if (pathname.endsWith("/usuarios")) return <Usuarios />;
+  if (pathname.endsWith("/capturas")) return <Capturas />;
+  return <ListaClientes />;
 }
 
 function ListaClientes() {

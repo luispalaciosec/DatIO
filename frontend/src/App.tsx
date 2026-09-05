@@ -38,7 +38,10 @@ export function App() {
   return (
     <Routes>
       <Route path="/" element={<Inicio />} />
-      <Route path="/admin/*" element={<Admin />} />
+      <Route path="/admin" element={<Admin />} />
+      <Route path="/admin/clientes/:id" element={<Admin />} />
+      <Route path="/admin/usuarios" element={<Admin />} />
+      <Route path="/admin/capturas" element={<Admin />} />
       <Route path="/:slug" element={<Reporte />} />
       <Route path="/:slug/imprimir" element={<Imprimir />} />
       <Route path="/:slug/:plataforma/:pagina" element={<Reporte />} />
