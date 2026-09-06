@@ -77,6 +77,9 @@ export const api = {
     desactivarUsuario: (email: string) =>
       llamar<{ estado: string }>(`/admin/usuarios/${encodeURIComponent(email)}`, { method: "DELETE" }),
     usuarios: () => llamar<UsuarioAdmin[]>("/admin/usuarios"),
+    crearCompetidor: (cliente_id: number, cuerpo: { plataforma: string; nombre: string; handle: string; orden?: number }) =>
+      llamar<{ id: number; handle: string }>(`/admin/clientes/${cliente_id}/competidores`, { method: "POST", body: JSON.stringify(cuerpo) }),
+    borrarCompetidor: (id: number) => llamar<{ estado: string }>(`/admin/competidores/${id}`, { method: "DELETE" }),
     catalogos: () => llamar<Catalogos>("/admin/catalogos"),
     iniciarConexion: (proveedor: "meta" | "google" | "linkedin", cliente_id: number) =>
       llamar<{ url: string }>(`/admin/conectar/${proveedor}/iniciar?cliente_id=${cliente_id}`),

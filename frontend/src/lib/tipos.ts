@@ -134,6 +134,17 @@ export interface UsuarioAdmin {
   activo: boolean;
 }
 
+export interface CompetidorAdmin {
+  id: number;
+  plataforma: string;
+  plataforma_nombre: string;
+  nombre: string;
+  handle: string;
+  logo_url: string | null;
+  orden: number;
+  ultimo_snapshot: string | null;
+}
+
 export interface ClienteDetalle {
   id: number;
   nombre: string;
@@ -143,6 +154,7 @@ export interface ClienteDetalle {
   tema: TemaAdmin;
   cuentas: CuentaAdmin[];
   usuarios: UsuarioAdmin[];
+  competidores: CompetidorAdmin[];
 }
 
 export interface Catalogos {

@@ -151,3 +151,50 @@ async def test_catalogos_y_capturas(http, usuario_equipo) -> None:  # type: igno
     assert {p["codigo"] for p in cat["plataformas"]} >= {"meta_ig", "ga4", "linkedin"}
     r = await http.get("/admin/capturas", params={"limite": 5}, headers=_auth(usuario_equipo))
     assert r.status_code == 200 and len(r.json()) <= 5
+
+
+async def test_competidores_alta_normaliza_y_borra(http, usuario_equipo, cliente_creado) -> None:  # type: ignore[no-untyped-def]
+    cid = cliente_creado["id"]
+    r = await http.post(
+        f"/admin/clientes/{cid}/competidores",
+        json={
+            "plataforma": "meta_ig",
+            "nombre": "Banco Prueba",
+            "handle": "https://www.instagram.com/bancoprueba/",
+        },
+        headers=_auth(usuario_equipo),
+    )
+    assert r.status_code == 201 and r.json()["handle"] == "bancoprueba"
+    r = await http.post(
+        f"/admin/clientes/{cid}/competidores",
+        json={"plataforma": "meta_ig", "nombre": "Otro", "handle": "@bancoprueba"},
+        headers=_auth(usuario_equipo),
+    )
+    assert r.status_code == 409  # mismo handle en la misma red
+    r = await http.post(
+        f"/admin/clientes/{cid}/competidores",
+        json={
+            "plataforma": "meta_fb",
+            "nombre": "Banco Prueba",
+            "handle": "https://facebook.com/BancoPrueba",
+        },
+        headers=_auth(usuario_equipo),
+    )
+    assert r.status_code == 201 and r.json()["handle"] == "BancoPrueba"
+    lista = (
+        await http.get(f"/admin/clientes/{cid}/competidores", headers=_auth(usuario_equipo))
+    ).json()
+    assert [c["plataforma"] for c in lista] == ["meta_fb", "meta_ig"]
+    detalle = (await http.get(f"/admin/clientes/{cid}", headers=_auth(usuario_equipo))).json()
+    assert len(detalle["competidores"]) == 2
+    r = await http.delete(f"/admin/competidores/{lista[0]['id']}", headers=_auth(usuario_equipo))
+    assert r.status_code == 200
+    assert (
+        await http.delete(f"/admin/competidores/{lista[0]['id']}", headers=_auth(usuario_equipo))
+    ).status_code == 404
+    r = await http.post(
+        f"/admin/clientes/{cid}/competidores",
+        json={"plataforma": "gsc", "nombre": "X y", "handle": "z"},
+        headers=_auth(usuario_equipo),
+    )
+    assert r.status_code == 422  # la competencia solo aplica a redes sociales

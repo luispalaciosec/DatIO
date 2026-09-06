@@ -75,6 +75,7 @@ async def ver_cliente(cliente_id: int, _: Equipo, repo: Repo) -> dict[str, Any]:
         "tema": await repo.tema(cliente_id),
         "cuentas": await repo.cuentas(cliente_id),
         "usuarios": await repo.usuarios(cliente_id),
+        "competidores": await repo.competidores(cliente_id),
     }
 
 
@@ -205,6 +206,88 @@ async def desactivar_usuario(email: str, usuario: Equipo, repo: Repo) -> dict[st
     if email.lower() == usuario.email:
         raise HTTPException(status.HTTP_400_BAD_REQUEST, "No puedes desactivarte a ti mismo")
     await repo.desactivar_usuario(email.lower())
+    return {"estado": "ok"}
+
+
+# ---- competidores (PT-15) ---------------------------------------------------
+
+
+class CompetidorNuevo(BaseModel):
+    plataforma: str = Field(pattern="^(meta_ig|meta_fb|tiktok|linkedin|youtube)$")
+    nombre: str = Field(min_length=2, max_length=120)
+    handle: str = Field(min_length=1, max_length=200)
+    logo_url: str | None = None
+    orden: int = 0
+
+
+class CompetidorCambios(BaseModel):
+    nombre: str | None = Field(default=None, min_length=2, max_length=120)
+    handle: str | None = Field(default=None, min_length=1, max_length=200)
+    logo_url: str | None = None
+    orden: int | None = None
+
+
+def _normalizar_handle(plataforma: str, handle: str) -> str:
+    h = handle.strip()
+    if plataforma in ("meta_ig", "tiktok"):
+        h = h.lstrip("@")
+        for prefijo in (
+            "https://www.instagram.com/",
+            "https://instagram.com/",
+            "https://www.tiktok.com/@",
+            "https://tiktok.com/@",
+        ):
+            if h.startswith(prefijo):
+                h = h[len(prefijo) :]
+        h = h.strip("/").split("/")[0].split("?")[0]
+    if plataforma == "meta_fb":
+        for prefijo in ("https://www.facebook.com/", "https://facebook.com/"):
+            if h.startswith(prefijo):
+                h = h[len(prefijo) :]
+        h = h.strip("/").split("?")[0]
+    return h
+
+
+@router.get("/clientes/{cliente_id}/competidores")
+async def listar_competidores(cliente_id: int, _: Equipo, repo: Repo) -> list[dict[str, Any]]:
+    if await repo.cliente(cliente_id) is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Cliente no encontrado")
+    return await repo.competidores(cliente_id)
+
+
+@router.post("/clientes/{cliente_id}/competidores", status_code=status.HTTP_201_CREATED)
+async def crear_competidor(
+    cliente_id: int, cuerpo: CompetidorNuevo, _: Equipo, repo: Repo
+) -> dict[str, Any]:
+    if await repo.cliente(cliente_id) is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Cliente no encontrado")
+    handle = _normalizar_handle(cuerpo.plataforma, cuerpo.handle)
+    try:
+        cid = await repo.crear_competidor(
+            cliente_id,
+            cuerpo.plataforma,
+            cuerpo.nombre.strip(),
+            handle,
+            cuerpo.logo_url,
+            cuerpo.orden,
+        )
+    except asyncpg.UniqueViolationError as e:
+        raise HTTPException(status.HTTP_409_CONFLICT, "Ese competidor ya está en esta red") from e
+    return {"id": cid, "handle": handle}
+
+
+@router.patch("/competidores/{competidor_id}")
+async def editar_competidor(
+    competidor_id: int, cuerpo: CompetidorCambios, _: Equipo, repo: Repo
+) -> dict[str, str]:
+    await repo.actualizar_competidor(competidor_id, cuerpo.model_dump(exclude_none=True))
+    return {"estado": "ok"}
+
+
+@router.delete("/competidores/{competidor_id}")
+async def borrar_competidor(competidor_id: int, _: Equipo, repo: Repo) -> dict[str, str]:
+    if await repo.borrar_competidor(competidor_id) is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Competidor no encontrado")
     return {"estado": "ok"}
 
 

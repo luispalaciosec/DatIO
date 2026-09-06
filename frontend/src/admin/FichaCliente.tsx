@@ -10,7 +10,7 @@ export function FichaCliente() {
   const [catalogos, setCatalogos] = useState<Catalogos | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [params] = useSearchParams();
-  const [pestana, setPestana] = useState<"datos" | "marca" | "cuentas" | "usuarios">(
+  const [pestana, setPestana] = useState<"datos" | "marca" | "cuentas" | "competidores" | "usuarios">(
     params.get("conexion") || params.get("error") ? "cuentas" : "datos",
   );
 
@@ -25,9 +25,9 @@ export function FichaCliente() {
       <div className="encabezado">
         <h1>{cliente.nombre}<small><Link to={`/${cliente.slug}`}>/{cliente.slug}</Link> · {cliente.sector ?? "sin sector"}{!cliente.activo && " · inactivo"}</small></h1>
         <div className="subtabs">
-          {(["datos", "marca", "cuentas", "usuarios"] as const).map((p) => (
+          {(["datos", "marca", "cuentas", "competidores", "usuarios"] as const).map((p) => (
             <a key={p} href="#" className={pestana === p ? "activa" : ""} onClick={(e) => { e.preventDefault(); setPestana(p); }}>
-              {{ datos: "Datos", marca: "Marca", cuentas: `Cuentas (${cliente.cuentas.length})`, usuarios: `Usuarios (${cliente.usuarios.length})` }[p]}
+              {{ datos: "Datos", marca: "Marca", cuentas: `Cuentas (${cliente.cuentas.length})`, competidores: `Competidores (${cliente.competidores.length})`, usuarios: `Usuarios (${cliente.usuarios.length})` }[p]}
             </a>
           ))}
         </div>
@@ -35,6 +35,7 @@ export function FichaCliente() {
       {pestana === "datos" && <Datos cliente={cliente} catalogos={catalogos} alGuardar={cargar} />}
       {pestana === "marca" && <Marca cliente={cliente} alGuardar={cargar} />}
       {pestana === "cuentas" && <Cuentas cliente={cliente} catalogos={catalogos} alGuardar={cargar} />}
+      {pestana === "competidores" && <Competidores cliente={cliente} alGuardar={cargar} />}
       {pestana === "usuarios" && <UsuariosCliente cliente={cliente} alGuardar={cargar} />}
     </div>
   );
@@ -338,6 +339,50 @@ function SelectorActivos({ conexion, catalogos, elegidos, setElegidos, alActivar
           <button className="boton-pdf" type="button" onClick={alActivar} disabled={elegidos.size === 0}>Conectar seleccionadas</button>
         </div>
       </div>
+    </div>
+  );
+}
+
+const REDES_COMPETENCIA = [["meta_ig", "Instagram"], ["meta_fb", "Facebook"], ["tiktok", "TikTok"], ["linkedin", "LinkedIn"], ["youtube", "YouTube"]] as const;
+
+function Competidores({ cliente, alGuardar }: { cliente: ClienteDetalle; alGuardar: () => void }) {
+  const [f, setF] = useState({ plataforma: "meta_ig", nombre: "", handle: "" });
+  const [aviso, setAviso] = useState<string | null>(null);
+  async function agregar(e: React.FormEvent) {
+    e.preventDefault();
+    try {
+      await api.admin.crearCompetidor(cliente.id, { plataforma: f.plataforma, nombre: f.nombre, handle: f.handle, orden: cliente.competidores.length });
+      setF({ ...f, nombre: "", handle: "" }); setAviso("Competidor agregado. Entra al radar semanal."); alGuardar();
+    } catch (err) { setAviso((err as ErrorApi).message); }
+  }
+  async function quitar(id: number) { await api.admin.borrarCompetidor(id); alGuardar(); }
+  const porRed = new Map<string, typeof cliente.competidores>();
+  for (const c of cliente.competidores) porRed.set(c.plataforma_nombre, [...(porRed.get(c.plataforma_nombre) ?? []), c]);
+  return (
+    <div className="grid">
+      <div className="bloque" style={{ "--ancho": 7 } as React.CSSProperties}>
+        {cliente.competidores.length === 0 ? <div className="vacio">Sin competidores todavía. Se recomiendan entre 4 y 6 por red.</div> : (
+          [...porRed.entries()].map(([red, lista]) => (
+            <table className="publicaciones tarjeta" key={red} style={{ marginBottom: 14 }}>
+              <thead><tr><th>{red}</th><th>Usuario</th><th>Último snapshot</th><th></th></tr></thead>
+              <tbody>{lista.map((c) => (
+                <tr key={c.id}><td><strong>{c.nombre}</strong></td><td><code>{c.handle}</code></td>
+                  <td>{c.ultimo_snapshot ? new Date(c.ultimo_snapshot).toLocaleDateString("es-EC") : "aún no"}</td>
+                  <td><button className="boton-pdf secundario" onClick={() => quitar(c.id)}>Quitar</button></td></tr>))}</tbody>
+            </table>
+          ))
+        )}
+      </div>
+      <form className="bloque tarjeta formulario" style={{ "--ancho": 5 } as React.CSSProperties} onSubmit={agregar}>
+        <h3>Agregar competidor</h3>
+        <label>Red<select value={f.plataforma} onChange={(e) => setF({ ...f, plataforma: e.target.value })}>
+          {REDES_COMPETENCIA.map(([c, n]) => <option key={c} value={c}>{n}</option>)}
+        </select></label>
+        <label>Nombre<input required value={f.nombre} onChange={(e) => setF({ ...f, nombre: e.target.value })} placeholder="Banco Guayaquil" /></label>
+        <label>Usuario o URL del perfil<input required value={f.handle} onChange={(e) => setF({ ...f, handle: e.target.value })} placeholder="@bancoguayaquil o https://www.facebook.com/BancoGuayaquil" /></label>
+        <p className="sutil">El radar toma un snapshot semanal de seguidores y publicaciones vía Apify (errata E-02). Costo aproximado: unos centavos por perfil y semana.</p>
+        <button className="boton-pdf" type="submit">Agregar</button><Aviso texto={aviso} />
+      </form>
     </div>
   );
 }

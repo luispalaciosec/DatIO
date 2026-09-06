@@ -302,3 +302,63 @@ class RepositorioAdmin:
                 conexion_id,
             )
         return ids
+
+    # ---- competidores (PT-15) ------------------------------------------------
+
+    async def competidores(self, cliente_id: int) -> list[dict[str, Any]]:
+        filas = await self._pool.fetch(
+            """
+            SELECT k.id, k.plataforma, p.nombre AS plataforma_nombre, k.nombre, k.handle,
+                   k.logo_url, k.orden,
+                   (SELECT max(fecha_snapshot) FROM fct_competidor_snapshot s
+                     WHERE s.competidor_id = k.id) AS ultimo_snapshot
+            FROM   cliente_competidores k JOIN plataformas p ON p.codigo = k.plataforma
+            WHERE  k.cliente_id = $1 ORDER BY k.plataforma, k.orden, k.id
+            """,
+            cliente_id,
+        )
+        return [dict(f) for f in filas]
+
+    async def crear_competidor(
+        self,
+        cliente_id: int,
+        plataforma: str,
+        nombre: str,
+        handle: str,
+        logo_url: str | None,
+        orden: int,
+    ) -> int:
+        cid = await self._pool.fetchval(
+            """
+            INSERT INTO cliente_competidores
+                   (cliente_id, plataforma, nombre, handle, logo_url, orden)
+            VALUES ($1, $2, $3, $4, $5, $6) RETURNING id
+            """,
+            cliente_id,
+            plataforma,
+            nombre,
+            handle,
+            logo_url,
+            orden,
+        )
+        return int(cid)
+
+    async def actualizar_competidor(self, competidor_id: int, cambios: dict[str, Any]) -> None:
+        permitidos = {
+            k: v for k, v in cambios.items() if k in {"nombre", "handle", "logo_url", "orden"}
+        }
+        if not permitidos:
+            return
+        asignaciones = ", ".join(f"{k} = ${i + 2}" for i, k in enumerate(permitidos))
+        await self._pool.execute(
+            f"UPDATE cliente_competidores SET {asignaciones} WHERE id = $1",
+            competidor_id,
+            *permitidos.values(),
+        )
+
+    async def borrar_competidor(self, competidor_id: int) -> int | None:
+        """Devuelve el cliente_id del competidor borrado (None si no existía)."""
+        v = await self._pool.fetchval(
+            "DELETE FROM cliente_competidores WHERE id = $1 RETURNING cliente_id", competidor_id
+        )
+        return int(v) if v is not None else None
