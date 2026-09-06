@@ -264,6 +264,47 @@ async def _activos_meta(config: Configuracion, acceso: str) -> list[Activo]:
     return activos
 
 
+async def activos_business_manager(
+    config: Configuracion, acceso: str, business_id: str
+) -> list[Activo]:
+    """Páginas, cuentas de Instagram y cuentas publicitarias que administra un Business Manager,
+    vistas con el token del System User de la agencia. Atajo cuando el diálogo OAuth no aplica."""
+    base = f"https://graph.facebook.com/{config.meta_api_version}"
+    activos: list[Activo] = []
+    async with httpx.AsyncClient(timeout=30) as http:
+        for edge in ("owned_pages", "client_pages"):
+            r = await http.get(
+                f"{base}/{business_id}/{edge}",
+                params={
+                    "access_token": acceso,
+                    "limit": 200,
+                    "fields": "id,name,instagram_business_account{id,username}",
+                },
+            )
+            for p in r.json().get("data", []):
+                activos.append(Activo("meta_fb", p["id"], p["name"], {"origen": edge}))
+                ig = p.get("instagram_business_account")
+                if ig:
+                    activos.append(
+                        Activo(
+                            "meta_ig",
+                            ig["id"],
+                            f"@{ig.get('username', ig['id'])}",
+                            {"pagina": p["id"]},
+                        )
+                    )
+        for edge in ("owned_ad_accounts", "client_ad_accounts"):
+            r = await http.get(
+                f"{base}/{business_id}/{edge}",
+                params={"access_token": acceso, "limit": 200, "fields": "id,name"},
+            )
+            for a in r.json().get("data", []):
+                activos.append(
+                    Activo("meta_ads", a["id"], a.get("name", a["id"]), {"origen": edge})
+                )
+    return activos
+
+
 async def _activos_google(acceso: str) -> list[Activo]:
     cab = {"Authorization": f"Bearer {acceso}"}
     activos: list[Activo] = []

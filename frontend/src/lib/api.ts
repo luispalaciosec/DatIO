@@ -80,6 +80,8 @@ export const api = {
     catalogos: () => llamar<Catalogos>("/admin/catalogos"),
     iniciarConexion: (proveedor: "meta" | "google" | "linkedin", cliente_id: number) =>
       llamar<{ url: string }>(`/admin/conectar/${proveedor}/iniciar?cliente_id=${cliente_id}`),
+    importarBusiness: (cliente_id: number) =>
+      llamar<{ conexion_id: number; activos: number }>(`/admin/conectar/meta/business?cliente_id=${cliente_id}`, { method: "POST" }),
     conexion: (id: number) => llamar<Conexion>(`/admin/conexiones/${id}`),
     activarConexion: (id: number, activos: ActivoConexion[]) =>
       llamar<{ cuentas: number[] }>(`/admin/conexiones/${id}/activar`, { method: "POST", body: JSON.stringify({ activos }) }),

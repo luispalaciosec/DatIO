@@ -188,7 +188,7 @@ table.tarjeta a { color: inherit; }
 .conectar { display: flex; flex-direction: column; gap: 14px; }
 .botones-conectar { display: flex; flex-wrap: wrap; gap: 10px; }
 .boton-conectar { padding: 11px 18px; border-radius: 999px; border: 0; font: inherit; font-size: 13px; font-weight: 400; color: #fff; cursor: pointer; }
-.boton-conectar.meta { background: #1877f2; } .boton-conectar.linkedin { background: #0a66c2; } .boton-conectar.google { background: #202124; }
+.boton-conectar.meta { background: #1877f2; } .boton-conectar.business { background: #0b3d91; } .boton-conectar.linkedin { background: #0a66c2; } .boton-conectar.google { background: #202124; }
 .boton-conectar.pendiente { background: var(--gris-200); color: var(--gris-500); cursor: not-allowed; }
 /* Selector de activos del botón Conectar */
 .selector { display: flex; flex-direction: column; gap: 16px; min-width: 0; }

@@ -152,6 +152,13 @@ function Cuentas({ cliente, catalogos, alGuardar }: { cliente: ClienteDetalle; c
     } catch (err) { setAviso((err as ErrorApi).message); }
   }
 
+  async function importarBusiness() {
+    try {
+      const r = await api.admin.importarBusiness(cliente.id);
+      setParams({ conexion: String(r.conexion_id) });
+    } catch (err) { setAviso((err as ErrorApi).message); }
+  }
+
   async function activar() {
     if (!conexion) return;
     const activos: ActivoConexion[] = conexion.activos.filter((a) => elegidos.has(`${a.plataforma}|${a.id_externo}`));
@@ -189,6 +196,7 @@ function Cuentas({ cliente, catalogos, alGuardar }: { cliente: ClienteDetalle; c
         </div>
         <div className="botones-conectar">
           <button className="boton-conectar meta" onClick={() => conectar("meta")}>Facebook · Instagram · Meta Ads</button>
+          <button className="boton-conectar business" onClick={importarBusiness} title="Lista lo que administra el Business Manager de Geeks con el token de la agencia">Importar desde Business Manager</button>
           <button className="boton-conectar google" onClick={() => conectar("google")}>Google Analytics · Search Console · YouTube</button>
           <button className="boton-conectar linkedin" onClick={() => conectar("linkedin")} title="Requiere que LinkedIn apruebe Community Management API">LinkedIn</button>
           <button className="boton-conectar pendiente" disabled title="Pendiente de aprobación de TikTok">TikTok (vía Metricool)</button>

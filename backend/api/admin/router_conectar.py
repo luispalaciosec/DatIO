@@ -96,6 +96,34 @@ async def retorno(
     return RedirectResponse(f"{front}/admin/clientes/{cliente_id}?conexion={conexion_id}")
 
 
+@router.post("/conectar/meta/business")
+async def importar_business_manager(
+    cliente_id: int, usuario: Equipo, repo: Repo, config: Config
+) -> dict[str, Any]:
+    """Atajo sin diálogo OAuth: lista lo que administra el Business Manager de la agencia con el
+    token del System User y lo ofrece en el mismo selector. Las cuentas quedan con ese token."""
+    if await repo.cliente(cliente_id) is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Cliente no encontrado")
+    if not (config.meta_system_user_token and config.meta_business_id and config.clave_cifrado):
+        raise HTTPException(
+            status.HTTP_503_SERVICE_UNAVAILABLE,
+            "Faltan META_SYSTEM_USER_TOKEN, META_BUSINESS_ID o CLAVE_CIFRADO",
+        )
+    activos = await conectar.activos_business_manager(
+        config, config.meta_system_user_token, config.meta_business_id
+    )
+    conexion_id = await repo.crear_conexion(
+        cliente_id,
+        "meta",
+        usuario.email,
+        config.meta_system_user_token,
+        config.clave_cifrado,
+        None,
+        [a.como_dict() for a in activos],
+    )
+    return {"conexion_id": conexion_id, "activos": len(activos)}
+
+
 @router.get("/conexiones/{conexion_id}")
 async def ver_conexion(conexion_id: int, _: Equipo, repo: Repo) -> dict[str, Any]:
     c = await repo.conexion(conexion_id)

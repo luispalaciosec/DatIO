@@ -63,6 +63,7 @@ class Configuracion(BaseSettings):
     # Botones "Conectar con ..." del admin (OAuth por red)
     api_url: str = "http://localhost:8000"  # a dónde vuelve el proveedor con el código
     meta_login_config_id: str = ""  # Facebook Login for Business, configuración
+    meta_business_id: str = ""  # Business Manager (portfolio) de la agencia
     google_oauth_client_id: str = ""
     google_oauth_client_secret: str = ""
     linkedin_client_id: str = ""
