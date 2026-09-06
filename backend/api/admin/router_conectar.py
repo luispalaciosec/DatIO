@@ -3,7 +3,7 @@
 from typing import Annotated, Any
 
 import asyncpg
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 from fastapi.responses import RedirectResponse
 from pydantic import BaseModel
 
@@ -30,13 +30,23 @@ def _validar_proveedor(proveedor: str) -> None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Proveedor desconocido")
 
 
+def _config_con_api_url(config: Configuracion, request: Request) -> Configuracion:
+    """Seguro: si API_URL quedó en localhost pero la petición llega por un dominio real
+    (Railway detrás de proxy), usa ese dominio con https."""
+    host = request.headers.get("x-forwarded-host") or request.headers.get("host") or ""
+    if "localhost" in config.api_url and host and "localhost" not in host:
+        return config.model_copy(update={"api_url": f"https://{host}"})
+    return config
+
+
 @router.get("/conectar/{proveedor}/iniciar")
 async def iniciar(
-    proveedor: str, cliente_id: int, usuario: Equipo, repo: Repo, config: Config
+    proveedor: str, cliente_id: int, usuario: Equipo, repo: Repo, config: Config, request: Request
 ) -> dict[str, str]:
     _validar_proveedor(proveedor)
     if await repo.cliente(cliente_id) is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Cliente no encontrado")
+    config = _config_con_api_url(config, request)
     try:
         estado = conectar.emitir_estado(config, proveedor, cliente_id, usuario.email)
         return {"url": conectar.url_inicio(config, proveedor, estado)}
@@ -49,6 +59,7 @@ async def retorno(
     proveedor: str,
     repo: Repo,
     config: Config,
+    request: Request,
     state: str = Query(default=""),
     code: str = Query(default=""),
     error: str = Query(default=""),
@@ -56,6 +67,7 @@ async def retorno(
 ) -> RedirectResponse:
     """Llega el navegador desde el proveedor. Sin token de usuario: el `state` es la prueba."""
     _validar_proveedor(proveedor)
+    config = _config_con_api_url(config, request)  # el redirect_uri del canje debe coincidir
     front = config.frontend_url.rstrip("/")
     try:
         cliente_id, email = conectar.verificar_estado(config, state, proveedor)

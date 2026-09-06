@@ -172,6 +172,20 @@ async def test_iniciar_linkedin(http, usuario_equipo, cliente_a) -> None:  # typ
     assert conectar.credencial_para_guardar("linkedin", {"access_token": "li"}) == "li"
 
 
+async def test_api_url_localhost_se_reemplaza_por_el_host_real(
+    http, usuario_equipo, cliente_a
+) -> None:  # type: ignore[no-untyped-def]
+    r = await http.get(
+        f"/admin/conectar/google/iniciar?cliente_id={cliente_a.id}",
+        headers={**_auth(usuario_equipo), "host": "datio-production.up.railway.app"},
+    )
+    assert "redirect_uri=https%3A%2F%2Fdatio-production.up.railway.app" in r.json()["url"]
+    r = await http.get(
+        f"/admin/conectar/google/iniciar?cliente_id={cliente_a.id}", headers=_auth(usuario_equipo)
+    )
+    assert "redirect_uri=http%3A%2F%2Flocalhost" in r.json()["url"]  # en local sigue igual
+
+
 def test_credencial_google_exige_refresh_token() -> None:
     with pytest.raises(conectar.ConexionError):
         conectar.credencial_para_guardar("google", {"access_token": "a"})
