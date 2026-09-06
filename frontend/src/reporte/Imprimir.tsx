@@ -11,7 +11,7 @@ const NOMBRES: Record<string, string> = {
   youtube: "YouTube", ga4: "Sitio web", gsc: "Búsqueda", meta_ads: "Meta Ads", google_ads: "Google Ads",
   todas: "Resumen",
 };
-const NOMBRE_PAGINA: Record<string, string> = { metricas: "Métricas", publicaciones: "Publicaciones" };
+const NOMBRE_PAGINA: Record<string, string> = { metricas: "Métricas", publicaciones: "Publicaciones", benchmark: "Benchmark" };
 
 // Vista de impresión (PT-11): todas las páginas del reporte seguidas, una por hoja.
 // Playwright espera a `data-impresion-lista="1"` y a que no quede ningún bloque cargando.

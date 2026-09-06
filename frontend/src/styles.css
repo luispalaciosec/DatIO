@@ -206,3 +206,22 @@ table.tarjeta a { color: inherit; }
 .grupo-activos code { grid-area: id; font-size: 11px; color: var(--gris-500); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .selector-pie { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; border-top: 1px solid var(--gris-200); padding-top: 12px; }
 .boton-pdf.secundario { background: var(--gris-200); color: var(--gris-700); }
+
+/* Benchmark de competencia */
+.benchmark { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 16px; }
+.competidor { background: rgba(255,255,255,.85); border-radius: var(--radio); padding: 18px 20px; box-shadow: var(--sombra); border: 1px solid rgba(255,255,255,.9); display: flex; flex-direction: column; gap: 12px; min-width: 0; }
+.competidor.propio { color: #fff; border: 0; background: linear-gradient(135deg, var(--color-primario), color-mix(in srgb, var(--color-primario) 55%, #1f1f1f)); }
+.competidor.propio .sutil, .competidor.propio dt { color: rgba(255,255,255,.75); }
+.competidor-cabecera { display: flex; align-items: center; gap: 10px; }
+.competidor-cabecera img, .competidor-cabecera .inicial { width: 40px; height: 40px; border-radius: 12px; object-fit: cover; background: var(--gris-100); display: grid; place-items: center; font-family: var(--fuente-titulos); font-size: 18px; color: var(--gris-700); flex: none; }
+.competidor-cabecera strong { font-weight: 500; font-size: 14px; }
+.competidor-principal .valor { font-family: var(--fuente-titulos); font-size: 34px; font-weight: 200; line-height: 1; }
+.competidor .barra { height: 6px; border-radius: 3px; background: rgba(0,0,0,.08); margin: 8px 0 6px; overflow: hidden; }
+.competidor .barra div { height: 100%; background: var(--color-primario); border-radius: 3px; }
+.competidor.propio .barra { background: rgba(255,255,255,.25); } .competidor.propio .barra div { background: #fff; }
+.competidor .delta { font-size: 12px; font-weight: 400; }
+.competidor .delta.sube { color: var(--verde); } .competidor .delta.baja { color: var(--rojo); } .competidor .delta.neutro { color: var(--gris-500); }
+.competidor.propio .delta { color: rgba(255,255,255,.9); }
+.competidor-secundarias { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin: 0; }
+.competidor-secundarias dt { font-size: 11px; text-transform: uppercase; letter-spacing: .04em; color: var(--gris-500); }
+.competidor-secundarias dd { margin: 2px 0 0; font-family: var(--fuente-titulos); font-size: 20px; font-weight: 300; }

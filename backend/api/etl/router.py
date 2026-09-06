@@ -10,6 +10,7 @@ from pydantic import BaseModel, Field
 from api.config import Configuracion
 from api.deps import obtener_config_app, obtener_pool
 from api.etl.conectores.metricool import METRICAS_METRICOOL, ConectorMetricool
+from api.etl.radar import correr_radar
 from api.etl.repositorio import RepositorioETL
 from api.etl.runner import correr_todos
 
@@ -96,4 +97,24 @@ async def importar_metricool(
         "filas_escritas": resultado.filas_escritas,
         "estado": resultado.estado,
         "metricas_sin_mapeo": sorted(resultado.metricas_sin_mapeo),
+    }
+
+
+@router.post("/radar", dependencies=[Depends(verificar_cron)])
+async def radar(
+    config: Annotated[Configuracion, Depends(obtener_config_app)],
+    pool: Annotated[asyncpg.Pool, Depends(obtener_pool)],
+    cliente_id: int | None = None,
+    forzar: bool = False,
+) -> dict[str, Any]:
+    """Radar competitivo (PT-15). Semanal por defecto; `forzar` ignora la cadencia."""
+    r = await correr_radar(
+        RepositorioETL(pool), config, cliente_id, forzar, config.radar_dias_minimos
+    )
+    return {
+        "competidores": r.competidores,
+        "snapshots": r.snapshots,
+        "costo_usd": round(r.costo_usd, 4),
+        "errores": r.errores,
+        "omitidos": r.omitidos,
     }

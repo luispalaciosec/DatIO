@@ -53,7 +53,11 @@ async def resolver_bloque(
         return {"datos": None, "estado": "consolidado", "meta": {"tipo": bloque.tipo}}
 
     cuentas = await repo.cuentas_de_pagina(instancia.cliente_id, bloque.plataforma)
-    ctx = Contexto(repo, cuentas, bloque.config, req.desde, req.hasta, req.comparar)
+    config_bloque = {**bloque.config}
+    config_bloque.setdefault("plataforma", bloque.plataforma)
+    ctx = Contexto(
+        repo, cuentas, instancia.cliente_id, config_bloque, req.desde, req.hasta, req.comparar
+    )
     resultado = await resolvedor(ctx)
     return {
         "datos": resultado.datos,

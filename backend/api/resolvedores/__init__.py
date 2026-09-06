@@ -12,6 +12,7 @@ from api.consulta.repositorio import RepositorioConsulta
 class Contexto:
     repo: RepositorioConsulta
     cuentas: list[int]
+    cliente_id: int
     config: dict[str, Any]
     desde: date
     hasta: date
@@ -51,6 +52,7 @@ def delta_porcentual(actual: Any, anterior: Any) -> float | None:
 
 
 from api.resolvedores import (  # noqa: E402, F401 — registra los resolvedores base
+    benchmark_grid,
     distribucion_geo,
     kpi_fila,
     serie_temporal,

@@ -275,3 +275,69 @@ class RepositorioConsulta:
             codigos,
         )
         return {f["codigo"]: dict(f) for f in filas}
+
+    # ---- benchmark de competencia (PT-15) --------------------------------------
+
+    async def competidores_con_snapshots(
+        self, cliente_id: int, plataforma: str | None, codigos: list[str]
+    ) -> list[dict[str, Any]]:
+        """Competidores del cliente en la red, con su último snapshot y el anterior por métrica."""
+        filas = await self._pool.fetch(
+            """
+            WITH ult AS (
+                SELECT s.competidor_id, s.metrica_codigo, s.fecha_snapshot, s.valor,
+                       row_number() OVER (PARTITION BY s.competidor_id, s.metrica_codigo
+                                          ORDER BY s.fecha_snapshot DESC) AS n
+                FROM   fct_competidor_snapshot s
+                WHERE  s.metrica_codigo = ANY($3::text[])
+            )
+            SELECT k.id, k.nombre, k.handle, k.logo_url, k.orden,
+                   COALESCE(jsonb_object_agg(u.metrica_codigo, u.valor) FILTER (WHERE u.n = 1),
+                            '{}'::jsonb) AS actual,
+                   COALESCE(jsonb_object_agg(u.metrica_codigo, u.valor) FILTER (WHERE u.n = 2),
+                            '{}'::jsonb) AS anterior,
+                   max(u.fecha_snapshot) FILTER (WHERE u.n = 1) AS fecha_actual,
+                   max(u.fecha_snapshot) FILTER (WHERE u.n = 2) AS fecha_anterior
+            FROM   cliente_competidores k
+            LEFT   JOIN ult u ON u.competidor_id = k.id
+            WHERE  k.cliente_id = $1 AND ($2::text IS NULL OR k.plataforma = $2)
+            GROUP  BY k.id
+            ORDER  BY k.orden, k.id
+            """,
+            cliente_id,
+            plataforma,
+            codigos,
+        )
+        salida = []
+        for f in filas:
+            d = dict(f)
+            for k in ("actual", "anterior"):
+                if isinstance(d[k], str):
+                    d[k] = json.loads(d[k])
+            salida.append(d)
+        return salida
+
+    async def interacciones_ultimas_publicaciones(
+        self, cuentas: list[int], n: int
+    ) -> Decimal | None:
+        """Suma de interacciones (último snapshot) de las N publicaciones más recientes."""
+        if not cuentas:
+            return None
+        v = await self._pool.fetchval(
+            """
+            WITH recientes AS (
+                SELECT id FROM dim_publicacion WHERE cuenta_id = ANY($1::bigint[])
+                ORDER BY publicado_en DESC NULLS LAST LIMIT $2
+            ), ult AS (
+                SELECT DISTINCT ON (publicacion_id) publicacion_id, valor
+                FROM fct_publicacion_diaria
+                WHERE publicacion_id IN (SELECT id FROM recientes)
+                  AND metrica_codigo = 'interacciones'
+                ORDER BY publicacion_id, fecha_snapshot DESC
+            )
+            SELECT sum(valor) FROM ult
+            """,
+            cuentas,
+            n,
+        )
+        return Decimal(v) if v is not None else None

@@ -8,6 +8,7 @@ import { KpiFila } from "../bloques/KpiFila";
 import { SerieTemporal } from "../bloques/SerieTemporal";
 import { TablaPublicaciones } from "../bloques/TablaPublicaciones";
 import { DistribucionGeo } from "../bloques/DistribucionGeo";
+import { BenchmarkGrid } from "../bloques/BenchmarkGrid";
 
 // Bloques estáticos: no consultan datos.
 const ESTATICOS = new Set(["hero_banner", "titulo_seccion", "separador"]);
@@ -52,6 +53,8 @@ export function Bloque({ reporte, pagina, bloque, rango }: {
       return <TablaPublicaciones respuesta={respuesta as never} />;
     case "distribucion_geo":
       return <DistribucionGeo respuesta={respuesta as never} />;
+    case "benchmark_grid":
+      return <BenchmarkGrid respuesta={respuesta as never} />;
     default:
       return <div className="vacio">Bloque «{bloque.tipo}» aún no disponible en esta versión.</div>;
   }

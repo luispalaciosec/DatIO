@@ -239,3 +239,66 @@ class RepositorioETL:
                 "SELECT count(*) FROM dim_publicacion WHERE cuenta_id = $1", cuenta_id
             )
         )
+
+    # ---- radar competitivo (PT-15) --------------------------------------------
+
+    async def competidores_para_radar(
+        self, dias_minimos: int = 7, cliente_id: int | None = None, forzar: bool = False
+    ) -> list[dict[str, Any]]:
+        """Competidores de clientes activos cuyo último snapshot tiene más de N días (o todos)."""
+        filas = await self._pool.fetch(
+            """
+            SELECT k.id, k.cliente_id, k.plataforma, k.nombre, k.handle, k.logo_url,
+                   (SELECT max(fecha_snapshot) FROM fct_competidor_snapshot s
+                     WHERE s.competidor_id = k.id) AS ultimo
+            FROM   cliente_competidores k JOIN clientes c ON c.id = k.cliente_id
+            WHERE  c.activo AND ($1::bigint IS NULL OR k.cliente_id = $1)
+            ORDER  BY k.plataforma, k.cliente_id, k.orden, k.id
+            """,
+            cliente_id,
+        )
+        salida = []
+        for f in filas:
+            d = dict(f)
+            if forzar or d["ultimo"] is None or (date.today() - d["ultimo"]).days >= dias_minimos:
+                salida.append(d)
+        return salida
+
+    async def guardar_raw_competidor(
+        self, competidor_id: int, endpoint: str, params: dict[str, Any] | None, payload: Any
+    ) -> int:
+        raw_id = await self._pool.fetchval(
+            "INSERT INTO raw_payloads (competidor_id, endpoint, params, payload) "
+            "VALUES ($1, $2, $3::jsonb, $4::jsonb) RETURNING id",
+            competidor_id,
+            endpoint,
+            json.dumps(params) if params else None,
+            json.dumps(payload, default=str),
+        )
+        return int(raw_id)
+
+    async def upsert_snapshot_competidor(
+        self, competidor_id: int, fecha_snapshot: date, valores: dict[str, Decimal]
+    ) -> int:
+        if not valores:
+            return 0
+        async with self._pool.acquire() as con, con.transaction():
+            await con.executemany(
+                """
+                INSERT INTO fct_competidor_snapshot
+                       (competidor_id, fecha_snapshot, metrica_codigo, valor)
+                VALUES ($1, $2, $3, $4)
+                ON CONFLICT (competidor_id, fecha_snapshot, metrica_codigo)
+                DO UPDATE SET valor = EXCLUDED.valor
+                """,
+                [(competidor_id, fecha_snapshot, m, v) for m, v in valores.items()],
+            )
+        return len(valores)
+
+    async def actualizar_logo_competidor(self, competidor_id: int, logo_url: str) -> None:
+        await self._pool.execute(
+            "UPDATE cliente_competidores SET logo_url = $2 "
+            "WHERE id = $1 AND (logo_url IS NULL OR logo_url = '')",
+            competidor_id,
+            logo_url,
+        )

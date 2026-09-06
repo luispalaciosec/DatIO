@@ -69,6 +69,10 @@ class Configuracion(BaseSettings):
     linkedin_client_id: str = ""
     linkedin_client_secret: str = ""
 
+    # Radar competitivo (PT-15)
+    apify_token: str = ""
+    radar_dias_minimos: int = 7
+
     # Service Account de Google (GA4 + Search Console). JSON completo.
     google_service_account_json: str = ""
 
