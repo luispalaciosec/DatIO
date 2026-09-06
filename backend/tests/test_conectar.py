@@ -181,7 +181,8 @@ async def test_api_url_localhost_se_reemplaza_por_el_host_real(
     )
     assert "redirect_uri=https%3A%2F%2Fdatio-production.up.railway.app" in r.json()["url"]
     r = await http.get(
-        f"/admin/conectar/google/iniciar?cliente_id={cliente_a.id}", headers=_auth(usuario_equipo)
+        f"/admin/conectar/google/iniciar?cliente_id={cliente_a.id}",
+        headers={**_auth(usuario_equipo), "host": "localhost:8000"},
     )
     assert "redirect_uri=http%3A%2F%2Flocalhost" in r.json()["url"]  # en local sigue igual
 
