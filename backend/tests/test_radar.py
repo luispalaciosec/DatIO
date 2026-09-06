@@ -41,8 +41,8 @@ async def test_benchmark_grid_compara_con_snapshots(pool, cliente_a) -> None:  #
         cliente_a.id,
     )
     await pool.executemany(
-        "INSERT INTO fct_competidor_snapshot (competidor_id, fecha_snapshot, metrica_codigo, valor) "
-        "VALUES ($1, $2, $3, $4)",
+        "INSERT INTO fct_competidor_snapshot "
+        "(competidor_id, fecha_snapshot, metrica_codigo, valor) VALUES ($1, $2, $3, $4)",
         [
             (kid, date(2026, 8, 25), "seguidores", 100),
             (kid, date(2026, 9, 1), "seguidores", 110),
