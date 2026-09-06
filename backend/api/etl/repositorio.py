@@ -173,3 +173,69 @@ class RepositorioETL:
                 "SELECT count(*) FROM fct_metrica_diaria WHERE cuenta_id = $1", cuenta_id
             )
         )
+
+    # ---- publicaciones -----------------------------------------------------
+
+    async def upsert_publicaciones(
+        self, cuenta_id: int, publicaciones: list[dict[str, Any]], visto: date
+    ) -> dict[str, int]:
+        """Crea o actualiza dim_publicacion. Devuelve id_externo → id."""
+        ids: dict[str, int] = {}
+        async with self._pool.acquire() as con, con.transaction():
+            for p in publicaciones:
+                pid = await con.fetchval(
+                    """
+                    INSERT INTO dim_publicacion
+                           (cuenta_id, id_externo, tipo, publicado_en, permalink, caption,
+                            thumbnail_url, visto_por_ultima_vez)
+                    VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+                    ON CONFLICT (cuenta_id, id_externo) DO UPDATE SET
+                        tipo = COALESCE(EXCLUDED.tipo, dim_publicacion.tipo),
+                        publicado_en = COALESCE(EXCLUDED.publicado_en,
+                                                dim_publicacion.publicado_en),
+                        permalink = COALESCE(EXCLUDED.permalink, dim_publicacion.permalink),
+                        caption = COALESCE(EXCLUDED.caption, dim_publicacion.caption),
+                        thumbnail_url = COALESCE(EXCLUDED.thumbnail_url,
+                                                 dim_publicacion.thumbnail_url),
+                        visto_por_ultima_vez = EXCLUDED.visto_por_ultima_vez
+                    RETURNING id
+                    """,
+                    cuenta_id,
+                    p["id_externo"],
+                    p.get("tipo"),
+                    p.get("publicado_en"),
+                    p.get("permalink"),
+                    p.get("caption"),
+                    p.get("thumbnail_url"),
+                    visto,
+                )
+                ids[p["id_externo"]] = int(pid)
+        return ids
+
+    async def upsert_metricas_publicacion(
+        self, filas: list[tuple[int, str, Decimal]], fecha_snapshot: date
+    ) -> int:
+        """(publicacion_id, metrica_codigo, valor) → fct_publicacion_diaria, idempotente."""
+        if not filas:
+            return 0
+        unicas = {(p, m): v for p, m, v in filas}
+        registros = [(p, fecha_snapshot, m, v) for (p, m), v in unicas.items()]
+        async with self._pool.acquire() as con, con.transaction():
+            await con.executemany(
+                """
+                INSERT INTO fct_publicacion_diaria
+                       (publicacion_id, fecha_snapshot, metrica_codigo, valor)
+                VALUES ($1, $2, $3, $4)
+                ON CONFLICT (publicacion_id, fecha_snapshot, metrica_codigo)
+                DO UPDATE SET valor = EXCLUDED.valor
+                """,
+                registros,
+            )
+        return len(registros)
+
+    async def contar_publicaciones(self, cuenta_id: int) -> int:
+        return int(
+            await self._pool.fetchval(
+                "SELECT count(*) FROM dim_publicacion WHERE cuenta_id = $1", cuenta_id
+            )
+        )

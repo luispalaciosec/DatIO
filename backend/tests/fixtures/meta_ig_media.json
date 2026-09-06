@@ -1,0 +1,12 @@
+[{"tipo": "media", "data": [
+  {"id": "18427221172179428", "caption": "¿Tienes entre 25 y 30 años?", "media_type": "IMAGE", "media_product_type": "FEED",
+   "permalink": "https://www.instagram.com/p/AAA/", "timestamp": "2026-08-27T20:42:04+0000", "media_url": "https://cdn/x.jpg",
+   "insights": [{"name": "reach", "values": [{"value": 511}]}, {"name": "views", "values": [{"value": 1122}]},
+                {"name": "likes", "values": [{"value": 11}]}, {"name": "comments", "values": [{"value": 2}]},
+                {"name": "shares", "values": [{"value": 11}]}, {"name": "saved", "values": [{"value": 4}]},
+                {"name": "total_interactions", "values": [{"value": 29}]}, {"name": "profile_visits", "values": [{"value": 21}]},
+                {"name": "follows", "values": [{"value": 2}]}]},
+  {"id": "18110760425016950", "caption": "Reel de prueba", "media_type": "VIDEO", "media_product_type": "REELS",
+   "permalink": "https://www.instagram.com/reel/BBB/", "timestamp": "2026-08-19T18:08:53+0000", "thumbnail_url": "https://cdn/y.jpg",
+   "insights": [{"name": "reach", "values": [{"value": 900}]}, {"name": "views", "values": [{"value": 3000}]}, {"name": "metricaRara", "values": [{"value": 1}]}]}
+]}]

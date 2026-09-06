@@ -7,7 +7,7 @@ from datetime import date
 from api.config import Configuracion
 from api.etl import conectores  # noqa: F401 — importa y registra los conectores
 from api.etl.conector_base import ResultadoCorrida
-from api.etl.registro import REGISTRO
+from api.etl.registro import REGISTRO, REGISTRO_PUBLICACIONES
 from api.etl.repositorio import RepositorioETL
 
 log = logging.getLogger(__name__)
@@ -34,16 +34,24 @@ async def correr_todos(
     mapeos: dict[str, dict[str, tuple[str, object]]] = {}
 
     for cuenta in await repo.cuentas_activas(plataforma):
-        clase = REGISTRO.get(cuenta.plataforma)
-        if clase is None:
+        clases = [
+            c
+            for c in (
+                REGISTRO.get(cuenta.plataforma),
+                REGISTRO_PUBLICACIONES.get(cuenta.plataforma),
+            )
+            if c
+        ]
+        if not clases:
             resumen.sin_conector.append(cuenta.id)
             continue
-        if clase.plataforma not in mapeos:
-            mapeos[clase.plataforma] = dict(await repo.mapeo_plataforma(clase.plataforma))
-        conector = clase(cuenta, repo, mapeos[clase.plataforma], config)  # type: ignore[arg-type]
-        try:
-            resumen.resultados.append(await conector.correr(hasta))
-        except Exception as e:
-            log.exception("Conector %s falló para cuenta %s", clase.codigo, cuenta.id)
-            resumen.errores[cuenta.id] = f"{type(e).__name__}: {e}"
+        if cuenta.plataforma not in mapeos:
+            mapeos[cuenta.plataforma] = dict(await repo.mapeo_plataforma(cuenta.plataforma))
+        for clase in clases:
+            conector = clase(cuenta, repo, mapeos[cuenta.plataforma], config)  # type: ignore[arg-type]
+            try:
+                resumen.resultados.append(await conector.correr(hasta))
+            except Exception as e:
+                log.exception("Conector %s falló para cuenta %s", clase.codigo, cuenta.id)
+                resumen.errores[cuenta.id] = f"{clase.codigo}: {type(e).__name__}: {e}"
     return resumen

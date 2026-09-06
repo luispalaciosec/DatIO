@@ -94,7 +94,12 @@ BEGIN
             INSERT INTO reporte_bloques (pagina_id, tipo, orden, ancho, config) VALUES
             (v_pagina, 'hero_banner',    1, 12, '{}'),
             (v_pagina, 'titulo_seccion', 2, 12, '{"titulo":"Publicaciones del período","bajada":"Ordenadas por interacciones"}'),
-            (v_pagina, 'tabla_publicaciones', 3, 12, '{"columnas":["alcance","impresiones","interacciones"],"orden":"interacciones","limite":20}');
+            (v_pagina, 'tabla_publicaciones', 3, 12,
+             CASE r.plataforma
+               WHEN 'meta_ig' THEN '{"columnas":["alcance","impresiones","me_gusta","comentarios","compartidos","guardados","interacciones"],"orden":"interacciones","limite":30}'::jsonb
+               WHEN 'meta_fb' THEN '{"columnas":["me_gusta","comentarios","compartidos","clics","reproducciones_video","interacciones"],"orden":"interacciones","limite":30}'::jsonb
+               ELSE '{"columnas":["alcance","impresiones","interacciones"],"orden":"interacciones","limite":20}'::jsonb
+             END);
         END IF;
     END LOOP;
 END $$;
