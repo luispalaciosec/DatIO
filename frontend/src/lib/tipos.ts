@@ -174,7 +174,7 @@ export interface ActivoConexion {
 export interface Conexion {
   id: number;
   cliente_id: number;
-  proveedor: "meta" | "google";
+  proveedor: "meta" | "google" | "linkedin";
   creado_por: string;
   activos: ActivoConexion[];
   estado: "pendiente" | "activada";

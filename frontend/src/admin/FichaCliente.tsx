@@ -145,7 +145,7 @@ function Cuentas({ cliente, catalogos, alGuardar }: { cliente: ClienteDetalle; c
     }).catch((e: ErrorApi) => setAviso(e.message));
   }, [conexionId]);
 
-  async function conectar(proveedor: "meta" | "google") {
+  async function conectar(proveedor: "meta" | "google" | "linkedin") {
     try {
       const { url } = await api.admin.iniciarConexion(proveedor, cliente.id);
       window.location.href = url;
@@ -190,14 +190,14 @@ function Cuentas({ cliente, catalogos, alGuardar }: { cliente: ClienteDetalle; c
         <div className="botones-conectar">
           <button className="boton-conectar meta" onClick={() => conectar("meta")}>Facebook · Instagram · Meta Ads</button>
           <button className="boton-conectar google" onClick={() => conectar("google")}>Google Analytics · Search Console · YouTube</button>
-          <button className="boton-conectar pendiente" disabled title="Pendiente de aprobación de LinkedIn">LinkedIn (vía Metricool)</button>
+          <button className="boton-conectar linkedin" onClick={() => conectar("linkedin")} title="Requiere que LinkedIn apruebe Community Management API">LinkedIn</button>
           <button className="boton-conectar pendiente" disabled title="Pendiente de aprobación de TikTok">TikTok (vía Metricool)</button>
         </div>
         {errorRetorno && <div className="bloque-error">No se pudo conectar: {errorRetorno}</div>}
       </div>
       {conexion && conexion.estado === "pendiente" && (
         <div className="bloque tarjeta formulario" style={{ "--ancho": 12 } as React.CSSProperties}>
-          <h3>Elige qué conectar ({conexion.proveedor === "meta" ? "Meta" : "Google"})</h3>
+          <h3>Elige qué conectar ({{ meta: "Meta", google: "Google", linkedin: "LinkedIn" }[conexion.proveedor]})</h3>
           {conexion.activos.length === 0 ? <p className="sutil">La cuenta autorizada no tiene activos visibles. En Meta, la página debe estar en un Business Manager al que el usuario tenga acceso.</p> : (
             <div className="activos">
               {conexion.activos.map((a) => {

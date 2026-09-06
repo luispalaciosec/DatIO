@@ -162,6 +162,16 @@ async def test_retorno_con_state_malo_o_error_del_proveedor(
     assert f"/admin/clientes/{cliente_a.id}?error=" in r.headers["location"]
 
 
+async def test_iniciar_linkedin(http, usuario_equipo, cliente_a) -> None:  # type: ignore[no-untyped-def]
+    r = await http.get(
+        f"/admin/conectar/linkedin/iniciar?cliente_id={cliente_a.id}", headers=_auth(usuario_equipo)
+    )
+    assert r.status_code == 200, r.text
+    assert "linkedin.com/oauth/v2/authorization" in r.json()["url"]
+    assert "r_organization_social" in r.json()["url"]
+    assert conectar.credencial_para_guardar("linkedin", {"access_token": "li"}) == "li"
+
+
 def test_credencial_google_exige_refresh_token() -> None:
     with pytest.raises(conectar.ConexionError):
         conectar.credencial_para_guardar("google", {"access_token": "a"})

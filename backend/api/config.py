@@ -65,6 +65,8 @@ class Configuracion(BaseSettings):
     meta_login_config_id: str = ""  # Facebook Login for Business, configuración
     google_oauth_client_id: str = ""
     google_oauth_client_secret: str = ""
+    linkedin_client_id: str = ""
+    linkedin_client_secret: str = ""
 
     # Service Account de Google (GA4 + Search Console). JSON completo.
     google_service_account_json: str = ""

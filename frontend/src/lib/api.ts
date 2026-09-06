@@ -78,7 +78,7 @@ export const api = {
       llamar<{ estado: string }>(`/admin/usuarios/${encodeURIComponent(email)}`, { method: "DELETE" }),
     usuarios: () => llamar<UsuarioAdmin[]>("/admin/usuarios"),
     catalogos: () => llamar<Catalogos>("/admin/catalogos"),
-    iniciarConexion: (proveedor: "meta" | "google", cliente_id: number) =>
+    iniciarConexion: (proveedor: "meta" | "google" | "linkedin", cliente_id: number) =>
       llamar<{ url: string }>(`/admin/conectar/${proveedor}/iniciar?cliente_id=${cliente_id}`),
     conexion: (id: number) => llamar<Conexion>(`/admin/conexiones/${id}`),
     activarConexion: (id: number, activos: ActivoConexion[]) =>

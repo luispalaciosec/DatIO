@@ -24,7 +24,10 @@ import jwt
 from api.config import Configuracion
 
 DURACION_ESTADO = timedelta(minutes=10)
-PROVEEDORES = ("meta", "google")
+PROVEEDORES = ("meta", "google", "linkedin")
+
+# Community Management API: lectura de páginas de empresa que el usuario administra.
+SCOPES_LINKEDIN = ("r_organization_admin", "r_organization_social", "rw_organization_admin")
 
 SCOPES_GOOGLE = (
     "https://www.googleapis.com/auth/analytics.readonly",
@@ -128,6 +131,18 @@ def url_inicio(config: Configuracion, proveedor: str, estado: str) -> str:
                 "state": estado,
             }
         )
+    if proveedor == "linkedin":
+        if not config.linkedin_client_id:
+            raise ConexionError("LINKEDIN_CLIENT_ID no configurado")
+        return "https://www.linkedin.com/oauth/v2/authorization?" + urlencode(
+            {
+                "response_type": "code",
+                "client_id": config.linkedin_client_id,
+                "redirect_uri": url_retorno(config, "linkedin"),
+                "state": estado,
+                "scope": " ".join(SCOPES_LINKEDIN),
+            }
+        )
     raise ConexionError(f"Proveedor desconocido: {proveedor}")
 
 
@@ -145,6 +160,17 @@ async def intercambiar_codigo(config: Configuracion, proveedor: str, codigo: str
                     "client_secret": config.meta_app_secret,
                     "redirect_uri": url_retorno(config, "meta"),
                     "code": codigo,
+                },
+            )
+        elif proveedor == "linkedin":
+            r = await http.post(
+                "https://www.linkedin.com/oauth/v2/accessToken",
+                data={
+                    "grant_type": "authorization_code",
+                    "code": codigo,
+                    "client_id": config.linkedin_client_id,
+                    "client_secret": config.linkedin_client_secret,
+                    "redirect_uri": url_retorno(config, "linkedin"),
                 },
             )
         else:
@@ -170,7 +196,38 @@ async def listar_activos(
     acceso = str(token["access_token"])
     if proveedor == "meta":
         return await _activos_meta(config, acceso)
+    if proveedor == "linkedin":
+        return await _activos_linkedin(acceso)
     return await _activos_google(acceso)
+
+
+async def _activos_linkedin(acceso: str) -> list[Activo]:
+    """Páginas de empresa donde el usuario es administrador (organizationAcls)."""
+    cab = {
+        "Authorization": f"Bearer {acceso}",
+        "LinkedIn-Version": "202409",
+        "X-Restli-Protocol-Version": "2.0.0",
+    }
+    activos: list[Activo] = []
+    async with httpx.AsyncClient(timeout=30) as http:
+        r = await http.get(
+            "https://api.linkedin.com/rest/organizationAcls",
+            params={
+                "q": "roleAssignee",
+                "role": "ADMINISTRATOR",
+                "state": "APPROVED",
+                "projection": "(elements*(organization~(localizedName)))",
+            },
+            headers=cab,
+        )
+        if r.status_code >= 400:
+            raise ConexionError(f"LinkedIn no permitió listar páginas: {r.text[:200]}")
+        for e in r.json().get("elements", []):
+            urn = e.get("organization")
+            nombre = (e.get("organization~") or {}).get("localizedName", urn)
+            if urn:
+                activos.append(Activo("linkedin", urn, nombre, {}))
+    return activos
 
 
 async def _activos_meta(config: Configuracion, acceso: str) -> list[Activo]:
@@ -240,7 +297,7 @@ async def _activos_google(acceso: str) -> list[Activo]:
 
 def credencial_para_guardar(proveedor: str, token: dict[str, Any]) -> str:
     """Lo que se cifra en cuentas_conectadas. Meta: el token. Google: JSON con refresh_token."""
-    if proveedor == "meta":
+    if proveedor in ("meta", "linkedin"):
         return str(token["access_token"])
     if not token.get("refresh_token"):
         raise ConexionError("Google no devolvió refresh_token; repite la conexión")
