@@ -1,5 +1,6 @@
 """SQL del módulo administrador. Todo el acceso a datos del admin vive aquí."""
 
+import json
 from typing import Any
 
 import asyncpg
@@ -217,3 +218,87 @@ class RepositorioAdmin:
             limite,
         )
         return [dict(f) for f in filas]
+
+    # ---- conexiones OAuth ---------------------------------------------------
+
+    async def crear_conexion(
+        self,
+        cliente_id: int,
+        proveedor: str,
+        creado_por: str,
+        credencial: str,
+        clave: str,
+        expira_en: Any,
+        activos: list[dict[str, Any]],
+    ) -> int:
+        cid = await self._pool.fetchval(
+            """
+            INSERT INTO conexiones_oauth
+                   (cliente_id, proveedor, creado_por, token_cifrado, token_expira_en, activos)
+            VALUES ($1, $2, $3, pgp_sym_encrypt($4, $5), $6, $7::jsonb) RETURNING id
+            """,
+            cliente_id,
+            proveedor,
+            creado_por,
+            credencial,
+            clave,
+            expira_en,
+            json.dumps(activos),
+        )
+        return int(cid)
+
+    async def conexion(self, conexion_id: int) -> dict[str, Any] | None:
+        f = await self._pool.fetchrow(
+            "SELECT id, cliente_id, proveedor, creado_por, activos, estado, creado_en, "
+            "token_expira_en FROM conexiones_oauth WHERE id = $1",
+            conexion_id,
+        )
+        if f is None:
+            return None
+        d = dict(f)
+        if isinstance(d["activos"], str):
+            d["activos"] = json.loads(d["activos"])
+        return d
+
+    async def activar_conexion(
+        self, conexion_id: int, elegidos: list[dict[str, Any]], clave: str
+    ) -> list[int]:
+        """Crea (o reactiva) cuentas_conectadas con el token de la conexión y la marca activada."""
+        ids: list[int] = []
+        async with self._pool.acquire() as con, con.transaction():
+            fila = await con.fetchrow(
+                "SELECT cliente_id, pgp_sym_decrypt(token_cifrado, $2) AS credencial, "
+                "token_expira_en FROM conexiones_oauth WHERE id = $1 AND estado = 'pendiente'",
+                conexion_id,
+                clave,
+            )
+            if fila is None:
+                raise LookupError("Conexión no encontrada o ya activada")
+            for a in elegidos:
+                cuenta_id = await con.fetchval(
+                    """
+                    INSERT INTO cuentas_conectadas
+                           (cliente_id, plataforma, id_externo, nombre_cuenta, credencial_cifrada,
+                            token_expira_en, activo)
+                    VALUES ($1, $2, $3, $4, pgp_sym_encrypt($5, $6), $7, TRUE)
+                    ON CONFLICT (plataforma, id_externo) DO UPDATE
+                       SET cliente_id = EXCLUDED.cliente_id, nombre_cuenta = EXCLUDED.nombre_cuenta,
+                           credencial_cifrada = EXCLUDED.credencial_cifrada,
+                           token_expira_en = EXCLUDED.token_expira_en, activo = TRUE
+                    RETURNING id
+                    """,
+                    fila["cliente_id"],
+                    a["plataforma"],
+                    a["id_externo"],
+                    a.get("nombre"),
+                    fila["credencial"],
+                    clave,
+                    fila["token_expira_en"],
+                )
+                ids.append(int(cuenta_id))
+            await con.execute(
+                "UPDATE conexiones_oauth SET estado = 'activada', token_cifrado = ''::bytea "
+                "WHERE id = $1",
+                conexion_id,
+            )
+        return ids

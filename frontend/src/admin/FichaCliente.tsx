@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
-import { Link, useParams } from "react-router-dom";
+import { Link, useParams, useSearchParams } from "react-router-dom";
 import { api, ErrorApi } from "../lib/api";
-import type { Catalogos, ClienteDetalle, CuentaAdmin, TemaAdmin } from "../lib/tipos";
+import type { ActivoConexion, Catalogos, ClienteDetalle, Conexion, CuentaAdmin, TemaAdmin } from "../lib/tipos";
 import { supabase } from "../lib/supabase";
 
 export function FichaCliente() {
@@ -9,7 +9,10 @@ export function FichaCliente() {
   const [cliente, setCliente] = useState<ClienteDetalle | null>(null);
   const [catalogos, setCatalogos] = useState<Catalogos | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [pestana, setPestana] = useState<"datos" | "marca" | "cuentas" | "usuarios">("datos");
+  const [params] = useSearchParams();
+  const [pestana, setPestana] = useState<"datos" | "marca" | "cuentas" | "usuarios">(
+    params.get("conexion") || params.get("error") ? "cuentas" : "datos",
+  );
 
   const cargar = () => api.admin.cliente(Number(id)).then(setCliente).catch((e: ErrorApi) => setError(e.message));
   useEffect(() => { cargar(); api.admin.catalogos().then(setCatalogos).catch(() => null); }, [id]);
@@ -128,6 +131,36 @@ function Marca({ cliente, alGuardar }: { cliente: ClienteDetalle; alGuardar: () 
 function Cuentas({ cliente, catalogos, alGuardar }: { cliente: ClienteDetalle; catalogos: Catalogos | null; alGuardar: () => void }) {
   const [f, setF] = useState({ plataforma: "meta_ig", id_externo: "", nombre_cuenta: "", credencial: "" });
   const [aviso, setAviso] = useState<string | null>(null);
+  const [params, setParams] = useSearchParams();
+  const [conexion, setConexion] = useState<Conexion | null>(null);
+  const [elegidos, setElegidos] = useState<Set<string>>(new Set());
+  const errorRetorno = params.get("error");
+  const conexionId = params.get("conexion");
+
+  useEffect(() => {
+    if (!conexionId) return;
+    api.admin.conexion(Number(conexionId)).then((c) => {
+      setConexion(c);
+      setElegidos(new Set(c.activos.map((a) => `${a.plataforma}|${a.id_externo}`)));
+    }).catch((e: ErrorApi) => setAviso(e.message));
+  }, [conexionId]);
+
+  async function conectar(proveedor: "meta" | "google") {
+    try {
+      const { url } = await api.admin.iniciarConexion(proveedor, cliente.id);
+      window.location.href = url;
+    } catch (err) { setAviso((err as ErrorApi).message); }
+  }
+
+  async function activar() {
+    if (!conexion) return;
+    const activos: ActivoConexion[] = conexion.activos.filter((a) => elegidos.has(`${a.plataforma}|${a.id_externo}`));
+    try {
+      const r = await api.admin.activarConexion(conexion.id, activos);
+      setAviso(`${r.cuentas.length} cuenta(s) conectada(s). Se capturan en la próxima corrida diaria.`);
+      setConexion(null); setParams({}); alGuardar();
+    } catch (err) { setAviso((err as ErrorApi).message); }
+  }
   const AYUDA: Record<string, string> = {
     meta_fb: "Page ID de la página de Facebook. Token: System User de Meta (si va vacío usa el de la agencia).",
     meta_ig: "Instagram Business Account ID (número, no el usuario).",
@@ -149,6 +182,42 @@ function Cuentas({ cliente, catalogos, alGuardar }: { cliente: ClienteDetalle; c
   async function alternar(c: CuentaAdmin) { await api.admin.editarCuenta(c.id, { activo: !c.activo }); alGuardar(); }
   return (
     <div className="grid">
+      <div className="bloque tarjeta conectar" style={{ "--ancho": 12 } as React.CSSProperties}>
+        <div>
+          <h3>Conectar con un clic</h3>
+          <p className="sutil">El cliente autoriza con su cuenta y eliges qué páginas, propiedades o canales conectar. Los tokens quedan cifrados por cuenta.</p>
+        </div>
+        <div className="botones-conectar">
+          <button className="boton-conectar meta" onClick={() => conectar("meta")}>Facebook · Instagram · Meta Ads</button>
+          <button className="boton-conectar google" onClick={() => conectar("google")}>Google Analytics · Search Console · YouTube</button>
+          <button className="boton-conectar pendiente" disabled title="Pendiente de aprobación de LinkedIn">LinkedIn (vía Metricool)</button>
+          <button className="boton-conectar pendiente" disabled title="Pendiente de aprobación de TikTok">TikTok (vía Metricool)</button>
+        </div>
+        {errorRetorno && <div className="bloque-error">No se pudo conectar: {errorRetorno}</div>}
+      </div>
+      {conexion && conexion.estado === "pendiente" && (
+        <div className="bloque tarjeta formulario" style={{ "--ancho": 12 } as React.CSSProperties}>
+          <h3>Elige qué conectar ({conexion.proveedor === "meta" ? "Meta" : "Google"})</h3>
+          {conexion.activos.length === 0 ? <p className="sutil">La cuenta autorizada no tiene activos visibles. En Meta, la página debe estar en un Business Manager al que el usuario tenga acceso.</p> : (
+            <div className="activos">
+              {conexion.activos.map((a) => {
+                const k = `${a.plataforma}|${a.id_externo}`;
+                return (
+                  <label key={k} className="fila activo">
+                    <input type="checkbox" checked={elegidos.has(k)} onChange={(e) => { const n = new Set(elegidos); e.target.checked ? n.add(k) : n.delete(k); setElegidos(n); }} />
+                    <span className="estado">{catalogos?.plataformas.find((p) => p.codigo === a.plataforma)?.nombre ?? a.plataforma}</span>
+                    <strong>{a.nombre}</strong><code>{a.id_externo}</code>
+                  </label>
+                );
+              })}
+            </div>
+          )}
+          <div style={{ display: "flex", gap: 8 }}>
+            <button className="boton-pdf" onClick={activar} disabled={elegidos.size === 0}>Conectar seleccionadas</button>
+            <button className="boton-pdf" style={{ background: "var(--gris-300)", color: "var(--gris-700)" }} onClick={() => { setConexion(null); setParams({}); }}>Cancelar</button>
+          </div>
+        </div>
+      )}
       <div className="bloque" style={{ "--ancho": 7 } as React.CSSProperties}>
         {cliente.cuentas.length === 0 ? <div className="vacio">Sin cuentas conectadas todavía.</div> : (
           <table className="publicaciones tarjeta">
@@ -164,7 +233,8 @@ function Cuentas({ cliente, catalogos, alGuardar }: { cliente: ClienteDetalle; c
         )}
       </div>
       <form className="bloque tarjeta formulario" style={{ "--ancho": 5 } as React.CSSProperties} onSubmit={crear}>
-        <h3>Conectar cuenta</h3>
+        <h3>Conectar a mano</h3>
+        <p className="sutil">Para redes sin botón o cuando ya tienes el ID y el token.</p>
         <label>Red<select value={f.plataforma} onChange={(e) => setF({ ...f, plataforma: e.target.value })}>
           {catalogos?.plataformas.map((p) => <option key={p.codigo} value={p.codigo}>{p.nombre}</option>)}
         </select></label>

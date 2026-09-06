@@ -60,6 +60,12 @@ class Configuracion(BaseSettings):
     frontend_url: str = "http://localhost:5174"
     pdf_secret: str = ""
 
+    # Botones "Conectar con ..." del admin (OAuth por red)
+    api_url: str = "http://localhost:8000"  # a dónde vuelve el proveedor con el código
+    meta_login_config_id: str = ""  # Facebook Login for Business, configuración
+    google_oauth_client_id: str = ""
+    google_oauth_client_secret: str = ""
+
     # Service Account de Google (GA4 + Search Console). JSON completo.
     google_service_account_json: str = ""
 

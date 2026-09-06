@@ -163,3 +163,20 @@ export interface Captura {
   iniciado_en: string;
   finalizado_en: string | null;
 }
+
+export interface ActivoConexion {
+  plataforma: string;
+  id_externo: string;
+  nombre: string;
+  extra?: Record<string, unknown>;
+}
+
+export interface Conexion {
+  id: number;
+  cliente_id: number;
+  proveedor: "meta" | "google";
+  creado_por: string;
+  activos: ActivoConexion[];
+  estado: "pendiente" | "activada";
+  creado_en: string;
+}

@@ -1,6 +1,6 @@
 import { supabase } from "./supabase";
 import type {
-  Captura, Catalogos, ClienteAdmin, ClienteDetalle, Rango, Reporte, RespuestaConsulta, TemaAdmin, UsuarioAdmin,
+  ActivoConexion, Conexion, Captura, Catalogos, ClienteAdmin, ClienteDetalle, Rango, Reporte, RespuestaConsulta, TemaAdmin, UsuarioAdmin,
 } from "./tipos";
 
 const BASE = import.meta.env.VITE_API_URL as string;
@@ -78,6 +78,11 @@ export const api = {
       llamar<{ estado: string }>(`/admin/usuarios/${encodeURIComponent(email)}`, { method: "DELETE" }),
     usuarios: () => llamar<UsuarioAdmin[]>("/admin/usuarios"),
     catalogos: () => llamar<Catalogos>("/admin/catalogos"),
+    iniciarConexion: (proveedor: "meta" | "google", cliente_id: number) =>
+      llamar<{ url: string }>(`/admin/conectar/${proveedor}/iniciar?cliente_id=${cliente_id}`),
+    conexion: (id: number) => llamar<Conexion>(`/admin/conexiones/${id}`),
+    activarConexion: (id: number, activos: ActivoConexion[]) =>
+      llamar<{ cuentas: number[] }>(`/admin/conexiones/${id}/activar`, { method: "POST", body: JSON.stringify({ activos }) }),
     capturas: (limite = 50) => llamar<Captura[]>(`/admin/capturas?limite=${limite}`),
   },
   yo: () => llamar<{ email: string; rol: string; cliente_id: number | null; slug: string | null }>("/yo"),

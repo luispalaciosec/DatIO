@@ -183,3 +183,12 @@ table.publicaciones .num { text-align: right; font-variant-numeric: tabular-nums
 table.tarjeta { padding: 0; overflow: hidden; }
 table.tarjeta th:first-child, table.tarjeta td:first-child { padding-left: 18px; }
 table.tarjeta a { color: inherit; }
+
+.conectar { display: flex; flex-direction: column; gap: 14px; }
+.botones-conectar { display: flex; flex-wrap: wrap; gap: 10px; }
+.boton-conectar { padding: 11px 18px; border-radius: 999px; border: 0; font: inherit; font-size: 13px; font-weight: 400; color: #fff; cursor: pointer; }
+.boton-conectar.meta { background: #1877f2; } .boton-conectar.google { background: #202124; }
+.boton-conectar.pendiente { background: var(--gris-200); color: var(--gris-500); cursor: not-allowed; }
+.activos { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 8px; }
+.activo { border: 1px solid var(--gris-200); border-radius: 14px; padding: 10px 12px; background: #fff; }
+.activo strong { font-weight: 500; } .activo code { margin-left: auto; font-size: 11px; color: var(--gris-500); }

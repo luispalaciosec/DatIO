@@ -7,6 +7,7 @@ from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 
 from api.admin.router import router as router_admin
+from api.admin.router_conectar import router as router_conectar
 from api.auth.router import router as router_auth
 from api.config import Configuracion, obtener_config
 from api.consulta.router import router as router_consulta
@@ -33,6 +34,7 @@ def crear_app(config: Configuracion | None = None) -> FastAPI:
     app.include_router(router_consulta)
     app.include_router(router_pdf)
     app.include_router(router_admin)
+    app.include_router(router_conectar)
     app.add_middleware(
         CORSMiddleware,
         allow_origins=cfg.origenes_permitidos,

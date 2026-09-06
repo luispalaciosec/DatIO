@@ -17,11 +17,27 @@ from google.oauth2 import service_account
 from api.etl.conector_base import ConectorBase
 
 
-def _token_sincrono(sa_json: str, scopes: tuple[str, ...]) -> str:
-    credenciales = service_account.Credentials.from_service_account_info(  # type: ignore[no-untyped-call]
-        json.loads(sa_json), scopes=list(scopes)
-    )
-    credenciales.refresh(Request())
+def _token_sincrono(
+    credencial: str, scopes: tuple[str, ...], client_id: str = "", client_secret: str = ""
+) -> str:
+    """Acepta un Service Account (JSON de Google) o {"tipo":"oauth","refresh_token":...}."""
+    datos = json.loads(credencial)
+    if datos.get("tipo") == "oauth":
+        from google.oauth2.credentials import Credentials
+
+        credenciales = Credentials(  # type: ignore[no-untyped-call]
+            None,
+            refresh_token=datos["refresh_token"],
+            token_uri="https://oauth2.googleapis.com/token",
+            client_id=client_id,
+            client_secret=client_secret,
+            scopes=list(scopes),
+        )
+    else:
+        credenciales = service_account.Credentials.from_service_account_info(  # type: ignore[no-untyped-call]
+            datos, scopes=list(scopes)
+        )
+    credenciales.refresh(Request())  # type: ignore[no-untyped-call]
     return str(credenciales.token)
 
 
@@ -39,8 +55,14 @@ class ConectorGoogleBase(ConectorBase):
         return self.config.google_service_account_json
 
     async def token_acceso(self) -> str:
-        sa_json = await self._service_account_json()
-        return await asyncio.to_thread(_token_sincrono, sa_json, self.scopes)
+        credencial = await self._service_account_json()
+        return await asyncio.to_thread(
+            _token_sincrono,
+            credencial,
+            self.scopes,
+            self.config.google_oauth_client_id,
+            self.config.google_oauth_client_secret,
+        )
 
     async def post_json(self, url: str, cuerpo: dict[str, Any]) -> dict[str, Any]:
         token = await self.token_acceso()
