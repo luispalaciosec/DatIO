@@ -63,7 +63,8 @@ h1, h2, h3 { font-family: var(--fuente-titulos); font-weight: 300; letter-spacin
 .rango .comparado { color: var(--gris-500); padding: 0 6px; }
 
 /* Grid de 12 columnas */
-.grid { display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); gap: 18px; }
+.grid { display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); gap: 18px; min-width: 0; }
+.bloque { min-width: 0; }
 .bloque { grid-column: span var(--ancho, 12); }
 @media (max-width: 900px) { .bloque { grid-column: span 12; } .tabs { order: 3; width: 100%; overflow-x: auto; } }
 
@@ -152,7 +153,7 @@ table.publicaciones .num { text-align: right; font-variant-numeric: tabular-nums
 .modo-print .impresion .kpi.heroe { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
 
 /* Administración */
-.admin { max-width: 1480px; margin: 18px auto; padding: 22px 28px 36px; border-radius: 32px; background: linear-gradient(160deg, #ffffff, #f7f7f9); box-shadow: 0 30px 80px rgba(20,20,30,.08); min-height: calc(100vh - 36px); }
+.admin { max-width: 1480px; overflow-x: hidden; margin: 18px auto; padding: 22px 28px 36px; border-radius: 32px; background: linear-gradient(160deg, #ffffff, #f7f7f9); box-shadow: 0 30px 80px rgba(20,20,30,.08); min-height: calc(100vh - 36px); }
 .admin-cabecera { display: flex; align-items: center; gap: 16px; }
 .admin-cabecera .marca { text-decoration: none; color: inherit; }
 .admin-cabecera .marca img { height: 28px; border-radius: 8px; }
@@ -189,6 +190,19 @@ table.tarjeta a { color: inherit; }
 .boton-conectar { padding: 11px 18px; border-radius: 999px; border: 0; font: inherit; font-size: 13px; font-weight: 400; color: #fff; cursor: pointer; }
 .boton-conectar.meta { background: #1877f2; } .boton-conectar.linkedin { background: #0a66c2; } .boton-conectar.google { background: #202124; }
 .boton-conectar.pendiente { background: var(--gris-200); color: var(--gris-500); cursor: not-allowed; }
-.activos { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 8px; }
-.activo { border: 1px solid var(--gris-200); border-radius: 14px; padding: 10px 12px; background: #fff; }
-.activo strong { font-weight: 500; } .activo code { margin-left: auto; font-size: 11px; color: var(--gris-500); }
+/* Selector de activos del botón Conectar */
+.selector { display: flex; flex-direction: column; gap: 16px; min-width: 0; }
+.selector-cabecera { display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; flex-wrap: wrap; }
+.selector-cabecera h3 { margin: 0 0 4px; font-size: 22px; font-weight: 300; }
+.buscador { padding: 10px 14px; border: 1px solid var(--gris-300); border-radius: 999px; font: inherit; font-size: 13px; min-width: 260px; background: #fff; }
+.grupo-activos header { display: flex; align-items: center; gap: 12px; margin-bottom: 8px; }
+.grupo-activos .enlace { margin-left: auto; background: none; border: 0; color: var(--color-primario, #0ea5e9); font: inherit; font-size: 12px; cursor: pointer; }
+.grupo-activos ul { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 8px; }
+.grupo-activos li { min-width: 0; }
+.grupo-activos label { display: grid; grid-template-columns: auto minmax(0, 1fr); grid-template-areas: "caja nombre" "caja id"; column-gap: 10px; align-items: center; padding: 10px 12px; border: 1px solid var(--gris-200); border-radius: 14px; background: #fff; cursor: pointer; min-width: 0; }
+.grupo-activos li.marcado label { border-color: var(--color-secundario); background: var(--gris-100); }
+.grupo-activos input { grid-area: caja; width: 16px; height: 16px; margin: 0; }
+.grupo-activos .nombre { grid-area: nombre; font-size: 14px; font-weight: 400; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.grupo-activos code { grid-area: id; font-size: 11px; color: var(--gris-500); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.selector-pie { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; border-top: 1px solid var(--gris-200); padding-top: 12px; }
+.boton-pdf.secundario { background: var(--gris-200); color: var(--gris-700); }

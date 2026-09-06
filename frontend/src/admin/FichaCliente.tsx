@@ -196,27 +196,14 @@ function Cuentas({ cliente, catalogos, alGuardar }: { cliente: ClienteDetalle; c
         {errorRetorno && <div className="bloque-error">No se pudo conectar: {errorRetorno}</div>}
       </div>
       {conexion && conexion.estado === "pendiente" && (
-        <div className="bloque tarjeta formulario" style={{ "--ancho": 12 } as React.CSSProperties}>
-          <h3>Elige qué conectar ({{ meta: "Meta", google: "Google", linkedin: "LinkedIn" }[conexion.proveedor]})</h3>
-          {conexion.activos.length === 0 ? <p className="sutil">La cuenta autorizada no tiene activos visibles. En Meta, la página debe estar en un Business Manager al que el usuario tenga acceso.</p> : (
-            <div className="activos">
-              {conexion.activos.map((a) => {
-                const k = `${a.plataforma}|${a.id_externo}`;
-                return (
-                  <label key={k} className="fila activo">
-                    <input type="checkbox" checked={elegidos.has(k)} onChange={(e) => { const n = new Set(elegidos); e.target.checked ? n.add(k) : n.delete(k); setElegidos(n); }} />
-                    <span className="estado">{catalogos?.plataformas.find((p) => p.codigo === a.plataforma)?.nombre ?? a.plataforma}</span>
-                    <strong>{a.nombre}</strong><code>{a.id_externo}</code>
-                  </label>
-                );
-              })}
-            </div>
-          )}
-          <div style={{ display: "flex", gap: 8 }}>
-            <button className="boton-pdf" onClick={activar} disabled={elegidos.size === 0}>Conectar seleccionadas</button>
-            <button className="boton-pdf" style={{ background: "var(--gris-300)", color: "var(--gris-700)" }} onClick={() => { setConexion(null); setParams({}); }}>Cancelar</button>
-          </div>
-        </div>
+        <SelectorActivos
+          conexion={conexion}
+          catalogos={catalogos}
+          elegidos={elegidos}
+          setElegidos={setElegidos}
+          alActivar={activar}
+          alCancelar={() => { setConexion(null); setParams({}); }}
+        />
       )}
       <div className="bloque" style={{ "--ancho": 7 } as React.CSSProperties}>
         {cliente.cuentas.length === 0 ? <div className="vacio">Sin cuentas conectadas todavía.</div> : (
@@ -274,6 +261,75 @@ function UsuariosCliente({ cliente, alGuardar }: { cliente: ClienteDetalle; alGu
         <p className="sutil">Solo verá el reporte de {cliente.nombre}. Con la misma cuenta de Google o por enlace al correo.</p>
         <button className="boton-pdf" type="submit">Habilitar</button><Aviso texto={aviso} />
       </form>
+    </div>
+  );
+}
+
+const NOMBRE_PROVEEDOR: Record<string, string> = { meta: "Meta", google: "Google", linkedin: "LinkedIn" };
+
+function SelectorActivos({ conexion, catalogos, elegidos, setElegidos, alActivar, alCancelar }: {
+  conexion: Conexion; catalogos: Catalogos | null; elegidos: Set<string>;
+  setElegidos: (s: Set<string>) => void; alActivar: () => void; alCancelar: () => void;
+}) {
+  const [filtro, setFiltro] = useState("");
+  const clave = (a: ActivoConexion) => `${a.plataforma}|${a.id_externo}`;
+  const nombrePlataforma = (codigo: string) => catalogos?.plataformas.find((p) => p.codigo === codigo)?.nombre ?? codigo;
+  const visibles = conexion.activos.filter((a) => !filtro || `${a.nombre} ${a.id_externo}`.toLowerCase().includes(filtro.toLowerCase()));
+  const grupos = new Map<string, ActivoConexion[]>();
+  for (const a of visibles) grupos.set(a.plataforma, [...(grupos.get(a.plataforma) ?? []), a]);
+
+  function alternar(k: string, on: boolean) { const n = new Set(elegidos); on ? n.add(k) : n.delete(k); setElegidos(n); }
+  function alternarGrupo(items: ActivoConexion[], on: boolean) {
+    const n = new Set(elegidos); for (const a of items) on ? n.add(clave(a)) : n.delete(clave(a)); setElegidos(n);
+  }
+
+  return (
+    <div className="bloque tarjeta selector" style={{ "--ancho": 12 } as React.CSSProperties}>
+      <div className="selector-cabecera">
+        <div>
+          <h3>Elige qué conectar</h3>
+          <p className="sutil">{NOMBRE_PROVEEDOR[conexion.proveedor]} devolvió {conexion.activos.length} activo(s) visibles para la cuenta autorizada. Marca solo los de este cliente.</p>
+        </div>
+        <input className="buscador" placeholder="Filtrar por nombre o ID" value={filtro} onChange={(e) => setFiltro(e.target.value)} />
+      </div>
+      {conexion.activos.length === 0 && (
+        <p className="sutil">La cuenta autorizada no tiene activos visibles. En Meta, la página debe estar en un Business Manager al que el usuario tenga acceso.</p>
+      )}
+      {[...grupos.entries()].map(([plataforma, items]) => {
+        const marcados = items.filter((a) => elegidos.has(clave(a))).length;
+        return (
+          <section className="grupo-activos" key={plataforma}>
+            <header>
+              <span className="estado">{nombrePlataforma(plataforma)}</span>
+              <span className="sutil">{marcados} de {items.length}</span>
+              <button type="button" className="enlace" onClick={() => alternarGrupo(items, marcados < items.length)}>
+                {marcados < items.length ? "Marcar todos" : "Desmarcar todos"}
+              </button>
+            </header>
+            <ul>
+              {items.map((a) => {
+                const k = clave(a);
+                return (
+                  <li key={k} className={elegidos.has(k) ? "marcado" : ""}>
+                    <label>
+                      <input type="checkbox" checked={elegidos.has(k)} onChange={(e) => alternar(k, e.target.checked)} />
+                      <span className="nombre" title={a.nombre}>{a.nombre}</span>
+                      <code title={a.id_externo}>{a.id_externo}</code>
+                    </label>
+                  </li>
+                );
+              })}
+            </ul>
+          </section>
+        );
+      })}
+      <div className="selector-pie">
+        <span className="sutil">{elegidos.size} seleccionado(s)</span>
+        <div style={{ display: "flex", gap: 8 }}>
+          <button className="boton-pdf secundario" type="button" onClick={alCancelar}>Cancelar</button>
+          <button className="boton-pdf" type="button" onClick={alActivar} disabled={elegidos.size === 0}>Conectar seleccionadas</button>
+        </div>
+      </div>
     </div>
   );
 }
