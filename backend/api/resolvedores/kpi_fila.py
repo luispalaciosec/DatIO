@@ -44,4 +44,8 @@ async def resolver(ctx: Contexto) -> Resultado:
                 "sparkline": sparklines[codigo],
             }
         )
-    return Resultado(datos, "provisional" if provisional else "consolidado")
+    return Resultado(
+        datos,
+        "provisional" if provisional else "consolidado",
+        {"destacar": int(ctx.config.get("destacar", 2))},
+    )

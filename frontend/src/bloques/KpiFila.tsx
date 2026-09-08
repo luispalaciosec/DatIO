@@ -2,10 +2,11 @@ import { formatearValor } from "../lib/formato";
 import type { Kpi, RespuestaConsulta } from "../lib/tipos";
 
 export function KpiFila({ respuesta, provisional }: { respuesta: RespuestaConsulta<Kpi[]>; provisional: boolean }) {
+  const destacar = Number(respuesta.meta.destacar ?? 2); // cuántas tarjetas héroe (config del bloque)
   return (
     <div className="kpis">
       {respuesta.datos.map((k, i) => (
-        <div className={`kpi ${i < 2 ? "heroe" : ""} ${i === 1 ? "segundo" : ""}`} key={k.metrica}>
+        <div className={`kpi ${i < destacar ? "heroe" : ""} ${i === 1 && destacar > 1 ? "segundo" : ""}`} key={k.metrica}>
           <div className="etiqueta">{k.etiqueta}{provisional && <span className="provisional">provisional</span>}</div>
           <div className="valor">{formatearValor(k.valor, k.formato, k.decimales)}</div>
           <Delta delta={k.delta} anterior={k.anterior} formato={k.formato} />

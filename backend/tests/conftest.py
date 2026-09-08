@@ -95,6 +95,11 @@ async def _borrar_cliente(pool: asyncpg.Pool, cliente_id: int) -> None:
         cliente_id,
     )
     await pool.execute(
+        "DELETE FROM fct_metrica_dimension WHERE cuenta_id IN "
+        "(SELECT id FROM cuentas_conectadas WHERE cliente_id = $1)",
+        cliente_id,
+    )
+    await pool.execute(
         "DELETE FROM dim_publicacion WHERE cuenta_id IN "
         "(SELECT id FROM cuentas_conectadas WHERE cliente_id = $1)",
         cliente_id,

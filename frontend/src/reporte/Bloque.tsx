@@ -9,6 +9,12 @@ import { SerieTemporal } from "../bloques/SerieTemporal";
 import { TablaPublicaciones } from "../bloques/TablaPublicaciones";
 import { DistribucionGeo } from "../bloques/DistribucionGeo";
 import { BenchmarkGrid } from "../bloques/BenchmarkGrid";
+import { Distribucion } from "../bloques/Distribucion";
+import { Demografia } from "../bloques/Demografia";
+import { TablaRanking } from "../bloques/TablaRanking";
+import { TopPublicaciones } from "../bloques/TopPublicaciones";
+import { RendimientoFormato } from "../bloques/RendimientoFormato";
+import { MejorDia } from "../bloques/MejorDia";
 
 // Bloques estáticos: no consultan datos.
 const ESTATICOS = new Set(["hero_banner", "titulo_seccion", "separador"]);
@@ -55,6 +61,18 @@ export function Bloque({ reporte, pagina, bloque, rango }: {
       return <DistribucionGeo respuesta={respuesta as never} />;
     case "benchmark_grid":
       return <BenchmarkGrid respuesta={respuesta as never} />;
+    case "distribucion":
+      return <Distribucion respuesta={respuesta as never} />;
+    case "demografia":
+      return <Demografia respuesta={respuesta as never} />;
+    case "tabla_ranking":
+      return <TablaRanking respuesta={respuesta as never} />;
+    case "top_publicaciones":
+      return <TopPublicaciones respuesta={respuesta as never} />;
+    case "rendimiento_formato":
+      return <RendimientoFormato respuesta={respuesta as never} />;
+    case "mejor_dia":
+      return <MejorDia respuesta={respuesta as never} />;
     default:
       return <div className="vacio">Bloque «{bloque.tipo}» aún no disponible en esta versión.</div>;
   }

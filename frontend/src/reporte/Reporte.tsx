@@ -12,7 +12,7 @@ const NOMBRES: Record<string, string> = {
   youtube: "YouTube", ga4: "Sitio web", gsc: "Búsqueda", meta_ads: "Meta Ads", google_ads: "Google Ads",
   todas: "Resumen",
 };
-const NOMBRE_PAGINA: Record<string, string> = { metricas: "Métricas", publicaciones: "Publicaciones", benchmark: "Benchmark" };
+const NOMBRE_PAGINA: Record<string, string> = { metricas: "Métricas", publicaciones: "Publicaciones", benchmark: "Benchmark", audiencia: "Audiencia", busqueda: "Búsqueda" };
 
 export function Reporte() {
   const { slug = "", plataforma, pagina } = useParams();

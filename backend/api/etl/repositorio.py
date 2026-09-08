@@ -151,6 +151,41 @@ class RepositorioETL:
             )
         return len(registros)
 
+    async def upsert_dimensiones(
+        self,
+        cuenta_id: int,
+        filas: list[tuple[date, str, str, str, Decimal]],
+        fecha_snapshot: date,
+    ) -> int:
+        """(fecha, metrica, dimension, valor_dimension, valor) → fct_metrica_dimension."""
+        if not filas:
+            return 0
+        unicas = {(f, m, d, v): x for f, m, d, v, x in filas}
+        registros = [
+            (cuenta_id, f, m, d, v, x, fecha_snapshot) for (f, m, d, v), x in unicas.items()
+        ]
+        async with self._pool.acquire() as con, con.transaction():
+            await con.executemany(
+                """
+                INSERT INTO fct_metrica_dimension
+                       (cuenta_id, fecha, metrica_codigo, dimension, valor_dimension, valor,
+                        fecha_snapshot)
+                VALUES ($1, $2, $3, $4, $5, $6, $7)
+                ON CONFLICT (cuenta_id, fecha, metrica_codigo, dimension, valor_dimension,
+                             fecha_snapshot)
+                DO UPDATE SET valor = EXCLUDED.valor
+                """,
+                registros,
+            )
+        return len(registros)
+
+    async def contar_dimensiones(self, cuenta_id: int) -> int:
+        return int(
+            await self._pool.fetchval(
+                "SELECT count(*) FROM fct_metrica_dimension WHERE cuenta_id = $1", cuenta_id
+            )
+        )
+
     async def metricas_actuales(
         self, cuenta_id: int, desde: date, hasta: date
     ) -> list[dict[str, Any]]:

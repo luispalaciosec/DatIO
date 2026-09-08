@@ -225,3 +225,42 @@ table.tarjeta a { color: inherit; }
 .competidor-secundarias { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin: 0; }
 .competidor-secundarias dt { font-size: 11px; text-transform: uppercase; letter-spacing: .04em; color: var(--gris-500); }
 .competidor-secundarias dd { margin: 2px 0 0; font-family: var(--fuente-titulos); font-size: 20px; font-weight: 300; }
+
+/* Distribuciones, demografía, rankings, top publicaciones */
+.fila-dist { display: grid; grid-template-columns: 170px 1fr 90px; gap: 10px; align-items: center; font-size: 13px; margin-bottom: 7px; }
+.fila-dist-etiqueta { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.fila-dist .barra { height: 12px; border-radius: 6px; background: var(--gris-100); overflow: hidden; }
+.fila-dist .barra div { height: 100%; background: var(--color-primario); border-radius: 6px; }
+.fila-dist-valor { text-align: right; font-variant-numeric: tabular-nums; font-weight: 400; }
+.fila-dist-valor small { color: var(--gris-500); font-weight: 300; }
+.demografia { display: grid; grid-template-columns: 3fr 2fr; gap: 28px; }
+@media (max-width: 900px) { .demografia { grid-template-columns: 1fr; } }
+.edades, .dias { display: flex; gap: 10px; align-items: flex-end; height: 190px; }
+.edad, .dia { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: flex-end; height: 100%; min-width: 0; }
+.edad-barra { width: 100%; flex: 1; display: flex; align-items: flex-end; background: var(--gris-100); border-radius: 10px; overflow: hidden; }
+.edad-barra div { width: 100%; background: var(--color-primario); border-radius: 10px 10px 0 0; min-height: 2px; }
+.dia.mejor .edad-barra div { background: var(--color-secundario); }
+.edad-valor { font-family: var(--fuente-titulos); font-size: 15px; margin-top: 6px; font-weight: 400; }
+.edad-etiqueta { font-size: 11px; color: var(--gris-500); }
+.genero-barra { display: flex; height: 16px; border-radius: 8px; overflow: hidden; background: var(--gris-100); margin-bottom: 12px; }
+.genero-item { font-size: 13px; margin-bottom: 6px; } .genero-item strong { font-weight: 500; margin-left: 4px; }
+.genero-item .punto { display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-right: 8px; }
+.celda-larga { max-width: 420px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.top-pubs { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 14px; }
+.pub { display: block; text-decoration: none; color: inherit; background: rgba(255,255,255,.85); border-radius: var(--radio); overflow: hidden; box-shadow: var(--sombra); border: 1px solid rgba(255,255,255,.9); }
+.pub-imagen { position: relative; aspect-ratio: 1; background: var(--gris-100); }
+.pub-imagen img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.pub-sin-imagen { display: grid; place-items: center; height: 100%; color: var(--gris-500); font-size: 12px; text-transform: capitalize; }
+.pub-rank { position: absolute; top: 10px; left: 10px; background: var(--color-primario); color: #fff; font-size: 11px; padding: 3px 8px; border-radius: 999px; font-weight: 500; }
+.pub-tipo { position: absolute; top: 10px; right: 10px; background: rgba(0,0,0,.55); color: #fff; font-size: 10px; padding: 3px 8px; border-radius: 999px; text-transform: capitalize; }
+.pub-cuerpo { padding: 12px 14px 14px; }
+.pub-caption { font-size: 12px; line-height: 1.35; min-height: 32px; }
+.pub-fecha { font-size: 11px; color: var(--gris-500); margin: 4px 0 8px; }
+.pub-metricas { display: flex; flex-wrap: wrap; gap: 4px 10px; font-size: 11px; color: var(--gris-700); }
+.pub-metricas strong { font-weight: 500; color: var(--color-secundario); }
+.formatos { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 14px; }
+.formato { background: rgba(255,255,255,.85); border-radius: var(--radio); padding: 16px 18px; box-shadow: var(--sombra); border: 1px solid rgba(255,255,255,.9); }
+.formato-tipo { font-family: var(--fuente-titulos); font-size: 22px; font-weight: 300; text-transform: capitalize; }
+.formato dl { margin: 10px 0 0; display: grid; gap: 8px; }
+.formato dt { font-size: 11px; text-transform: uppercase; letter-spacing: .04em; color: var(--gris-500); }
+.formato dd { margin: 0; font-family: var(--fuente-titulos); font-size: 22px; font-weight: 300; }

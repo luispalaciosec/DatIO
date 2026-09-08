@@ -341,3 +341,196 @@ class RepositorioConsulta:
             n,
         )
         return Decimal(v) if v is not None else None
+
+    # ---- dimensiones (ciudad, país, canal, consulta, formato…) ---------------------
+
+    async def agregar_dimension(
+        self,
+        cuentas: list[int],
+        codigo: str,
+        dimension: str,
+        desde: date,
+        hasta: date,
+        limite: int = 10,
+        modo: str = "suma",
+    ) -> list[dict[str, Any]]:
+        """Top N valores de una dimensión. modo 'suma' agrega los días del rango;
+        modo 'ultimo' toma solo la última fecha disponible (métricas lifetime como demografía)."""
+        if not cuentas:
+            return []
+        if modo == "ultimo":
+            filas = await self._pool.fetch(
+                """
+                WITH ult AS (
+                    SELECT max(fecha) AS fecha FROM v_metrica_dimension_actual
+                    WHERE cuenta_id = ANY($1::bigint[]) AND metrica_codigo = $2 AND dimension = $3
+                      AND fecha <= $5
+                )
+                SELECT v.valor_dimension, sum(v.valor) AS valor
+                FROM   v_metrica_dimension_actual v, ult
+                WHERE  v.cuenta_id = ANY($1::bigint[]) AND v.metrica_codigo = $2
+                  AND  v.dimension = $3 AND v.fecha = ult.fecha
+                GROUP  BY v.valor_dimension ORDER BY valor DESC LIMIT $4
+                """,
+                cuentas,
+                codigo,
+                dimension,
+                limite,
+                hasta,
+            )
+        else:
+            filas = await self._pool.fetch(
+                """
+                SELECT valor_dimension, sum(valor) AS valor
+                FROM   v_metrica_dimension_actual
+                WHERE  cuenta_id = ANY($1::bigint[]) AND metrica_codigo = $2 AND dimension = $3
+                  AND  fecha BETWEEN $5 AND $6
+                GROUP  BY valor_dimension ORDER BY valor DESC LIMIT $4
+                """,
+                cuentas,
+                codigo,
+                dimension,
+                limite,
+                desde,
+                hasta,
+            )
+        return [{"etiqueta": f["valor_dimension"], "valor": float(f["valor"])} for f in filas]
+
+    async def tabla_dimension(
+        self,
+        cuentas: list[int],
+        codigos: list[str],
+        dimension: str,
+        desde: date,
+        hasta: date,
+        orden: str,
+        limite: int,
+        modo: str = "suma",
+    ) -> list[dict[str, Any]]:
+        """Varias métricas por valor de dimensión (tabla de consultas, páginas, canales…)."""
+        if not cuentas or not codigos:
+            return []
+        condicion_fecha = "v.fecha BETWEEN $4::date AND $5::date"
+        if modo == "ultimo":
+            condicion_fecha = """v.fecha = (
+                SELECT max(fecha) FROM v_metrica_dimension_actual
+                WHERE cuenta_id = ANY($1::bigint[]) AND dimension = $3 AND fecha <= $5::date
+                  AND $4::date IS NOT NULL)"""
+        filas = await self._pool.fetch(
+            f"""
+            WITH agg AS (
+                SELECT v.valor_dimension, v.metrica_codigo, d.agregacion,
+                       CASE d.agregacion WHEN 'promedio' THEN avg(v.valor)
+                                         ELSE sum(v.valor) END AS valor
+                FROM   v_metrica_dimension_actual v
+                JOIN   dim_metrica d ON d.codigo = v.metrica_codigo
+                WHERE  v.cuenta_id = ANY($1::bigint[]) AND v.metrica_codigo = ANY($2::text[])
+                  AND  v.dimension = $3 AND {condicion_fecha}
+                GROUP  BY v.valor_dimension, v.metrica_codigo, d.agregacion
+            )
+            SELECT valor_dimension, jsonb_object_agg(metrica_codigo, valor) AS valores
+            FROM   agg GROUP BY valor_dimension
+            ORDER  BY COALESCE((jsonb_object_agg(metrica_codigo, valor) ->> $6)::numeric, 0) DESC
+            LIMIT  $7
+            """,
+            cuentas,
+            codigos,
+            dimension,
+            desde,
+            hasta,
+            orden,
+            limite,
+        )
+        salida = []
+        for f in filas:
+            valores = f["valores"]
+            if isinstance(valores, str):
+                valores = json.loads(valores)
+            salida.append(
+                {
+                    "etiqueta": f["valor_dimension"],
+                    "valores": {k: float(v) for k, v in valores.items()},
+                }
+            )
+        return salida
+
+    async def publicaciones_top(
+        self, cuentas: list[int], desde: date, hasta: date, orden: str, limite: int
+    ) -> list[dict[str, Any]]:
+        return await self.publicaciones(cuentas, desde, hasta, orden, limite)
+
+    async def rendimiento_por_tipo(
+        self, cuentas: list[int], desde: date, hasta: date, codigos: list[str]
+    ) -> list[dict[str, Any]]:
+        """Promedio por publicación de cada métrica, agrupado por tipo (reel, imagen, carrusel)."""
+        if not cuentas:
+            return []
+        filas = await self._pool.fetch(
+            """
+            WITH ult AS (
+                SELECT DISTINCT ON (publicacion_id, metrica_codigo)
+                       publicacion_id, metrica_codigo, valor
+                FROM   fct_publicacion_diaria
+                ORDER  BY publicacion_id, metrica_codigo, fecha_snapshot DESC
+            ), por_tipo AS (
+                SELECT COALESCE(p.tipo, 'otro') AS tipo, u.metrica_codigo,
+                       avg(u.valor) AS promedio, count(DISTINCT p.id) AS n
+                FROM   dim_publicacion p JOIN ult u ON u.publicacion_id = p.id
+                WHERE  p.cuenta_id = ANY($1::bigint[]) AND p.publicado_en::date BETWEEN $2 AND $3
+                  AND  u.metrica_codigo = ANY($4::text[])
+                GROUP  BY 1, 2
+            )
+            SELECT tipo, max(n) AS publicaciones,
+                   jsonb_object_agg(metrica_codigo, promedio) AS promedios
+            FROM   por_tipo GROUP BY tipo ORDER BY 2 DESC
+            """,
+            cuentas,
+            desde,
+            hasta,
+            codigos,
+        )
+        # promedio real por tipo: avg de los valores por publicación
+        salida = []
+        for f in filas:
+            proms = f["promedios"]
+            if isinstance(proms, str):
+                proms = json.loads(proms)
+            salida.append(
+                {
+                    "tipo": f["tipo"],
+                    "publicaciones": int(f["publicaciones"]),
+                    "promedios": {k: float(v) for k, v in proms.items()},
+                }
+            )
+        return salida
+
+    async def interacciones_por_dia_semana(
+        self, cuentas: list[int], desde: date, hasta: date
+    ) -> list[dict[str, Any]]:
+        if not cuentas:
+            return []
+        filas = await self._pool.fetch(
+            """
+            WITH ult AS (
+                SELECT DISTINCT ON (publicacion_id) publicacion_id, valor
+                FROM fct_publicacion_diaria WHERE metrica_codigo = 'interacciones'
+                ORDER BY publicacion_id, fecha_snapshot DESC
+            )
+            SELECT extract(isodow FROM p.publicado_en AT TIME ZONE 'America/Guayaquil')::int AS dia,
+                   count(*) AS publicaciones, avg(u.valor) AS promedio
+            FROM   dim_publicacion p JOIN ult u ON u.publicacion_id = p.id
+            WHERE  p.cuenta_id = ANY($1::bigint[]) AND p.publicado_en::date BETWEEN $2 AND $3
+            GROUP  BY 1 ORDER BY 1
+            """,
+            cuentas,
+            desde,
+            hasta,
+        )
+        return [
+            {
+                "dia": int(f["dia"]),
+                "publicaciones": int(f["publicaciones"]),
+                "promedio": float(f["promedio"]),
+            }
+            for f in filas
+        ]

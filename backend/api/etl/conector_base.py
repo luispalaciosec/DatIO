@@ -22,6 +22,7 @@ from api.etl.repositorio import Cuenta, RepositorioETL
 log = logging.getLogger(__name__)
 
 Fila = tuple[date, str, Decimal]
+FilaDimension = tuple[date, str, str, str, Decimal]  # fecha, metrica, dimension, valor_dim, valor
 Mapeo = dict[str, tuple[str, Decimal]]  # metrica_nativa → (metrica_codigo, factor)
 
 
@@ -65,6 +66,10 @@ class ConectorBase(ABC):
     @abstractmethod
     def normalizar(self, payload: list[dict[str, Any]]) -> list[Fila]:
         """(fecha, metrica_codigo, valor) usando map_metrica_plataforma."""
+
+    def normalizar_dimensiones(self, payload: list[dict[str, Any]]) -> list[FilaDimension]:
+        """Desagregaciones (ciudad, canal, consulta…). Opcional: por defecto ninguna."""
+        return []
 
     # ---- utilidades para los conectores concretos --------------------------
 
@@ -116,6 +121,9 @@ class ConectorBase(ABC):
             )
             filas = self.normalizar(crudo)
             n = await self.repo.upsert_metricas(self.cuenta.id, filas, fecha_snapshot)
+            n += await self.repo.upsert_dimensiones(
+                self.cuenta.id, self.normalizar_dimensiones(crudo), fecha_snapshot
+            )
             estado = "ok" if not self.metricas_sin_mapeo else "parcial"
             detalle = (
                 f"Métricas sin mapeo ignoradas: {sorted(self.metricas_sin_mapeo)}"
