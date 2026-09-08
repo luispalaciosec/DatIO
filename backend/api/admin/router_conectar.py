@@ -147,7 +147,7 @@ async def activar(
     elegidos = []
     for a in cuerpo.activos:
         base = permitidos.get((a.get("plataforma"), a.get("id_externo")))
-        if base is None:
+        if base is None or base["plataforma"] == conectar.AVISO:
             raise HTTPException(status.HTTP_400_BAD_REQUEST, "Activo no ofrecido por esta conexión")
         elegidos.append(base)
     if not elegidos:

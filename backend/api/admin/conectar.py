@@ -305,6 +305,18 @@ async def activos_business_manager(
     return activos
 
 
+AVISO = "aviso"  # pseudo-plataforma: una API que no pudo listarse; nunca se activa
+
+
+def _aviso(api: str, r: httpx.Response) -> Activo:
+    """Convierte un error de listado en un aviso visible en el selector (antes se perdía)."""
+    try:
+        mensaje = str(r.json().get("error", {}).get("message", r.text[:200]))
+    except ValueError:
+        mensaje = r.text[:200]
+    return Activo(AVISO, api, f"{api}: {mensaje}", {"codigo": r.status_code})
+
+
 async def _activos_google(acceso: str) -> list[Activo]:
     cab = {"Authorization": f"Bearer {acceso}"}
     activos: list[Activo] = []
@@ -312,6 +324,8 @@ async def _activos_google(acceso: str) -> list[Activo]:
         r = await http.get(
             "https://analyticsadmin.googleapis.com/v1beta/accountSummaries", headers=cab
         )
+        if r.status_code >= 400:
+            activos.append(_aviso("Google Analytics", r))
         for cuenta in r.json().get("accountSummaries", []):
             for prop in cuenta.get("propertySummaries", []):
                 activos.append(
@@ -323,6 +337,8 @@ async def _activos_google(acceso: str) -> list[Activo]:
                     )
                 )
         r = await http.get("https://www.googleapis.com/webmasters/v3/sites", headers=cab)
+        if r.status_code >= 400:
+            activos.append(_aviso("Search Console", r))
         for sitio in r.json().get("siteEntry", []):
             if sitio.get("permissionLevel") != "siteUnverifiedUser":
                 activos.append(Activo("gsc", sitio["siteUrl"], sitio["siteUrl"], {}))
@@ -331,6 +347,8 @@ async def _activos_google(acceso: str) -> list[Activo]:
             params={"part": "snippet", "mine": "true"},
             headers=cab,
         )
+        if r.status_code >= 400:
+            activos.append(_aviso("YouTube", r))
         for canal in r.json().get("items", []):
             activos.append(Activo("youtube", canal["id"], canal["snippet"]["title"], {}))
     return activos

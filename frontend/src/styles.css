@@ -296,3 +296,6 @@ table.tarjeta a { color: inherit; }
 .pub-competidor { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; font-size: 12px; }
 .pub-competidor img, .pub-competidor .inicial { width: 24px; height: 24px; border-radius: 8px; font-size: 12px; }
 .pub-competidor strong { font-weight: 500; }
+
+.aviso-conexion { background: #fff7ed; border: 1px solid #fed7aa; border-radius: var(--radio-sm); padding: 10px 14px; margin: 8px 0 12px; font-size: 13px; color: #9a3412; }
+.aviso-conexion p { margin: 2px 0; }

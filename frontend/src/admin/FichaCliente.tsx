@@ -142,7 +142,7 @@ function Cuentas({ cliente, catalogos, alGuardar }: { cliente: ClienteDetalle; c
     if (!conexionId) return;
     api.admin.conexion(Number(conexionId)).then((c) => {
       setConexion(c);
-      setElegidos(new Set(c.activos.map((a) => `${a.plataforma}|${a.id_externo}`)));
+      setElegidos(new Set(c.activos.filter((a) => a.plataforma !== "aviso").map((a) => `${a.plataforma}|${a.id_externo}`)));
     }).catch((e: ErrorApi) => setAviso(e.message));
   }, [conexionId]);
 
@@ -283,7 +283,8 @@ function SelectorActivos({ conexion, catalogos, elegidos, setElegidos, alActivar
   const [filtro, setFiltro] = useState("");
   const clave = (a: ActivoConexion) => `${a.plataforma}|${a.id_externo}`;
   const nombrePlataforma = (codigo: string) => catalogos?.plataformas.find((p) => p.codigo === codigo)?.nombre ?? codigo;
-  const visibles = conexion.activos.filter((a) => !filtro || `${a.nombre} ${a.id_externo}`.toLowerCase().includes(filtro.toLowerCase()));
+  const avisos = conexion.activos.filter((a) => a.plataforma === "aviso");
+  const visibles = conexion.activos.filter((a) => a.plataforma !== "aviso" && (!filtro || `${a.nombre} ${a.id_externo}`.toLowerCase().includes(filtro.toLowerCase())));
   const grupos = new Map<string, ActivoConexion[]>();
   for (const a of visibles) grupos.set(a.plataforma, [...(grupos.get(a.plataforma) ?? []), a]);
 
@@ -301,7 +302,12 @@ function SelectorActivos({ conexion, catalogos, elegidos, setElegidos, alActivar
         </div>
         <input className="buscador" placeholder="Filtrar por nombre o ID" value={filtro} onChange={(e) => setFiltro(e.target.value)} />
       </div>
-      {conexion.activos.length === 0 && (
+      {avisos.length > 0 && (
+        <div className="aviso-conexion">
+          {avisos.map((a) => <p key={a.id_externo}>⚠️ No se pudo listar {a.nombre}</p>)}
+        </div>
+      )}
+      {conexion.activos.length === avisos.length && (
         <p className="sutil">La cuenta autorizada no tiene activos visibles. En Meta, la página debe estar en un Business Manager al que el usuario tenga acceso.</p>
       )}
       {[...grupos.entries()].map(([plataforma, items]) => {

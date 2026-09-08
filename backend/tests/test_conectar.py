@@ -194,3 +194,17 @@ def test_credencial_google_exige_refresh_token() -> None:
         "google", {"access_token": "a", "refresh_token": "r"}
     )
     assert conectar.credencial_para_guardar("meta", {"access_token": "m"}) == "m"
+
+
+def test_error_de_listado_google_se_vuelve_aviso() -> None:
+    """Una API deshabilitada (403) no debe perderse en silencio: aparece como aviso."""
+    import httpx
+
+    from api.admin.conectar import AVISO, _aviso
+
+    r = httpx.Response(
+        403, json={"error": {"message": "Google Analytics Admin API has not been used"}}
+    )
+    a = _aviso("Google Analytics", r)
+    assert a.plataforma == AVISO and a.extra == {"codigo": 403}
+    assert a.nombre.startswith("Google Analytics: Google Analytics Admin API")
