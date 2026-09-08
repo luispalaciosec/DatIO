@@ -15,3 +15,4 @@ backend/google-sa.json
 .claude/launch.json
 frontend/.env
 frontend/dist/
+frontend/tsconfig.tsbuildinfo
