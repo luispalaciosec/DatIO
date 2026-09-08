@@ -1,6 +1,8 @@
 """benchmark_grid: el cliente frente a sus competidores (snapshots semanales del radar)."""
 
 from api.resolvedores import Contexto, Resultado, delta_porcentual, registrar
+from api.resolvedores.benchmark_tabla import CODIGOS as CODIGOS_DERIVADOS
+from api.resolvedores.benchmark_tabla import valores_propios
 
 METRICAS_POR_DEFECTO = ["seguidores", "publicaciones", "interacciones"]
 ULTIMAS_PUBLICACIONES = 12
@@ -26,6 +28,13 @@ async def resolver(ctx: Contexto) -> Resultado:
             ctx.cuentas, ULTIMAS_PUBLICACIONES
         )
         valores_propio["interacciones"] = float(inter) if inter is not None else None
+    # Métricas derivadas de las últimas publicaciones (ritmo, promedios, engagement): misma
+    # definición que el radar, calculada por benchmark_tabla.
+    derivadas = [c for c in codigos if c in CODIGOS_DERIVADOS and c != "seguidores"]
+    if derivadas:
+        propios, _ = await valores_propios(ctx, ULTIMAS_PUBLICACIONES)
+        for c in derivadas:
+            valores_propio[c] = propios.get(c)
 
     competidores = await ctx.repo.competidores_con_snapshots(ctx.cliente_id, plataforma, codigos)
     filas = [
@@ -60,7 +69,17 @@ async def resolver(ctx: Contexto) -> Resultado:
         filas,
         meta={
             "metricas": [
-                {"metrica": c, "etiqueta": info.get(c, {}).get("nombre_es", c)} for c in codigos
+                {
+                    "metrica": c,
+                    "etiqueta": info.get(c, {}).get("nombre_es", c),
+                    "formato": "porcentaje"
+                    if info.get(c, {}).get("unidad") == "porcentaje"
+                    else "entero",
+                    "decimales": 2
+                    if info.get(c, {}).get("unidad") == "porcentaje"
+                    else (1 if c == "publicaciones_semana" else 0),
+                }
+                for c in codigos
             ],
             "ultimas_publicaciones": ULTIMAS_PUBLICACIONES,
             "snapshot": max(fechas) if fechas else None,

@@ -1,3 +1,4 @@
+import { urlImagen } from "../lib/api";
 import { formatearValor } from "../lib/formato";
 import type { RespuestaConsulta } from "../lib/tipos";
 
@@ -12,7 +13,7 @@ interface FilaBenchmark {
 }
 
 export function BenchmarkGrid({ respuesta }: { respuesta: RespuestaConsulta<FilaBenchmark[]> }) {
-  const metricas = (respuesta.meta.metricas as Array<{ metrica: string; etiqueta: string }>) ?? [];
+  const metricas = (respuesta.meta.metricas as Array<{ metrica: string; etiqueta: string; formato?: string; decimales?: number }>) ?? [];
   const filas = respuesta.datos;
   if (respuesta.meta.sin_competidores) {
     return <div className="vacio">Sin competidores configurados para esta red. Se agregan desde Administración, ficha del cliente, pestaña Competidores.</div>;
@@ -24,7 +25,7 @@ export function BenchmarkGrid({ respuesta }: { respuesta: RespuestaConsulta<Fila
       {filas.map((f) => (
         <div className={`competidor ${f.propio ? "propio" : ""}`} key={f.nombre}>
           <div className="competidor-cabecera">
-            {f.logo_url ? <img src={f.logo_url} alt="" referrerPolicy="no-referrer" /> : <span className="inicial">{f.nombre.slice(0, 1)}</span>}
+            {f.logo_url ? <img src={urlImagen(f.logo_url) ?? ""} alt="" referrerPolicy="no-referrer" /> : <span className="inicial">{f.nombre.slice(0, 1)}</span>}
             <div>
               <strong>{f.nombre}</strong>
               {f.handle && <div className="sutil">@{f.handle}</div>}
@@ -42,7 +43,7 @@ export function BenchmarkGrid({ respuesta }: { respuesta: RespuestaConsulta<Fila
           </div>
           <dl className="competidor-secundarias">
             {metricas.slice(1).map((m) => (
-              <div key={m.metrica}><dt>{m.etiqueta}</dt><dd>{formatearValor(f.valores[m.metrica] ?? null)}</dd></div>
+              <div key={m.metrica}><dt>{m.etiqueta}</dt><dd>{formatearValor(f.valores[m.metrica] ?? null, m.formato ?? "entero", m.decimales ?? 0)}</dd></div>
             ))}
           </dl>
           {f.fecha && !f.propio && <div className="sutil">snapshot {f.fecha}</div>}

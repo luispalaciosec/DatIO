@@ -53,6 +53,9 @@ def delta_porcentual(actual: Any, anterior: Any) -> float | None:
 
 from api.resolvedores import (  # noqa: E402, F401 — registra los resolvedores base
     benchmark_grid,
+    benchmark_publicaciones,
+    benchmark_serie,
+    benchmark_tabla,
     dimensiones,
     distribucion_geo,
     kpi_fila,

@@ -5,6 +5,12 @@ import type {
 
 const BASE = import.meta.env.VITE_API_URL as string;
 
+/** Las imágenes copiadas por el radar vienen como ruta relativa a la API (/radar/imagen/…). */
+export function urlImagen(u: string | null): string | null {
+  if (!u) return null;
+  return u.startsWith("/") ? `${BASE}${u}` : u;
+}
+
 export class ErrorApi extends Error {
   constructor(public status: number, mensaje: string) {
     super(mensaje);

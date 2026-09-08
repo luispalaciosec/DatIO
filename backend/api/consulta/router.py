@@ -4,7 +4,7 @@ from datetime import date
 from typing import Annotated, Any
 
 import asyncpg
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Response, status
 from pydantic import BaseModel
 
 from api.consulta.repositorio import Instancia, RepositorioConsulta
@@ -70,6 +70,24 @@ async def resolver_bloque(
             **resultado.meta,
         },
     }
+
+
+@router.get("/radar/imagen/{competidor_id}/{clave}")
+async def imagen_competidor(
+    competidor_id: int,
+    clave: str,
+    repo: Annotated[RepositorioConsulta, Depends(_repo)],
+) -> Response:
+    """Imagen pública de un competidor (foto de perfil o miniatura de publicación) copiada por el
+    radar. Sin autenticación: son imágenes públicas de Instagram y las carga un <img>."""
+    imagen = await repo.imagen_competidor(competidor_id, clave)
+    if imagen is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Imagen no encontrada")
+    return Response(
+        content=imagen[1],
+        media_type=imagen[0],
+        headers={"Cache-Control": "public, max-age=86400"},
+    )
 
 
 @router.get("/reportes/{slug_publico}")

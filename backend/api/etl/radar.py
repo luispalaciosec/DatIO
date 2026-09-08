@@ -5,12 +5,15 @@ Errata E-02: cadencia SEMANAL. Cada corrida guarda el payload de Apify en raw_pa
 
 Métricas por competidor (códigos de dim_metrica):
   seguidores, publicaciones (totales del perfil), y sobre las últimas 12 publicaciones que
-  Apify devuelve: me_gusta, comentarios, interacciones (suma de ambas).
+  Apify devuelve: me_gusta, comentarios, interacciones (sumas), *_promedio por publicación,
+  tasa_engagement (interacciones promedio / seguidores) y publicaciones_semana (ritmo).
+Las publicaciones en sí se guardan en competidor_publicaciones (sql/007).
 """
 
 import asyncio
 import logging
 from dataclasses import dataclass, field
+from datetime import datetime
 from decimal import Decimal
 from typing import Any
 
@@ -18,6 +21,7 @@ import httpx
 
 from api.config import Configuracion
 from api.etl.conector_base import hoy_en
+from api.etl.imagenes import descargar_reducida
 from api.etl.repositorio import RepositorioETL
 
 log = logging.getLogger(__name__)
@@ -35,20 +39,77 @@ class ResumenRadar:
     omitidos: list[str] = field(default_factory=list)
 
 
+def _fecha_post(p: dict[str, Any]) -> datetime | None:
+    t = p.get("timestamp")
+    if not t:
+        return None
+    try:
+        return datetime.fromisoformat(str(t).replace("Z", "+00:00"))
+    except ValueError:
+        return None
+
+
 def normalizar_instagram(perfil: dict[str, Any]) -> dict[str, Decimal]:
+    """Seguidores y publicaciones totales del perfil, y sobre las últimas publicaciones que
+    Apify devuelve (hasta 12): promedios por publicación, tasa de engagement y ritmo semanal."""
     posts = perfil.get("latestPosts") or []
+    n = len(posts)
     likes = sum(int(p.get("likesCount") or 0) for p in posts)
     comentarios = sum(int(p.get("commentsCount") or 0) for p in posts)
     valores: dict[str, Decimal] = {}
-    if perfil.get("followersCount") is not None:
-        valores["seguidores"] = Decimal(int(perfil["followersCount"]))
+    seguidores = perfil.get("followersCount")
+    if seguidores is not None:
+        valores["seguidores"] = Decimal(int(seguidores))
     if perfil.get("postsCount") is not None:
         valores["publicaciones"] = Decimal(int(perfil["postsCount"]))
-    if posts:
+    if n:
+        valores["me_gusta_promedio"] = Decimal(likes) / n
+        valores["comentarios_promedio"] = Decimal(comentarios) / n
+        valores["interacciones_promedio"] = Decimal(likes + comentarios) / n
         valores["me_gusta"] = Decimal(likes)
         valores["comentarios"] = Decimal(comentarios)
         valores["interacciones"] = Decimal(likes + comentarios)
+        if seguidores:
+            valores["tasa_engagement"] = (
+                Decimal(likes + comentarios) / n / Decimal(int(seguidores)) * 100
+            )
+        fechas = sorted(f for f in (_fecha_post(p) for p in posts) if f)
+        if len(fechas) >= 2:
+            dias = max((fechas[-1] - fechas[0]).days, 1)
+            valores["publicaciones_semana"] = Decimal(len(fechas)) / dias * 7
     return valores
+
+
+TIPOS_IG = {"Sidecar": "carrusel", "Video": "reel", "Image": "imagen"}
+
+
+def publicaciones_instagram(perfil: dict[str, Any]) -> list[dict[str, Any]]:
+    """Últimas publicaciones del perfil (hasta 12) en el formato de competidor_publicaciones."""
+    salida = []
+    for p in perfil.get("latestPosts") or []:
+        id_externo = p.get("id") or p.get("shortCode")
+        if not id_externo:
+            continue
+        salida.append(
+            {
+                "id_externo": str(id_externo),
+                "tipo": TIPOS_IG.get(str(p.get("type")), str(p.get("type") or "").lower() or None),
+                "publicado_en": _fecha_post(p),
+                "permalink": p.get("url"),
+                "caption": (p.get("caption") or None),
+                "thumbnail_url": p.get("displayUrl") or (p.get("images") or [None])[0],
+                "me_gusta": Decimal(int(p["likesCount"]))
+                if p.get("likesCount") is not None
+                else None,
+                "comentarios": (
+                    Decimal(int(p["commentsCount"])) if p.get("commentsCount") is not None else None
+                ),
+                "reproducciones": (
+                    Decimal(int(p["videoViewCount"])) if p.get("videoViewCount") else None
+                ),
+            }
+        )
+    return salida
 
 
 def normalizar_facebook(pagina: dict[str, Any]) -> dict[str, Decimal]:
@@ -60,6 +121,7 @@ def normalizar_facebook(pagina: dict[str, Any]) -> dict[str, Decimal]:
 
 
 NORMALIZADORES = {"meta_ig": normalizar_instagram, "meta_fb": normalizar_facebook}
+PUBLICACIONES = {"meta_ig": publicaciones_instagram}
 
 
 def entrada_actor(plataforma: str, handles: list[str]) -> dict[str, Any]:
@@ -145,6 +207,10 @@ async def correr_radar(
             )
             valores = NORMALIZADORES[plataforma](item)
             resumen.snapshots += await repo.upsert_snapshot_competidor(c["id"], fecha, valores)
+            extractor = PUBLICACIONES.get(plataforma)
+            publicaciones = extractor(item) if extractor is not None else []
+            if publicaciones:
+                await repo.upsert_publicaciones_competidor(c["id"], fecha, publicaciones)
             resumen.competidores += 1
             foto = (
                 item.get("profilePicUrlHD")
@@ -153,4 +219,31 @@ async def correr_radar(
             )
             if foto:
                 await repo.actualizar_logo_competidor(c["id"], str(foto))
+            await guardar_imagenes(repo, c["id"], str(foto) if foto else None, publicaciones)
     return resumen
+
+
+async def guardar_imagenes(
+    repo: RepositorioETL,
+    competidor_id: int,
+    foto_url: str | None,
+    publicaciones: list[dict[str, Any]],
+) -> int:
+    """Copia local (reducida) de la foto de perfil y de las miniaturas nuevas. Best effort:
+    una imagen que falle no detiene el radar. Devuelve cuántas se guardaron."""
+    existentes = await repo.imagenes_existentes(competidor_id)
+    pendientes: list[tuple[str, str]] = []
+    if foto_url:
+        pendientes.append(("perfil", foto_url))  # el perfil se refresca en cada corrida
+    for p in publicaciones:
+        if p.get("thumbnail_url") and p["id_externo"] not in existentes:
+            pendientes.append((p["id_externo"], str(p["thumbnail_url"])))
+    guardadas = 0
+    async with httpx.AsyncClient(timeout=30) as http:
+        for clave, url in pendientes:
+            imagen = await descargar_reducida(http, url)
+            if imagen is None:
+                continue
+            await repo.guardar_imagen_competidor(competidor_id, clave, imagen[1], imagen[0])
+            guardadas += 1
+    return guardadas

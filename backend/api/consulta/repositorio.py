@@ -291,7 +291,10 @@ class RepositorioConsulta:
                 FROM   fct_competidor_snapshot s
                 WHERE  s.metrica_codigo = ANY($3::text[])
             )
-            SELECT k.id, k.nombre, k.handle, k.logo_url, k.orden,
+            SELECT k.id, k.nombre, k.handle, k.orden,
+                   CASE WHEN EXISTS (SELECT 1 FROM competidor_imagenes i
+                                     WHERE i.competidor_id = k.id AND i.clave = 'perfil')
+                        THEN '/radar/imagen/' || k.id || '/perfil' ELSE k.logo_url END AS logo_url,
                    COALESCE(jsonb_object_agg(u.metrica_codigo, u.valor) FILTER (WHERE u.n = 1),
                             '{}'::jsonb) AS actual,
                    COALESCE(jsonb_object_agg(u.metrica_codigo, u.valor) FILTER (WHERE u.n = 2),
@@ -341,6 +344,129 @@ class RepositorioConsulta:
             n,
         )
         return Decimal(v) if v is not None else None
+
+    async def resumen_ultimas_publicaciones(
+        self, cuentas: list[int], n: int
+    ) -> dict[str, Any] | None:
+        """Promedios por publicación, ritmo semanal y mezcla de formatos de las N publicaciones
+        más recientes del cliente (último snapshot por métrica). Comparable con el radar."""
+        if not cuentas:
+            return None
+        f = await self._pool.fetchrow(
+            """
+            WITH recientes AS (
+                SELECT id, tipo, publicado_en FROM dim_publicacion
+                WHERE cuenta_id = ANY($1::bigint[]) AND publicado_en IS NOT NULL
+                ORDER BY publicado_en DESC LIMIT $2
+            ), ult AS (
+                SELECT DISTINCT ON (publicacion_id, metrica_codigo)
+                       publicacion_id, metrica_codigo, valor
+                FROM fct_publicacion_diaria
+                WHERE publicacion_id IN (SELECT id FROM recientes)
+                  AND metrica_codigo IN ('me_gusta', 'comentarios', 'interacciones')
+                ORDER BY publicacion_id, metrica_codigo, fecha_snapshot DESC
+            )
+            SELECT (SELECT count(*) FROM recientes) AS publicaciones,
+                   (SELECT min(publicado_en) FROM recientes) AS primera,
+                   (SELECT max(publicado_en) FROM recientes) AS ultima,
+                   (SELECT avg(valor) FROM ult WHERE metrica_codigo = 'me_gusta') AS me_gusta,
+                   (SELECT avg(valor) FROM ult WHERE metrica_codigo = 'comentarios') AS comentarios,
+                   (SELECT avg(valor) FROM ult WHERE metrica_codigo = 'interacciones')
+                       AS interacciones,
+                   (SELECT jsonb_object_agg(tipo, c) FROM
+                       (SELECT COALESCE(tipo, 'otro') AS tipo, count(*) AS c
+                        FROM recientes GROUP BY 1) x) AS formatos
+            """,
+            cuentas,
+            n,
+        )
+        if f is None or not f["publicaciones"]:
+            return None
+        d = dict(f)
+        if isinstance(d["formatos"], str):
+            d["formatos"] = json.loads(d["formatos"])
+        return d
+
+    async def formatos_competidores(
+        self, cliente_id: int, plataforma: str | None
+    ) -> dict[int, dict[str, int]]:
+        """Cantidad de publicaciones guardadas por formato, por competidor."""
+        filas = await self._pool.fetch(
+            """
+            SELECT p.competidor_id, COALESCE(p.tipo, 'otro') AS tipo, count(*) AS c
+            FROM   competidor_publicaciones p
+            JOIN   cliente_competidores k ON k.id = p.competidor_id
+            WHERE  k.cliente_id = $1 AND ($2::text IS NULL OR k.plataforma = $2)
+            GROUP  BY 1, 2
+            """,
+            cliente_id,
+            plataforma,
+        )
+        salida: dict[int, dict[str, int]] = {}
+        for f in filas:
+            salida.setdefault(int(f["competidor_id"]), {})[str(f["tipo"])] = int(f["c"])
+        return salida
+
+    async def serie_competidores(
+        self, cliente_id: int, plataforma: str | None, metrica: str
+    ) -> list[dict[str, Any]]:
+        """Todos los snapshots de una métrica por competidor, para ver la evolución."""
+        filas = await self._pool.fetch(
+            """
+            SELECT k.id AS competidor_id, k.nombre, s.fecha_snapshot, s.valor
+            FROM   cliente_competidores k
+            JOIN   fct_competidor_snapshot s ON s.competidor_id = k.id
+            WHERE  k.cliente_id = $1 AND ($2::text IS NULL OR k.plataforma = $2)
+              AND  s.metrica_codigo = $3
+            ORDER  BY k.orden, k.id, s.fecha_snapshot
+            """,
+            cliente_id,
+            plataforma,
+            metrica,
+        )
+        return [dict(f) for f in filas]
+
+    async def publicaciones_competencia(
+        self, cliente_id: int, plataforma: str | None, limite: int, dias: int | None
+    ) -> list[dict[str, Any]]:
+        """Publicaciones de la competencia ordenadas por interacciones (me gusta + comentarios)."""
+        filas = await self._pool.fetch(
+            """
+            SELECT p.competidor_id, k.nombre, k.handle, p.id_externo, p.tipo,
+                   p.publicado_en, p.permalink, p.caption,
+                   CASE WHEN ip.clave IS NOT NULL
+                        THEN '/radar/imagen/' || k.id || '/perfil' ELSE k.logo_url END AS logo_url,
+                   CASE WHEN im.clave IS NOT NULL
+                        THEN '/radar/imagen/' || k.id || '/' || p.id_externo
+                        ELSE p.thumbnail_url END AS thumbnail_url,
+                   p.me_gusta, p.comentarios, p.reproducciones,
+                   COALESCE(p.me_gusta, 0) + COALESCE(p.comentarios, 0) AS interacciones
+            FROM   competidor_publicaciones p
+            JOIN   cliente_competidores k ON k.id = p.competidor_id
+            LEFT   JOIN competidor_imagenes im
+                   ON im.competidor_id = p.competidor_id AND im.clave = p.id_externo
+            LEFT   JOIN competidor_imagenes ip
+                   ON ip.competidor_id = p.competidor_id AND ip.clave = 'perfil'
+            WHERE  k.cliente_id = $1 AND ($2::text IS NULL OR k.plataforma = $2)
+              AND  ($4::int IS NULL OR p.publicado_en >= now() - ($4::int || ' days')::interval)
+            ORDER  BY interacciones DESC, p.publicado_en DESC
+            LIMIT  $3
+            """,
+            cliente_id,
+            plataforma,
+            limite,
+            dias,
+        )
+        return [dict(f) for f in filas]
+
+    async def imagen_competidor(self, competidor_id: int, clave: str) -> tuple[str, bytes] | None:
+        f = await self._pool.fetchrow(
+            "SELECT tipo_mime, contenido FROM competidor_imagenes "
+            "WHERE competidor_id = $1 AND clave = $2",
+            competidor_id,
+            clave,
+        )
+        return (str(f["tipo_mime"]), bytes(f["contenido"])) if f else None
 
     # ---- dimensiones (ciudad, país, canal, consulta, formato…) ---------------------
 

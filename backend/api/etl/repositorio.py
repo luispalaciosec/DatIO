@@ -312,6 +312,67 @@ class RepositorioETL:
         )
         return int(raw_id)
 
+    async def upsert_publicaciones_competidor(
+        self, competidor_id: int, fecha_snapshot: date, publicaciones: list[dict[str, Any]]
+    ) -> int:
+        if not publicaciones:
+            return 0
+        async with self._pool.acquire() as con, con.transaction():
+            await con.executemany(
+                """
+                INSERT INTO competidor_publicaciones
+                       (competidor_id, id_externo, tipo, publicado_en, permalink, caption,
+                        thumbnail_url, me_gusta, comentarios, reproducciones, fecha_snapshot)
+                VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+                ON CONFLICT (competidor_id, id_externo) DO UPDATE SET
+                    tipo = EXCLUDED.tipo, publicado_en = EXCLUDED.publicado_en,
+                    permalink = EXCLUDED.permalink, caption = EXCLUDED.caption,
+                    thumbnail_url = EXCLUDED.thumbnail_url, me_gusta = EXCLUDED.me_gusta,
+                    comentarios = EXCLUDED.comentarios, reproducciones = EXCLUDED.reproducciones,
+                    fecha_snapshot = EXCLUDED.fecha_snapshot
+                """,
+                [
+                    (
+                        competidor_id,
+                        p["id_externo"],
+                        p.get("tipo"),
+                        p.get("publicado_en"),
+                        p.get("permalink"),
+                        p.get("caption"),
+                        p.get("thumbnail_url"),
+                        p.get("me_gusta"),
+                        p.get("comentarios"),
+                        p.get("reproducciones"),
+                        fecha_snapshot,
+                    )
+                    for p in publicaciones
+                ],
+            )
+        return len(publicaciones)
+
+    async def imagenes_existentes(self, competidor_id: int) -> set[str]:
+        filas = await self._pool.fetch(
+            "SELECT clave FROM competidor_imagenes WHERE competidor_id = $1", competidor_id
+        )
+        return {str(f["clave"]) for f in filas}
+
+    async def guardar_imagen_competidor(
+        self, competidor_id: int, clave: str, tipo_mime: str, contenido: bytes
+    ) -> None:
+        await self._pool.execute(
+            """
+            INSERT INTO competidor_imagenes (competidor_id, clave, tipo_mime, contenido)
+            VALUES ($1, $2, $3, $4)
+            ON CONFLICT (competidor_id, clave) DO UPDATE
+            SET tipo_mime = EXCLUDED.tipo_mime, contenido = EXCLUDED.contenido,
+                actualizado_en = now()
+            """,
+            competidor_id,
+            clave,
+            tipo_mime,
+            contenido,
+        )
+
     async def upsert_snapshot_competidor(
         self, competidor_id: int, fecha_snapshot: date, valores: dict[str, Decimal]
     ) -> int:

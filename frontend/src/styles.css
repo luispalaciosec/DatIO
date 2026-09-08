@@ -264,3 +264,35 @@ table.tarjeta a { color: inherit; }
 .formato dl { margin: 10px 0 0; display: grid; gap: 8px; }
 .formato dt { font-size: 11px; text-transform: uppercase; letter-spacing: .04em; color: var(--gris-500); }
 .formato dd { margin: 0; font-family: var(--fuente-titulos); font-size: 22px; font-weight: 300; }
+
+.sin-conexion { max-width: 560px; margin: 48px auto; text-align: center; padding: 40px 32px; }
+.sin-conexion h2 { font-family: var(--fuente-titulos); font-weight: 300; font-size: 26px; margin: 0 0 12px; }
+.sin-conexion p { color: var(--gris-500); line-height: 1.5; margin: 0 0 20px; }
+.sin-conexion .boton { display: inline-block; padding: 10px 22px; border-radius: 999px; background: var(--color-primario); color: #fff; text-decoration: none; }
+
+/* Benchmark completo */
+.bench-tabla-envoltura { overflow-x: auto; }
+.bench-tabla { width: 100%; border-collapse: separate; border-spacing: 0 8px; font-size: 13px; min-width: 900px; }
+.bench-tabla th { text-align: left; font-weight: 400; color: var(--gris-500); font-size: 11px; text-transform: uppercase; letter-spacing: .04em; padding: 0 12px 2px; }
+.bench-tabla td { background: rgba(255,255,255,.85); padding: 12px; vertical-align: top; border-top: 1px solid rgba(255,255,255,.9); border-bottom: 1px solid rgba(255,255,255,.9); }
+.bench-tabla td:first-child { border-radius: var(--radio-sm) 0 0 var(--radio-sm); }
+.bench-tabla td:last-child { border-radius: 0 var(--radio-sm) var(--radio-sm) 0; }
+.bench-tabla tr.propio td { background: var(--tinte-fuerte); border-color: color-mix(in srgb, var(--color-primario) 30%, #fff); }
+.bench-marca { display: flex; align-items: center; gap: 10px; min-width: 180px; }
+.bench-marca img, .bench-marca .inicial, .pub-competidor img, .pub-competidor .inicial { width: 34px; height: 34px; border-radius: 10px; object-fit: cover; background: var(--gris-100); display: grid; place-items: center; font-family: var(--fuente-titulos); color: var(--gris-700); flex: none; }
+.bench-marca strong { font-weight: 500; }
+.bench-celda { min-width: 120px; }
+.bench-valor { display: flex; align-items: baseline; gap: 8px; font-family: var(--fuente-titulos); font-size: 20px; font-weight: 300; }
+.bench-pos { font-family: var(--fuente-cuerpo); font-size: 10px; color: var(--gris-500); background: var(--gris-100); padding: 2px 6px; border-radius: 999px; }
+.bench-pos.lider { background: var(--color-primario); color: #fff; }
+.bench-tabla .barra { height: 4px; border-radius: 2px; background: rgba(0,0,0,.07); margin-top: 8px; overflow: hidden; }
+.bench-tabla .barra div { height: 100%; background: var(--color-primario); border-radius: 2px; }
+.bench-tabla .delta { font-size: 11px; margin-top: 2px; }
+.bench-nota { margin-top: 6px; }
+.bench-formatos { min-width: 150px; }
+.bench-formatos-barra { display: flex; height: 8px; border-radius: 4px; overflow: hidden; background: var(--gris-100); margin: 8px 0 6px; }
+.bench-formatos-leyenda { display: flex; flex-wrap: wrap; gap: 3px 10px; font-size: 11px; color: var(--gris-700); text-transform: capitalize; }
+.bench-formatos-leyenda i { display: inline-block; width: 8px; height: 8px; border-radius: 2px; margin-right: 4px; }
+.pub-competidor { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; font-size: 12px; }
+.pub-competidor img, .pub-competidor .inicial { width: 24px; height: 24px; border-radius: 8px; font-size: 12px; }
+.pub-competidor strong { font-weight: 500; }

@@ -91,9 +91,26 @@ export function Reporte() {
           </div>
         </div>
 
-        <Pagina reporte={reporte} pagina={actual} rango={rango} />
+        {actual.cuentas > 0 ? (
+          <Pagina reporte={reporte} pagina={actual} rango={rango} />
+        ) : (
+          <SinConexion red={NOMBRES[redActual] ?? redActual} />
+        )}
       </div>
     </TemaProvider>
+  );
+}
+
+function SinConexion({ red }: { red: string }) {
+  return (
+    <div className="tarjeta sin-conexion">
+      <h2>{red} todavía no está conectado</h2>
+      <p>
+        Esta marca no tiene una cuenta de {red} vinculada a DatIO, por eso no hay métricas que mostrar.
+        Un usuario del equipo puede conectarla desde el administrador con el botón «Conectar».
+      </p>
+      <Link className="boton" to="/admin">Ir al administrador</Link>
+    </div>
   );
 }
 

@@ -9,6 +9,9 @@ import { SerieTemporal } from "../bloques/SerieTemporal";
 import { TablaPublicaciones } from "../bloques/TablaPublicaciones";
 import { DistribucionGeo } from "../bloques/DistribucionGeo";
 import { BenchmarkGrid } from "../bloques/BenchmarkGrid";
+import { BenchmarkTabla } from "../bloques/BenchmarkTabla";
+import { BenchmarkSerie } from "../bloques/BenchmarkSerie";
+import { BenchmarkPublicaciones } from "../bloques/BenchmarkPublicaciones";
 import { Distribucion } from "../bloques/Distribucion";
 import { Demografia } from "../bloques/Demografia";
 import { TablaRanking } from "../bloques/TablaRanking";
@@ -61,6 +64,12 @@ export function Bloque({ reporte, pagina, bloque, rango }: {
       return <DistribucionGeo respuesta={respuesta as never} />;
     case "benchmark_grid":
       return <BenchmarkGrid respuesta={respuesta as never} />;
+    case "benchmark_tabla":
+      return <BenchmarkTabla respuesta={respuesta as never} />;
+    case "benchmark_serie":
+      return <BenchmarkSerie respuesta={respuesta as never} />;
+    case "benchmark_publicaciones":
+      return <BenchmarkPublicaciones respuesta={respuesta as never} />;
     case "distribucion":
       return <Distribucion respuesta={respuesta as never} />;
     case "demografia":

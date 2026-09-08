@@ -37,6 +37,10 @@ INSERT INTO dim_metrica (codigo, nombre_es, unidad, agregacion, es_acumulada, pr
 ('duracion_vista_promedio_seg','Duración promedio de vista',       'segundos',   'promedio', FALSE, FALSE, 'contenido'),
 ('publicaciones',             'Publicaciones',                     'conteo',     'suma',     FALSE, TRUE,  'contenido'),
 ('visualizaciones_pagina',    'Visualizaciones de la página',      'conteo',     'suma',     FALSE, TRUE,  'contenido'),
+('publicaciones_semana',      'Publicaciones por semana',          'conteo',     'promedio', FALSE, FALSE, 'contenido'),
+('me_gusta_promedio',         'Me gusta promedio por publicación', 'conteo',     'promedio', FALSE, FALSE, 'contenido'),
+('comentarios_promedio',      'Comentarios promedio por publicación','conteo',   'promedio', FALSE, FALSE, 'contenido'),
+('interacciones_promedio',    'Interacciones promedio por publicación','conteo', 'promedio', FALSE, FALSE, 'contenido'),
 -- PAUTA
 ('inversion',                 'Inversión',                         'moneda',     'suma',     FALSE, TRUE,  'pauta'),
 ('cpm',                       'CPM',                               'moneda',     'promedio', FALSE, FALSE, 'pauta'),
