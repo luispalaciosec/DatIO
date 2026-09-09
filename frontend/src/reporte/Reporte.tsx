@@ -124,14 +124,17 @@ function SelectorRango({ rango, onChange }: { rango: Rango; onChange: (r: Rango)
   const [local, setLocal] = useState(rango);
   useEffect(() => setLocal(rango), [rango]);
   const preset = (dias: number) => onChange({ desde: hoyISO(-dias), hasta: hoyISO(-1) });
+  // "Hoy": incluye el día en curso; los bloques marcan sus cifras como provisionales.
+  const hoy = () => onChange({ desde: hoyISO(-27), hasta: hoyISO(0) });
   return (
     <form className="rango" onSubmit={(e) => { e.preventDefault(); onChange(local); }}>
       <button type="button" onClick={() => preset(7)}>7 d</button>
       <button type="button" onClick={() => preset(28)}>28 d</button>
       <button type="button" onClick={() => preset(90)}>90 d</button>
+      <button type="button" onClick={hoy} title="Incluye el día en curso (datos provisionales)">Hoy</button>
       <input type="date" value={local.desde} max={local.hasta} onChange={(e) => setLocal({ ...local, desde: e.target.value })} />
       <span className="comparado">a</span>
-      <input type="date" value={local.hasta} min={local.desde} onChange={(e) => setLocal({ ...local, hasta: e.target.value })} />
+      <input type="date" value={local.hasta} min={local.desde} max={hoyISO(0)} onChange={(e) => setLocal({ ...local, hasta: e.target.value })} />
       <span className="comparado">vs. período anterior</span>
       <button type="submit">Aplicar</button>
     </form>

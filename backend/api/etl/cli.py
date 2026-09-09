@@ -1,6 +1,9 @@
 """Corrida del ETL desde línea de comandos (Railway Cron 06:00 Ecuador).
 
-    python -m api.etl.cli [--plataforma ga4] [--hasta 2026-09-04]
+    python -m api.etl.cli [--plataforma ga4] [--hasta 2026-09-04] [--live]
+
+--live (PT-12): captura hasta hoy, marca hoy y ayer como provisionales, sin radar ni
+publicaciones. Pensado para un cron intradía (p. ej. cada 3 horas) sobre Meta.
 
 Sale con código 1 si alguna cuenta falló, para que Railway marque la corrida en rojo.
 """
@@ -19,15 +22,19 @@ from api.etl.runner import ResumenCorrida, correr_todos
 
 
 async def ejecutar(
-    plataforma: str | None, hasta: date | None, radar: bool = True, forzar_radar: bool = False
+    plataforma: str | None,
+    hasta: date | None,
+    radar: bool = True,
+    forzar_radar: bool = False,
+    live: bool = False,
 ) -> tuple[ResumenCorrida, ResumenRadar | None]:
     config = obtener_config()
     pool = await crear_pool(config.database_url)
     try:
         repo = RepositorioETL(pool)
-        resumen = await correr_todos(repo, config, plataforma, hasta)
+        resumen = await correr_todos(repo, config, plataforma, hasta, live=live)
         radar_resumen = None
-        if radar and plataforma is None:
+        if radar and plataforma is None and not live:
             radar_resumen = await correr_radar(
                 repo, config, forzar=forzar_radar, dias_minimos=config.radar_dias_minimos
             )
@@ -43,10 +50,11 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--hasta", type=date.fromisoformat, default=None, help="último día")
     parser.add_argument("--sin-radar", action="store_true", help="no correr el radar competitivo")
     parser.add_argument("--forzar-radar", action="store_true", help="radar aunque no toque")
+    parser.add_argument("--live", action="store_true", help="captura intradía provisional")
     args = parser.parse_args(argv)
 
     resumen, radar = asyncio.run(
-        ejecutar(args.plataforma, args.hasta, not args.sin_radar, args.forzar_radar)
+        ejecutar(args.plataforma, args.hasta, not args.sin_radar, args.forzar_radar, args.live)
     )
     for r in resumen.resultados:
         print(

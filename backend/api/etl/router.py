@@ -33,8 +33,9 @@ async def correr(
     pool: Annotated[asyncpg.Pool, Depends(obtener_pool)],
     plataforma: str | None = None,
     hasta: date | None = None,
+    live: bool = False,
 ) -> dict[str, Any]:
-    resumen = await correr_todos(RepositorioETL(pool), config, plataforma, hasta)
+    resumen = await correr_todos(RepositorioETL(pool), config, plataforma, hasta, live=live)
     return {
         "filas_escritas": resumen.filas_escritas,
         "cuentas_ok": [r.cuenta_id for r in resumen.resultados if r.estado == "ok"],

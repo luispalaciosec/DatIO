@@ -105,7 +105,11 @@ class ConectorBase(ABC):
 
     # ---- corrida completa ---------------------------------------------------
 
-    async def correr(self, hasta: date | None = None) -> ResultadoCorrida:
+    async def correr(
+        self, hasta: date | None = None, provisional_desde: date | None = None
+    ) -> ResultadoCorrida:
+        """provisional_desde: las filas con fecha >= ese día se guardan como 'provisional'
+        (modo live, PT-12). La captura consolidada del día siguiente las reemplaza."""
         desde, hasta = self.rango_por_defecto(hasta)
         fecha_snapshot = hoy_en(self.config.zona_horaria)
         job_id = await self.repo.abrir_job(self.cuenta.id, self.codigo)
@@ -120,7 +124,15 @@ class ConectorBase(ABC):
                 job_id=job_id,
             )
             filas = self.normalizar(crudo)
-            n = await self.repo.upsert_metricas(self.cuenta.id, filas, fecha_snapshot)
+            if provisional_desde is not None:
+                firmes = [f for f in filas if f[0] < provisional_desde]
+                vivas = [f for f in filas if f[0] >= provisional_desde]
+                n = await self.repo.upsert_metricas(self.cuenta.id, firmes, fecha_snapshot)
+                n += await self.repo.upsert_metricas(
+                    self.cuenta.id, vivas, fecha_snapshot, estado="provisional"
+                )
+            else:
+                n = await self.repo.upsert_metricas(self.cuenta.id, filas, fecha_snapshot)
             n += await self.repo.upsert_dimensiones(
                 self.cuenta.id, self.normalizar_dimensiones(crudo), fecha_snapshot
             )

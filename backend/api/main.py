@@ -10,6 +10,7 @@ from api.admin.router import router as router_admin
 from api.admin.router_conectar import router as router_conectar
 from api.auth.router import router as router_auth
 from api.config import Configuracion, obtener_config
+from api.consulta.cache import CacheConsulta
 from api.consulta.router import router as router_consulta
 from api.db import crear_pool
 from api.etl.router import router as router_etl
@@ -23,6 +24,7 @@ def crear_app(config: Configuracion | None = None) -> FastAPI:
     async def ciclo_de_vida(app: FastAPI) -> AsyncIterator[None]:
         app.state.config = cfg
         app.state.pool = await crear_pool(cfg.database_url)
+        app.state.cache = CacheConsulta(ttl_seg=cfg.cache_ttl_seg)
         try:
             yield
         finally:

@@ -42,6 +42,13 @@ class RepositorioConsulta:
     def __init__(self, pool: asyncpg.Pool) -> None:
         self._pool = pool
 
+    async def generacion_datos(self) -> str:
+        """Marca de la última captura cerrada; cambia cuando el ETL escribe algo nuevo."""
+        v = await self._pool.fetchval(
+            "SELECT max(finalizado_en) FROM jobs_ejecucion WHERE estado <> 'corriendo'"
+        )
+        return v.isoformat() if v else ""
+
     # ---- estructura ---------------------------------------------------------
 
     async def instancia_por_slug(self, slug_publico: str) -> Instancia | None:

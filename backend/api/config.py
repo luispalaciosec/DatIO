@@ -69,6 +69,9 @@ class Configuracion(BaseSettings):
     linkedin_client_id: str = ""
     linkedin_client_secret: str = ""
 
+    # Cache de /consulta (PT-12). 0 = desactivada.
+    cache_ttl_seg: int = 900
+
     # Radar competitivo (PT-15)
     apify_token: str = ""
     radar_dias_minimos: int = 7

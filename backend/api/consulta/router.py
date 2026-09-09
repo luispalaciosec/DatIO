@@ -4,9 +4,10 @@ from datetime import date
 from typing import Annotated, Any
 
 import asyncpg
-from fastapi import APIRouter, Depends, HTTPException, Response, status
+from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
 from pydantic import BaseModel
 
+from api.consulta.cache import CacheConsulta
 from api.consulta.repositorio import Instancia, RepositorioConsulta
 from api.deps import UsuarioActual, obtener_pool, usuario_actual
 from api.resolvedores import REGISTRO, Contexto
@@ -32,11 +33,17 @@ def _verificar_acceso(usuario: UsuarioActual, instancia: Instancia) -> None:
         raise HTTPException(status.HTTP_403_FORBIDDEN, "Sin acceso a este reporte")
 
 
+def _cache(request: Request) -> CacheConsulta | None:
+    cache: CacheConsulta | None = getattr(request.app.state, "cache", None)
+    return cache if cache is not None and cache.ttl_seg > 0 else None
+
+
 @router.post("/consulta")
 async def resolver_bloque(
     req: ConsultaBloque,
     usuario: Annotated[UsuarioActual, Depends(usuario_actual)],
     repo: Annotated[RepositorioConsulta, Depends(_repo)],
+    cache: Annotated[CacheConsulta | None, Depends(_cache)],
 ) -> dict[str, Any]:
     if req.hasta < req.desde:
         raise HTTPException(status.HTTP_400_BAD_REQUEST, "El rango de fechas es inválido")
@@ -44,6 +51,22 @@ async def resolver_bloque(
     if instancia is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Reporte no encontrado")
     _verificar_acceso(usuario, instancia)
+
+    # El acceso ya se verificó: la clave no incluye al usuario porque la respuesta es la misma
+    # para todo el que puede ver este reporte.
+    clave = (
+        req.instancia_id,
+        req.bloque_id,
+        req.desde.isoformat(),
+        req.hasta.isoformat(),
+        req.comparar,
+    )
+    if cache is not None:
+        if not cache.generacion_vigente():
+            cache.fijar_generacion(await repo.generacion_datos())
+        en_cache = cache.obtener(clave)
+        if en_cache is not None:
+            return {**en_cache, "meta": {**en_cache["meta"], "cache": True}}
 
     bloque = await repo.bloque_con_overrides(instancia.id, req.bloque_id)
     if bloque is None:
@@ -59,7 +82,7 @@ async def resolver_bloque(
         repo, cuentas, instancia.cliente_id, config_bloque, req.desde, req.hasta, req.comparar
     )
     resultado = await resolvedor(ctx)
-    return {
+    respuesta = {
         "datos": resultado.datos,
         "estado": resultado.estado,
         "meta": {
@@ -70,6 +93,9 @@ async def resolver_bloque(
             **resultado.meta,
         },
     }
+    if cache is not None:
+        cache.guardar(clave, respuesta)
+    return respuesta
 
 
 @router.get("/radar/imagen/{competidor_id}/{clave}")

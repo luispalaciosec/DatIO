@@ -49,7 +49,10 @@ class ConectorPublicacionesBase(ConectorBase):
                 salida[m[0]] = salida.get(m[0], Decimal(0)) + m[1]
         return salida
 
-    async def correr(self, hasta: date | None = None) -> ResultadoCorrida:
+    async def correr(
+        self, hasta: date | None = None, provisional_desde: date | None = None
+    ) -> ResultadoCorrida:
+        # provisional_desde no aplica: las métricas por publicación llevan su propio snapshot.
         desde, hasta = self.rango_por_defecto(hasta)
         fecha_snapshot = hoy_en(self.config.zona_horaria)
         job_id = await self.repo.abrir_job(self.cuenta.id, self.codigo)
