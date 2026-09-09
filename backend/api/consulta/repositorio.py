@@ -475,6 +475,48 @@ class RepositorioConsulta:
         )
         return (str(f["tipo_mime"]), bytes(f["contenido"])) if f else None
 
+    # ---- proyecciones (PT-13) -------------------------------------------------------
+
+    async def guardar_proyeccion(
+        self,
+        cuenta_id: int,
+        metrica: str,
+        fecha_objetivo: date,
+        corrida_en: date,
+        horizonte_dias: int,
+        p50: float,
+        p10: float | None,
+        p90: float | None,
+        modelo: str,
+        version: str,
+        features: dict[str, Any] | None,
+    ) -> None:
+        """Una fila por (cuenta, métrica, objetivo, día de corrida, modelo); re-correr el mismo
+        día actualiza en lugar de duplicar. Nunca se borran: son la base del backtest."""
+        await self._pool.execute(
+            """
+            INSERT INTO fct_proyeccion (cuenta_id, metrica_codigo, fecha_objetivo, corrida_en,
+                                        horizonte_dias, valor_p50, valor_p10, valor_p90,
+                                        modelo, modelo_version, features)
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11::jsonb)
+            ON CONFLICT ON CONSTRAINT uq_proyeccion DO UPDATE SET
+                horizonte_dias = EXCLUDED.horizonte_dias, valor_p50 = EXCLUDED.valor_p50,
+                valor_p10 = EXCLUDED.valor_p10, valor_p90 = EXCLUDED.valor_p90,
+                modelo_version = EXCLUDED.modelo_version, features = EXCLUDED.features
+            """,
+            cuenta_id,
+            metrica,
+            fecha_objetivo,
+            corrida_en,
+            horizonte_dias,
+            Decimal(str(round(p50, 4))),
+            Decimal(str(round(p10, 4))) if p10 is not None else None,
+            Decimal(str(round(p90, 4))) if p90 is not None else None,
+            modelo,
+            version,
+            json.dumps(features) if features else None,
+        )
+
     # ---- dimensiones (ciudad, país, canal, consulta, formato…) ---------------------
 
     async def agregar_dimension(

@@ -59,6 +59,7 @@ from api.resolvedores import (  # noqa: E402, F401 — registra los resolvedores
     dimensiones,
     distribucion_geo,
     kpi_fila,
+    pacing_mes,
     serie_temporal,
     tabla_publicaciones,
 )

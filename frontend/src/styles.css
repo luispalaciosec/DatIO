@@ -299,3 +299,17 @@ table.tarjeta a { color: inherit; }
 
 .aviso-conexion { background: #fff7ed; border: 1px solid #fed7aa; border-radius: var(--radio-sm); padding: 10px 14px; margin: 8px 0 12px; font-size: 13px; color: #9a3412; }
 .aviso-conexion p { margin: 2px 0; }
+
+/* Pacing del mes (PT-13) */
+.pacing { display: flex; flex-direction: column; gap: 14px; }
+.pacing-cabecera { display: flex; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
+.pacing-grande { font-family: var(--fuente-titulos); font-size: 40px; font-weight: 200; line-height: 1.05; }
+.pacing-mediano { font-family: var(--fuente-titulos); font-size: 28px; font-weight: 300; line-height: 1.1; }
+.pacing-proyeccion { text-align: right; }
+.pacing-barras { display: flex; flex-direction: column; gap: 8px; }
+.pacing-barra { display: grid; grid-template-columns: minmax(120px, 1fr) 2fr auto; align-items: center; gap: 10px; font-size: 12px; color: var(--gris-700); }
+.pacing-barra .barra { height: 8px; border-radius: 4px; background: var(--gris-100); overflow: hidden; }
+.pacing-barra .barra div { height: 100%; background: var(--color-primario); border-radius: 4px; }
+.pacing-barra .barra div.atras { background: #f59e0b; }
+.pacing-barra .barra div.ok { background: var(--verde); }
+.pacing-barra b { font-weight: 500; }
