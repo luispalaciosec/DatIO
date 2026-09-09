@@ -7,7 +7,16 @@ from decimal import Decimal
 import pytest
 
 from api.consulta.repositorio import RepositorioConsulta
-from api.etl.radar import clave_perfil, entrada_actor, normalizar_instagram, publicaciones_instagram
+from api.etl.radar import (
+    clave_perfil,
+    entrada_actor,
+    metricas_de_perfil,
+    normalizar_anuncio,
+    normalizar_instagram,
+    perfil_facebook,
+    perfil_tiktok,
+    publicaciones_instagram,
+)
 from api.resolvedores import Contexto
 from api.resolvedores.benchmark_grid import resolver
 from api.resolvedores.benchmark_publicaciones import resolver as resolver_pubs
@@ -22,8 +31,8 @@ def test_normalizar_instagram_suma_ultimas_publicaciones() -> None:
         "followersCount": 184094,
         "postsCount": 633,
         "latestPosts": [
-            {"likesCount": 391, "commentsCount": 144},
-            {"likesCount": 9, "commentsCount": 1},
+            {"id": "a", "likesCount": 391, "commentsCount": 144},
+            {"id": "b", "likesCount": 9, "commentsCount": 1},
         ],
     }
     v = normalizar_instagram(perfil)
@@ -285,3 +294,138 @@ async def test_imagen_competidor_endpoint(pool, cliente_a, config) -> None:  # t
     comps = await repo.competidores_con_snapshots(cliente_a.id, "ga4", ["seguidores"])
     assert comps[0]["logo_url"] == f"/radar/imagen/{kid}/perfil"
     await pool.execute("DELETE FROM cliente_competidores WHERE id = $1", kid)
+
+
+def test_perfil_facebook_combina_pagina_y_publicaciones() -> None:
+    pagina = {
+        "pageUrl": "https://www.facebook.com/BancoX",
+        "followers": 5000,
+        "likes": 4800,
+        "profilePictureUrl": "https://img/p.jpg",
+    }
+    posts = [
+        {
+            "postId": "1",
+            "inputUrl": "https://www.facebook.com/BancoX",
+            "time": "2026-09-07T21:26:04.000Z",
+            "likes": 43,
+            "comments": 3,
+            "shares": 2,
+            "isVideo": True,
+            "viewsCount": 1350,
+            "text": "Reel",
+            "url": "https://fb/1",
+            "media": {"thumbnail": "https://img/1.jpg"},
+        },
+        {
+            "postId": "2",
+            "inputUrl": "https://www.facebook.com/BancoX",
+            "time": "2026-08-31T10:00:00.000Z",
+            "likes": 7,
+            "comments": 1,
+            "shares": 0,
+            "isVideo": False,
+            "text": "Foto",
+            "url": "https://fb/2",
+        },
+    ]
+    perfil = perfil_facebook(pagina, posts)
+    assert perfil.seguidores == 5000 and perfil.foto_url == "https://img/p.jpg"
+    assert [p["tipo"] for p in perfil.publicaciones] == ["video", "publicacion"]
+    assert perfil.publicaciones[0]["reproducciones"] == Decimal(1350)
+    v = metricas_de_perfil(perfil)
+    assert v["interacciones"] == Decimal(56)  # 43+3+2 + 7+1+0: los compartidos cuentan
+    assert v["publicaciones_semana"] == Decimal(2)  # 2 posts en 7 días
+    assert clave_perfil("meta_fb_publicaciones", posts[0]) == "bancox"
+    assert clave_perfil("meta_fb", pagina) == "bancox"
+    assert "startUrls" in entrada_actor("meta_fb_publicaciones", ["BancoX"])
+
+
+def test_perfil_tiktok_sale_de_los_videos() -> None:
+    videos = [
+        {
+            "id": "v1",
+            "input": "bancox",
+            "createTimeISO": "2026-09-08T20:13:21.000Z",
+            "text": "Hola",
+            "webVideoUrl": "https://tiktok/v1",
+            "diggCount": 33,
+            "shareCount": 7,
+            "playCount": 657,
+            "commentCount": 5,
+            "authorMeta": {
+                "name": "bancox",
+                "fans": 175300,
+                "video": 436,
+                "avatar": "https://img/a.jpg",
+            },
+            "videoMeta": {"coverUrl": "https://img/c.jpg"},
+        },
+        {
+            "id": "v2",
+            "input": "bancox",
+            "createTimeISO": "2026-09-01T20:13:21.000Z",
+            "diggCount": 3,
+            "shareCount": 0,
+            "playCount": 57,
+            "commentCount": 0,
+            "authorMeta": {"name": "bancox", "fans": 175300, "video": 436},
+            "videoMeta": {},
+        },
+    ]
+    perfil = perfil_tiktok(videos)
+    assert perfil.seguidores == 175300 and perfil.publicaciones_totales == 436
+    assert perfil.foto_url == "https://img/a.jpg" and perfil.publicaciones[0][
+        "reproducciones"
+    ] == Decimal(657)
+    v = metricas_de_perfil(perfil)
+    assert v["me_gusta"] == Decimal(36) and v["interacciones"] == Decimal(48)
+    assert clave_perfil("tiktok", videos[0]) == "bancox"
+    assert entrada_actor("tiktok", ["bancox"])["profiles"] == ["bancox"]
+    assert perfil_tiktok([]).seguidores is None
+
+
+def test_normalizar_anuncio_usa_tiempo_activo() -> None:
+    item = {
+        "ad_archive_id": "123",
+        "url": "https://www.facebook.com/BancoX",
+        "is_active": True,
+        "start_date": 1788850800,
+        "total_active_time": 86400 * 45,
+        "publisher_platform": ["FACEBOOK", "INSTAGRAM"],
+        "ad_library_url": "https://www.facebook.com/ads/library/?id=123",
+        "snapshot": {
+            "display_format": "DCO",
+            "cta_text": "Sign up",
+            "title": "Sé parte",
+            "link_url": "https://x",
+            "body": {"text": "Cuerpo"},
+            "cards": [{"resized_image_url": "https://img/ad.jpg"}],
+        },
+    }
+    a = normalizar_anuncio(item, date(2026, 9, 8))
+    assert a is not None and a["primera_vez_visto"] == date(2026, 7, 25)
+    assert a["plataformas"] == ["facebook", "instagram"] and a["formato"] == "dco"
+    assert a["creatividad_url"] == "https://img/ad.jpg" and a["copy_texto"] == "Cuerpo"
+    assert a["oferta"] == "Sign up" and a["titulo"] == "Sé parte"
+    assert clave_perfil("pauta", item) == "bancox"
+    assert normalizar_anuncio({"snapshot": {}}, date(2026, 9, 8)) is None
+    sin_tiempo = normalizar_anuncio(
+        {"ad_archive_id": "9", "start_date": 1788850800}, date(2026, 9, 8)
+    )
+    assert sin_tiempo is not None and sin_tiempo["primera_vez_visto"] == date(2026, 9, 8)
+    e = entrada_actor("pauta", ["BancoX"])
+    assert e["scrapePageAds.countryCode"] == "EC" and e["scrapePageAds.activeStatus"] == "active"
+
+
+def test_normalizar_anuncio_catalogo_dinamico() -> None:
+    item = {
+        "ad_archive_id": "7",
+        "snapshot": {
+            "title": "{{product.name}}",
+            "body": {"text": "{{product.brand}}"},
+            "cards": [],
+        },
+    }
+    a = normalizar_anuncio(item, date(2026, 9, 8))
+    assert a is not None and a["titulo"] is None and a["copy_texto"].startswith("Anuncio dinámico")

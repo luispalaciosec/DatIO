@@ -350,6 +350,65 @@ class RepositorioETL:
             )
         return len(publicaciones)
 
+    async def upsert_anuncios_competidor(
+        self, competidor_id: int, anuncios: list[dict[str, Any]]
+    ) -> int:
+        """Los anuncios vistos hoy se crean o refrescan (ultima_vez_visto = hoy, activo);
+        los que no aparecieron en esta corrida se marcan inactivos. primera_vez_visto nunca
+        avanza: es la antigüedad real del anuncio."""
+        async with self._pool.acquire() as con, con.transaction():
+            await con.execute(
+                "UPDATE dim_anuncio_competencia SET activo = FALSE "
+                "WHERE competidor_id = $1 AND NOT (ad_archive_id = ANY($2::text[]))",
+                competidor_id,
+                [a["ad_archive_id"] for a in anuncios],
+            )
+            if not anuncios:
+                return 0
+            await con.executemany(
+                """
+                INSERT INTO dim_anuncio_competencia
+                       (competidor_id, ad_archive_id, primera_vez_visto, ultima_vez_visto,
+                        plataformas, creatividad_url, copy_texto, formato, oferta, titulo,
+                        enlace, url_biblioteca, activo)
+                VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
+                ON CONFLICT (competidor_id, ad_archive_id) DO UPDATE SET
+                    primera_vez_visto = LEAST(dim_anuncio_competencia.primera_vez_visto,
+                                              EXCLUDED.primera_vez_visto),
+                    ultima_vez_visto = EXCLUDED.ultima_vez_visto,
+                    plataformas = EXCLUDED.plataformas,
+                    creatividad_url = COALESCE(EXCLUDED.creatividad_url,
+                                               dim_anuncio_competencia.creatividad_url),
+                    copy_texto = COALESCE(EXCLUDED.copy_texto, dim_anuncio_competencia.copy_texto),
+                    formato = COALESCE(EXCLUDED.formato, dim_anuncio_competencia.formato),
+                    oferta = COALESCE(EXCLUDED.oferta, dim_anuncio_competencia.oferta),
+                    titulo = COALESCE(EXCLUDED.titulo, dim_anuncio_competencia.titulo),
+                    enlace = COALESCE(EXCLUDED.enlace, dim_anuncio_competencia.enlace),
+                    url_biblioteca = COALESCE(EXCLUDED.url_biblioteca,
+                                              dim_anuncio_competencia.url_biblioteca),
+                    activo = EXCLUDED.activo
+                """,
+                [
+                    (
+                        competidor_id,
+                        a["ad_archive_id"],
+                        a["primera_vez_visto"],
+                        a["ultima_vez_visto"],
+                        a.get("plataformas") or [],
+                        a.get("creatividad_url"),
+                        a.get("copy_texto"),
+                        a.get("formato"),
+                        a.get("oferta"),
+                        a.get("titulo"),
+                        a.get("enlace"),
+                        a.get("url_biblioteca"),
+                        bool(a.get("activo", True)),
+                    )
+                    for a in anuncios
+                ],
+            )
+        return len(anuncios)
+
     async def imagenes_existentes(self, competidor_id: int) -> set[str]:
         filas = await self._pool.fetch(
             "SELECT clave FROM competidor_imagenes WHERE competidor_id = $1", competidor_id

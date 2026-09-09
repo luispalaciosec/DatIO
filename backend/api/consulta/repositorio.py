@@ -466,6 +466,95 @@ class RepositorioConsulta:
         )
         return [dict(f) for f in filas]
 
+    async def anuncios_competencia(
+        self,
+        cliente_id: int,
+        solo_activos: bool = True,
+        orden: str = "longevidad",
+        limite: int = 24,
+        competidor_id: int | None = None,
+    ) -> list[dict[str, Any]]:
+        """Anuncios de la competencia (radar de pauta) con días activos y creatividad local."""
+        orden_sql = {
+            "longevidad": "dias_activo DESC, a.ultima_vez_visto DESC",
+            "recientes": "a.primera_vez_visto DESC, a.id DESC",
+        }.get(orden, "dias_activo DESC")
+        filas = await self._pool.fetch(
+            f"""
+            SELECT a.id, a.competidor_id, k.nombre AS competidor, k.handle,
+                   CASE WHEN ip.clave IS NOT NULL THEN '/radar/imagen/' || k.id || '/perfil'
+                        ELSE k.logo_url END AS logo_url,
+                   a.ad_archive_id, a.primera_vez_visto, a.ultima_vez_visto, a.plataformas,
+                   CASE WHEN ic.clave IS NOT NULL
+                        THEN '/radar/imagen/' || k.id || '/ad:' || a.ad_archive_id
+                        ELSE a.creatividad_url END AS creatividad_url,
+                   a.copy_texto, a.formato, a.oferta, a.titulo, a.enlace, a.url_biblioteca,
+                   a.activo,
+                   (a.ultima_vez_visto - a.primera_vez_visto) AS dias_activo
+            FROM   dim_anuncio_competencia a
+            JOIN   cliente_competidores k ON k.id = a.competidor_id
+            LEFT   JOIN competidor_imagenes ic
+                   ON ic.competidor_id = k.id AND ic.clave = 'ad:' || a.ad_archive_id
+            LEFT   JOIN competidor_imagenes ip ON ip.competidor_id = k.id AND ip.clave = 'perfil'
+            WHERE  k.cliente_id = $1 AND ($2::bool IS FALSE OR a.activo)
+              AND  ($4::bigint IS NULL OR a.competidor_id = $4)
+            ORDER  BY {orden_sql}
+            LIMIT  $3
+            """,
+            cliente_id,
+            solo_activos,
+            limite,
+            competidor_id,
+        )
+        return [dict(f) for f in filas]
+
+    async def resumen_pauta_competencia(self, cliente_id: int) -> list[dict[str, Any]]:
+        """Por competidor de Facebook: anuncios activos, antigüedad promedio y máxima,
+        mezcla de formatos y plataformas, y cuántos llevan más de 30 días."""
+        filas = await self._pool.fetch(
+            """
+            SELECT k.id AS competidor_id, k.nombre, k.handle,
+                   CASE WHEN ip.clave IS NOT NULL THEN '/radar/imagen/' || k.id || '/perfil'
+                        ELSE k.logo_url END AS logo_url,
+                   count(a.*) FILTER (WHERE a.activo) AS activos,
+                   count(a.*) AS historicos,
+                   avg(a.ultima_vez_visto - a.primera_vez_visto) FILTER (WHERE a.activo)
+                       AS dias_promedio,
+                   max(a.ultima_vez_visto - a.primera_vez_visto) FILTER (WHERE a.activo)
+                       AS dias_maximo,
+                   count(a.*) FILTER (WHERE a.activo
+                                      AND a.ultima_vez_visto - a.primera_vez_visto >= 30)
+                       AS veteranos,
+                   COALESCE(jsonb_object_agg(a.formato, 1) FILTER (WHERE FALSE), '{}') AS x,
+                   (SELECT jsonb_object_agg(f, n) FROM (
+                        SELECT COALESCE(formato, 'otro') AS f, count(*) AS n
+                        FROM dim_anuncio_competencia WHERE competidor_id = k.id AND activo
+                        GROUP BY 1) t) AS formatos,
+                   (SELECT jsonb_object_agg(p, n) FROM (
+                        SELECT unnest(plataformas) AS p, count(*) AS n
+                        FROM dim_anuncio_competencia WHERE competidor_id = k.id AND activo
+                        GROUP BY 1) t) AS plataformas,
+                   max(a.ultima_vez_visto) AS ultima_captura
+            FROM   cliente_competidores k
+            LEFT   JOIN dim_anuncio_competencia a ON a.competidor_id = k.id
+            LEFT   JOIN competidor_imagenes ip ON ip.competidor_id = k.id AND ip.clave = 'perfil'
+            WHERE  k.cliente_id = $1 AND k.plataforma = 'meta_fb'
+            GROUP  BY k.id, ip.clave
+            ORDER  BY activos DESC, k.orden, k.id
+            """,
+            cliente_id,
+        )
+        salida = []
+        for f in filas:
+            d = dict(f)
+            d.pop("x", None)
+            for k in ("formatos", "plataformas"):
+                if isinstance(d[k], str):
+                    d[k] = json.loads(d[k])
+                d[k] = d[k] or {}
+            salida.append(d)
+        return salida
+
     async def imagen_competidor(self, competidor_id: int, clave: str) -> tuple[str, bytes] | None:
         f = await self._pool.fetchrow(
             "SELECT tipo_mime, contenido FROM competidor_imagenes "

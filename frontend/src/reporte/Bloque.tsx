@@ -19,6 +19,8 @@ import { TopPublicaciones } from "../bloques/TopPublicaciones";
 import { RendimientoFormato } from "../bloques/RendimientoFormato";
 import { MejorDia } from "../bloques/MejorDia";
 import { PacingMes } from "../bloques/PacingMes";
+import { RadarAnuncios } from "../bloques/RadarAnuncios";
+import { RadarShare } from "../bloques/RadarShare";
 
 // Bloques estáticos: no consultan datos.
 const ESTATICOS = new Set(["hero_banner", "titulo_seccion", "separador"]);
@@ -55,6 +57,11 @@ export function Bloque({ reporte, pagina, bloque, rango }: {
 
   const provisional = respuesta.estado === "provisional";
   switch (bloque.tipo) {
+    case "radar_anuncios_activos":
+    case "radar_longevidad":
+      return <RadarAnuncios respuesta={respuesta as never} />;
+    case "radar_share_of_voice":
+      return <RadarShare respuesta={respuesta as never} />;
     case "pacing_mes":
       return <PacingMes respuesta={respuesta as never} provisional={provisional} />;
     case "kpi_fila":

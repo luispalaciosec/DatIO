@@ -327,3 +327,27 @@ table.tarjeta a { color: inherit; }
 .alerta-titulo { margin: 8px 0 4px; font-size: 14px; }
 .alerta-detalle { font-family: ui-monospace, monospace; font-size: 11px; color: var(--gris-700); background: var(--gris-100); padding: 6px 8px; border-radius: 8px; margin-top: 4px; word-break: break-word; }
 .alerta-acciones { display: flex; gap: 14px; margin-top: 8px; font-size: 12px; }
+
+/* Radar de pauta (PT-15b) */
+.radar { display: flex; flex-direction: column; gap: 12px; }
+.radar-filtro { flex-wrap: wrap; }
+.radar-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); gap: 14px; }
+.anuncio { display: block; text-decoration: none; color: inherit; background: rgba(255,255,255,.85); border-radius: var(--radio); overflow: hidden; box-shadow: var(--sombra); border: 1px solid rgba(255,255,255,.9); }
+.anuncio-imagen { position: relative; aspect-ratio: 1; background: var(--gris-100); }
+.anuncio-imagen img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.anuncio-dias { position: absolute; top: 10px; left: 10px; background: var(--gris-700); color: #fff; font-size: 11px; padding: 3px 8px; border-radius: 999px; font-weight: 500; }
+.anuncio-dias.maduro { background: #f59e0b; }
+.anuncio-dias.veterano { background: var(--verde); }
+.anuncio-titulo { font-size: 13px; font-weight: 500; margin-bottom: 4px; }
+.anuncio-pie { display: flex; justify-content: space-between; align-items: center; gap: 8px; margin-top: 8px; font-size: 11px; }
+.anuncio-cta { background: var(--tinte-fuerte); color: var(--color-primario); padding: 2px 8px; border-radius: 999px; font-weight: 500; }
+.radar-share { display: flex; flex-direction: column; gap: 10px; }
+.radar-share-fila { display: grid; grid-template-columns: minmax(180px, 1fr) 2fr auto minmax(120px, 1fr); gap: 14px; align-items: center; background: rgba(255,255,255,.85); border-radius: var(--radio-sm); padding: 12px 14px; }
+.radar-share-barra .barra { height: 8px; border-radius: 4px; background: var(--gris-100); overflow: hidden; margin-bottom: 4px; }
+.radar-share-barra .barra div { height: 100%; background: var(--color-primario); border-radius: 4px; }
+.radar-share-cifras { display: flex; gap: 16px; }
+.radar-share-cifras div { display: flex; flex-direction: column; align-items: center; }
+.radar-share-cifras b { font-family: var(--fuente-titulos); font-size: 20px; font-weight: 300; }
+.radar-share-cifras span { font-size: 10px; color: var(--gris-500); text-transform: uppercase; letter-spacing: .04em; }
+.radar-share-mix { display: flex; flex-wrap: wrap; gap: 4px 10px; font-size: 11px; text-transform: capitalize; }
+@media (max-width: 800px) { .radar-share-fila { grid-template-columns: 1fr; } }
