@@ -37,11 +37,12 @@ async def resolver(ctx: Contexto) -> Resultado:
             valores_propio[c] = propios.get(c)
 
     competidores = await ctx.repo.competidores_con_snapshots(ctx.cliente_id, plataforma, codigos)
+    tema = await ctx.repo.tema(ctx.cliente_id)  # el cliente se ve con su propio logo y nombre
     filas = [
         {
-            "nombre": ctx.config.get("etiqueta_propio", "Tú"),
+            "nombre": ctx.config.get("etiqueta_propio") or tema.get("nombre") or "Tu marca",
             "handle": None,
-            "logo_url": None,
+            "logo_url": tema.get("logo_url"),
             "propio": True,
             "valores": valores_propio,
             "deltas": {},

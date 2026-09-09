@@ -21,7 +21,7 @@ BEGIN
     -- El grid de tarjetas pasa a ser el resumen de seguidores; el detalle va en la tabla.
     UPDATE reporte_bloques SET config = '{"titulo":"Seguidores frente a la competencia","bajada":"Quién tiene la audiencia más grande y cómo cambió desde la captura anterior del radar."}'
       WHERE pagina_id = v_pagina AND tipo = 'titulo_seccion' AND orden = 20;
-    UPDATE reporte_bloques SET config = '{"metricas":["seguidores","publicaciones_semana","tasa_engagement"],"etiqueta_propio":"Tu marca"}'
+    UPDATE reporte_bloques SET config = '{"metricas":["seguidores","publicaciones_semana","tasa_engagement"]}'
       WHERE pagina_id = v_pagina AND tipo = 'benchmark_grid' AND orden = 30;
 
     CALL pg_temp.agregar(v_pagina, 'separador', 40, 12, '{}');
@@ -29,7 +29,7 @@ BEGIN
     CALL pg_temp.agregar(v_pagina, 'benchmark_tabla', 60, 12, '{"etiqueta_propio":"Tu marca"}');
     CALL pg_temp.agregar(v_pagina, 'separador', 70, 12, '{}');
     CALL pg_temp.agregar(v_pagina, 'titulo_seccion', 80, 12, '{"titulo":"Evolución de seguidores","bajada":"Tu crecimiento diario frente a las capturas semanales de la competencia."}');
-    CALL pg_temp.agregar(v_pagina, 'benchmark_serie', 90, 12, '{"metrica":"seguidores","etiqueta_propio":"Tu marca"}');
+    CALL pg_temp.agregar(v_pagina, 'benchmark_serie', 90, 12, '{"metrica":"seguidores"}');
     CALL pg_temp.agregar(v_pagina, 'separador', 100, 12, '{}');
     CALL pg_temp.agregar(v_pagina, 'titulo_seccion', 110, 12, '{"titulo":"Lo que mejor le funciona a la competencia","bajada":"Sus publicaciones con más interacciones entre las últimas capturadas por el radar."}');
     CALL pg_temp.agregar(v_pagina, 'benchmark_publicaciones', 120, 12, '{"limite":8}');

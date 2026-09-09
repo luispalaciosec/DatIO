@@ -194,7 +194,9 @@ async def test_benchmark_completo(pool, cliente_a) -> None:  # type: ignore[no-u
     json.dumps(tabla.datos)
 
     serie = await resolver_serie(ctx)
-    assert [s["clave"] for s in serie.datos["series"]] == ["Tu marca", "Rival"]
+    claves = [s["clave"] for s in serie.datos["series"]]
+    assert claves[1] == "Rival" and claves[0].startswith("Cliente prueba")  # nombre del cliente
+    assert propio["nombre"].startswith("Cliente prueba")
     assert serie.meta["snapshots"] == 2
     assert {p["fecha"]: p.get("Rival") for p in serie.datos["puntos"]} == {
         "2026-08-25": 100.0,

@@ -14,8 +14,12 @@ import logging
 import sys
 from datetime import date
 
+from api.alertas.correo import enviar_resumen
+from api.alertas.repositorio import RepositorioAlertas
+from api.alertas.servicio import ResumenAlertas, correr_alertas
 from api.config import obtener_config
 from api.db import crear_pool
+from api.etl.conector_base import hoy_en
 from api.etl.radar import ResumenRadar, correr_radar
 from api.etl.repositorio import RepositorioETL
 from api.etl.runner import ResumenCorrida, correr_todos
@@ -27,7 +31,8 @@ async def ejecutar(
     radar: bool = True,
     forzar_radar: bool = False,
     live: bool = False,
-) -> tuple[ResumenCorrida, ResumenRadar | None]:
+    alertas: bool = True,
+) -> tuple[ResumenCorrida, ResumenRadar | None, ResumenAlertas | None]:
     config = obtener_config()
     pool = await crear_pool(config.database_url)
     try:
@@ -38,7 +43,17 @@ async def ejecutar(
             radar_resumen = await correr_radar(
                 repo, config, forzar=forzar_radar, dias_minimos=config.radar_dias_minimos
             )
-        return resumen, radar_resumen
+        alertas_resumen = None
+        if alertas and plataforma is None and not live:
+            hoy = hoy_en(config.zona_horaria)
+            repo_alertas = RepositorioAlertas(pool)
+            alertas_resumen = await correr_alertas(repo_alertas, hoy)
+            destinatarios = await repo_alertas.correos_equipo()
+            destinatarios += [
+                d for d in config.alertas_destinatarios_extra if d not in destinatarios
+            ]
+            await enviar_resumen(config, destinatarios, alertas_resumen.nuevas, hoy.isoformat())
+        return resumen, radar_resumen, alertas_resumen
     finally:
         await pool.close()
 
@@ -51,10 +66,18 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--sin-radar", action="store_true", help="no correr el radar competitivo")
     parser.add_argument("--forzar-radar", action="store_true", help="radar aunque no toque")
     parser.add_argument("--live", action="store_true", help="captura intradía provisional")
+    parser.add_argument("--sin-alertas", action="store_true", help="no detectar ni avisar alertas")
     args = parser.parse_args(argv)
 
-    resumen, radar = asyncio.run(
-        ejecutar(args.plataforma, args.hasta, not args.sin_radar, args.forzar_radar, args.live)
+    resumen, radar, alertas = asyncio.run(
+        ejecutar(
+            args.plataforma,
+            args.hasta,
+            not args.sin_radar,
+            args.forzar_radar,
+            args.live,
+            not args.sin_alertas,
+        )
     )
     for r in resumen.resultados:
         print(
@@ -71,6 +94,13 @@ def main(argv: list[str] | None = None) -> int:
             f"radar: {radar.competidores} competidores, {radar.snapshots} valores, "
             f"USD {radar.costo_usd:.4f}, errores={radar.errores}, omitidos={radar.omitidos}"
         )
+    if alertas is not None:
+        print(
+            f"alertas: {len(alertas.nuevas)} nueva(s) sobre {alertas.cuentas_revisadas} cuentas "
+            f"y {alertas.metricas_evaluadas} métricas"
+        )
+        for a in alertas.nuevas:
+            print(f"  [{a.severidad}] {a.titulo}")
     return 1 if resumen.errores else 0
 
 

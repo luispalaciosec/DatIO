@@ -313,3 +313,17 @@ table.tarjeta a { color: inherit; }
 .pacing-barra .barra div.atras { background: #f59e0b; }
 .pacing-barra .barra div.ok { background: var(--verde); }
 .pacing-barra b { font-weight: 500; }
+
+/* Alertas (PT-14) */
+.alertas-lista { display: flex; flex-direction: column; gap: 10px; }
+.alerta-tarjeta { background: rgba(255,255,255,.85); border-radius: var(--radio-sm); padding: 14px 16px; box-shadow: var(--sombra); border-left: 4px solid var(--gris-300); }
+.alerta-tarjeta.sev-alta { border-left-color: var(--rojo); }
+.alerta-tarjeta.sev-media { border-left-color: #f59e0b; }
+.alerta-tarjeta.resuelta { opacity: .55; }
+.alerta-etiquetas { display: flex; gap: 10px; align-items: center; font-size: 12px; flex-wrap: wrap; }
+.alerta-sev { color: #fff; font-size: 11px; padding: 2px 8px; border-radius: 999px; background: var(--gris-500); }
+.alerta-sev.sev-alta { background: var(--rojo); }
+.alerta-sev.sev-media { background: #f59e0b; }
+.alerta-titulo { margin: 8px 0 4px; font-size: 14px; }
+.alerta-detalle { font-family: ui-monospace, monospace; font-size: 11px; color: var(--gris-700); background: var(--gris-100); padding: 6px 8px; border-radius: 8px; margin-top: 4px; word-break: break-word; }
+.alerta-acciones { display: flex; gap: 14px; margin-top: 8px; font-size: 12px; }

@@ -1,6 +1,6 @@
 import { supabase } from "./supabase";
 import type {
-  ActivoConexion, Conexion, Captura, Catalogos, ClienteAdmin, ClienteDetalle, Rango, Reporte, RespuestaConsulta, TemaAdmin, UsuarioAdmin,
+  ActivoConexion, Conexion, Captura, Catalogos, ClienteAdmin, ClienteDetalle, Rango, Reporte, RespuestaConsulta, TemaAdmin, UsuarioAdmin, AlertaAdmin,
 } from "./tipos";
 
 const BASE = import.meta.env.VITE_API_URL as string;
@@ -95,6 +95,9 @@ export const api = {
     activarConexion: (id: number, activos: ActivoConexion[]) =>
       llamar<{ cuentas: number[] }>(`/admin/conexiones/${id}/activar`, { method: "POST", body: JSON.stringify({ activos }) }),
     capturas: (limite = 50) => llamar<Captura[]>(`/admin/capturas?limite=${limite}`),
+    alertas: (abiertas = true) => llamar<AlertaAdmin[]>(`/admin/alertas?abiertas=${abiertas}`),
+    resolverAlerta: (id: number, resuelta: boolean) =>
+      llamar<{ estado: string }>(`/admin/alertas/${id}`, { method: "PATCH", body: JSON.stringify({ resuelta }) }),
   },
   yo: () => llamar<{ email: string; rol: string; cliente_id: number | null; slug: string | null }>("/yo"),
 };

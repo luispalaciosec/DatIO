@@ -69,6 +69,11 @@ class Configuracion(BaseSettings):
     linkedin_client_id: str = ""
     linkedin_client_secret: str = ""
 
+    # Alertas por correo (PT-14) vía Resend. Sin clave, las alertas solo se ven en el admin.
+    resend_api_key: str = ""
+    correo_remitente: str = "DatIO <alertas@datio.app>"
+    alertas_destinatarios_extra: list[str] = Field(default_factory=list)
+
     # Cache de /consulta (PT-12). 0 = desactivada.
     cache_ttl_seg: int = 900
 

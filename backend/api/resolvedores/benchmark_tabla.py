@@ -80,11 +80,12 @@ async def resolver(ctx: Contexto) -> Resultado:
         if previos:
             delta_propio = delta_porcentual(ultimo["valor"], previos[-1]["valor"])
 
+    tema = await ctx.repo.tema(ctx.cliente_id)
     filas: list[dict[str, Any]] = [
         {
-            "nombre": ctx.config.get("etiqueta_propio", "Tu marca"),
+            "nombre": ctx.config.get("etiqueta_propio") or tema.get("nombre") or "Tu marca",
             "handle": None,
-            "logo_url": None,
+            "logo_url": tema.get("logo_url"),
             "propio": True,
             "valores": valores_propio,
             "delta_seguidores": delta_propio,

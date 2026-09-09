@@ -8,6 +8,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel, EmailStr, Field
 
 from api.admin.repositorio import RepositorioAdmin
+from api.alertas.repositorio import RepositorioAlertas
 from api.config import Configuracion
 from api.deps import UsuarioActual, obtener_config_app, obtener_pool, usuario_actual
 
@@ -292,6 +293,32 @@ async def borrar_competidor(competidor_id: int, _: Equipo, repo: Repo) -> dict[s
 
 
 # ---- catálogos y capturas ----------------------------------------------------
+
+
+# ---- alertas (PT-14) ----------------------------------------------------------------
+
+
+@router.get("/alertas")
+async def listar_alertas(
+    _: Equipo, pool: Annotated[asyncpg.Pool, Depends(obtener_pool)], abiertas: bool = True
+) -> list[dict[str, Any]]:
+    return await RepositorioAlertas(pool).listar(solo_abiertas=abiertas)
+
+
+class AlertaCambios(BaseModel):
+    resuelta: bool = True
+
+
+@router.patch("/alertas/{alerta_id}")
+async def resolver_alerta(
+    alerta_id: int,
+    cuerpo: AlertaCambios,
+    _: Equipo,
+    pool: Annotated[asyncpg.Pool, Depends(obtener_pool)],
+) -> dict[str, str]:
+    if not await RepositorioAlertas(pool).resolver(alerta_id, cuerpo.resuelta):
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Alerta no encontrada")
+    return {"estado": "resuelta" if cuerpo.resuelta else "abierta"}
 
 
 @router.get("/catalogos")

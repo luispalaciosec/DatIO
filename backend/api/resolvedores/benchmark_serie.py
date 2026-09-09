@@ -11,7 +11,8 @@ from api.resolvedores import Contexto, Resultado, registrar
 async def resolver(ctx: Contexto) -> Resultado:
     metrica = str(ctx.config.get("metrica", "seguidores"))
     plataforma = ctx.config.get("plataforma")
-    etiqueta_propio = str(ctx.config.get("etiqueta_propio", "Tu marca"))
+    tema = await ctx.repo.tema(ctx.cliente_id)
+    etiqueta_propio = str(ctx.config.get("etiqueta_propio") or tema.get("nombre") or "Tu marca")
     info = await ctx.repo.metricas_info([metrica])
 
     por_fecha: dict[str, dict[str, Any]] = {}

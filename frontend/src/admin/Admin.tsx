@@ -6,6 +6,7 @@ import { supabase } from "../lib/supabase";
 import { FichaCliente } from "./FichaCliente";
 import { Capturas } from "./Capturas";
 import { Usuarios } from "./Usuarios";
+import { Alertas } from "./Alertas";
 
 // Módulo administrador (solo rol equipo). Marca DatIO, no la de un cliente.
 export function Admin() {
@@ -14,7 +15,7 @@ export function Admin() {
       <header className="admin-cabecera">
         <Link to="/admin" className="marca"><img src="/marca/isotipo.svg" alt="" /><span>DatIO · Administración</span></Link>
         <nav className="tabs">
-          {[["/admin", "Clientes"], ["/admin/usuarios", "Usuarios"], ["/admin/capturas", "Capturas"]].map(([ruta, nombre]) => (
+          {[["/admin", "Clientes"], ["/admin/alertas", "Alertas"], ["/admin/usuarios", "Usuarios"], ["/admin/capturas", "Capturas"]].map(([ruta, nombre]) => (
             <Link key={ruta} to={ruta} className={window.location.pathname === ruta || (ruta === "/admin" && window.location.pathname.startsWith("/admin/clientes")) ? "activa" : ""}>{nombre}</Link>
           ))}
         </nav>
@@ -33,6 +34,7 @@ function Seccion() {
   if (id) return <FichaCliente />;
   if (pathname.endsWith("/usuarios")) return <Usuarios />;
   if (pathname.endsWith("/capturas")) return <Capturas />;
+  if (pathname.endsWith("/alertas")) return <Alertas />;
   return <ListaClientes />;
 }
 

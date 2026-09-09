@@ -134,6 +134,21 @@ export interface UsuarioAdmin {
   activo: boolean;
 }
 
+export interface AlertaAdmin {
+  id: number;
+  cuenta_id: number | null;
+  tipo: "anomalia" | "oportunidad" | "operativa";
+  severidad: "alta" | "media" | "baja";
+  titulo: string;
+  detalle: Record<string, unknown> | null;
+  resuelta: boolean;
+  creada_en: string;
+  plataforma: string | null;
+  nombre_cuenta: string | null;
+  cliente: string | null;
+  cliente_id: number | null;
+}
+
 export interface CompetidorAdmin {
   id: number;
   plataforma: string;
