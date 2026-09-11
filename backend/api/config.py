@@ -4,7 +4,7 @@ import json
 from functools import lru_cache
 from typing import Annotated, Any
 
-from pydantic import Field, field_validator
+from pydantic import AliasChoices, Field, field_validator
 from pydantic_settings import BaseSettings, NoDecode, SettingsConfigDict
 
 MODELOS_LLM_POR_DEFECTO: dict[str, dict[str, Any]] = {
@@ -64,8 +64,14 @@ class Configuracion(BaseSettings):
     api_url: str = "http://localhost:8000"  # a dónde vuelve el proveedor con el código
     meta_login_config_id: str = ""  # Facebook Login for Business, configuración
     meta_business_id: str = ""  # Business Manager (portfolio) de la agencia
-    google_oauth_client_id: str = ""
-    google_oauth_client_secret: str = ""
+    # Se aceptan ambos nombres: GOOGLE_OAUTH_CLIENT_ID (documentado) o GOOGLE_CLIENT_ID.
+    google_oauth_client_id: str = Field(
+        default="", validation_alias=AliasChoices("GOOGLE_OAUTH_CLIENT_ID", "GOOGLE_CLIENT_ID")
+    )
+    google_oauth_client_secret: str = Field(
+        default="",
+        validation_alias=AliasChoices("GOOGLE_OAUTH_CLIENT_SECRET", "GOOGLE_CLIENT_SECRET"),
+    )
     linkedin_client_id: str = ""
     linkedin_client_secret: str = ""
 
