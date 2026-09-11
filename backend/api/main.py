@@ -8,6 +8,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from api.admin.router import router as router_admin
 from api.admin.router_conectar import router as router_conectar
+from api.admin.router_datos import router as router_datos
 from api.admin.router_puente import router as router_puente
 from api.auth.router import router as router_auth
 from api.config import Configuracion, obtener_config
@@ -39,6 +40,7 @@ def crear_app(config: Configuracion | None = None) -> FastAPI:
     app.include_router(router_admin)
     app.include_router(router_conectar)
     app.include_router(router_puente)
+    app.include_router(router_datos)
     app.add_middleware(
         CORSMiddleware,
         allow_origins=cfg.origenes_permitidos,

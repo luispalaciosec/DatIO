@@ -1,5 +1,5 @@
 import { supabase } from "./supabase";
-import type { EmpresaCrm, EvaluacionCrm, DisparoCrm,
+import type { CatalogoPlataforma, ConsultaDatos, ResultadoDatos, EmpresaCrm, EvaluacionCrm, DisparoCrm,
   ActivoConexion, Conexion, Captura, Catalogos, ClienteAdmin, ClienteDetalle, Rango, Reporte, RespuestaConsulta, TemaAdmin, UsuarioAdmin, AlertaAdmin,
 } from "./tipos";
 
@@ -103,6 +103,17 @@ export const api = {
     evaluarCrm: (cliente_id: number, ejecutar = false) =>
       llamar<EvaluacionCrm>(`/admin/clientes/${cliente_id}/crm/evaluar?ejecutar=${ejecutar}`, { method: "POST" }),
     disparosCrm: (limite = 100) => llamar<DisparoCrm[]>(`/admin/puente/disparos?limite=${limite}`),
+    catalogoDatos: () => llamar<{ plataformas: CatalogoPlataforma[] }>("/admin/datos/catalogo"),
+    consultarDatos: (cuerpo: ConsultaDatos) => llamar<ResultadoDatos>("/admin/datos/consulta", { method: "POST", body: JSON.stringify(cuerpo) }),
+    descargarCsv: async (cuerpo: ConsultaDatos): Promise<Blob> => {
+      const { data } = await supabase.auth.getSession();
+      const r = await fetch(`${BASE}/admin/datos/consulta.csv`, {
+        method: "POST", body: JSON.stringify(cuerpo),
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${data.session?.access_token ?? ""}` },
+      });
+      if (!r.ok) throw new ErrorApi(r.status, await r.text());
+      return r.blob();
+    },
     alertas: (abiertas = true) => llamar<AlertaAdmin[]>(`/admin/alertas?abiertas=${abiertas}`),
     resolverAlerta: (id: number, resuelta: boolean) =>
       llamar<{ estado: string }>(`/admin/alertas/${id}`, { method: "PATCH", body: JSON.stringify({ resuelta }) }),

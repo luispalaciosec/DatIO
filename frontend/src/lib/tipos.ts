@@ -223,3 +223,19 @@ export interface DisparoCrm {
   id: number; cliente_id: number | null; cliente: string | null; crm_proveedor: string | null; codigo: string;
   titulo: string | null; contexto: Record<string, unknown>; crm_objeto_ref: string | null; error: string | null; disparado_en: string;
 }
+
+export interface CatalogoMetrica {
+  plataforma: string; metrica_nativa: string; factor: number | null; codigo: string; nombre_es: string; unidad: string;
+  agregacion: string; es_acumulada: boolean; categoria: string | null; desde: string | null; hasta: string | null; cuentas: number | null;
+}
+export interface CatalogoPlataforma {
+  codigo: string; nombre: string;
+  metricas: CatalogoMetrica[];
+  dimensiones: Array<{ dimension: string; metricas: string[]; desde: string; hasta: string; valores: number }>;
+  publicaciones: Array<{ codigo: string; nombre_es: string; unidad: string; publicaciones: number }>;
+  cuentas: Array<{ id: number; nombre_cuenta: string | null; id_externo: string; cliente_id: number; cliente: string; activo: boolean; desde: string | null; hasta: string | null; filas: number }>;
+}
+export interface ConsultaDatos {
+  cuentas: number[]; metricas: string[]; desde: string; hasta: string; granularidad: "dia" | "semana" | "mes" | "total"; dimension: string | null; limite?: number;
+}
+export interface ResultadoDatos { columnas: string[]; filas: Array<Record<string, string | number | null>>; truncado: boolean }

@@ -356,3 +356,21 @@ table.tarjeta a { color: inherit; }
 .evaluacion-item { background: var(--gris-100); border-radius: var(--radio-sm); padding: 10px 14px; font-size: 13px; }
 .evaluacion-item p { margin: 6px 0 0; line-height: 1.4; }
 .boton-secundario { padding: 8px 14px; border-radius: 999px; border: 1px solid var(--gris-300); background: #fff; cursor: pointer; font: inherit; font-size: 13px; }
+
+/* Explorador de datos */
+.catalogo { display: flex; flex-direction: column; gap: 12px; }
+.catalogo-plataforma { padding: 0; overflow: hidden; }
+.catalogo-cabecera { width: 100%; display: flex; align-items: center; gap: 14px; padding: 16px 20px; background: none; border: 0; cursor: pointer; font: inherit; text-align: left; }
+.catalogo-cabecera strong { font-weight: 500; min-width: 140px; }
+.catalogo-cabecera .sutil { flex: 1; }
+.catalogo-cuerpo { padding: 0 20px 20px; }
+.catalogo-cuerpo h4 { font-weight: 500; font-size: 13px; text-transform: uppercase; letter-spacing: .05em; color: var(--gris-500); margin: 18px 0 8px; }
+.catalogo-cuerpo code { font-size: 12px; background: var(--gris-100); padding: 1px 6px; border-radius: 6px; }
+tr.sin-datos td { color: var(--gris-500); }
+.explorador { display: flex; flex-direction: column; gap: 14px; }
+.explorador-fila { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 12px; margin-bottom: 14px; }
+.explorador-columnas { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 14px; }
+.explorador-columnas h4 { display: flex; justify-content: space-between; font-weight: 500; font-size: 13px; margin: 0 0 8px; }
+.lista-marcable { list-style: none; margin: 0; padding: 0; max-height: 320px; overflow: auto; display: flex; flex-direction: column; gap: 4px; font-size: 13px; }
+.lista-marcable .sutil { font-size: 11px; margin-left: 4px; }
+@media (max-width: 800px) { .explorador-columnas { grid-template-columns: 1fr; } }

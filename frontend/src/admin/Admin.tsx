@@ -8,6 +8,7 @@ import { Capturas } from "./Capturas";
 import { Usuarios } from "./Usuarios";
 import { Alertas } from "./Alertas";
 import { Puente } from "./Puente";
+import { Datos } from "./Datos";
 
 // Módulo administrador (solo rol equipo). Marca DatIO, no la de un cliente.
 export function Admin() {
@@ -16,7 +17,7 @@ export function Admin() {
       <header className="admin-cabecera">
         <Link to="/admin" className="marca"><img src="/marca/isotipo.svg" alt="" /><span>DatIO · Administración</span></Link>
         <nav className="tabs">
-          {[["/admin", "Clientes"], ["/admin/alertas", "Alertas"], ["/admin/puente", "Puente CRM"], ["/admin/usuarios", "Usuarios"], ["/admin/capturas", "Capturas"]].map(([ruta, nombre]) => (
+          {[["/admin", "Clientes"], ["/admin/alertas", "Alertas"], ["/admin/puente", "Puente CRM"], ["/admin/datos", "Datos"], ["/admin/usuarios", "Usuarios"], ["/admin/capturas", "Capturas"]].map(([ruta, nombre]) => (
             <Link key={ruta} to={ruta} className={window.location.pathname === ruta || (ruta === "/admin" && window.location.pathname.startsWith("/admin/clientes")) ? "activa" : ""}>{nombre}</Link>
           ))}
         </nav>
@@ -37,6 +38,7 @@ function Seccion() {
   if (pathname.endsWith("/capturas")) return <Capturas />;
   if (pathname.endsWith("/alertas")) return <Alertas />;
   if (pathname.endsWith("/puente")) return <Puente />;
+  if (pathname.endsWith("/datos")) return <Datos />;
   return <ListaClientes />;
 }
 
