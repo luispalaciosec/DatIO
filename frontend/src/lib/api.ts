@@ -1,5 +1,5 @@
 import { supabase } from "./supabase";
-import type {
+import type { EmpresaCrm, EvaluacionCrm, DisparoCrm,
   ActivoConexion, Conexion, Captura, Catalogos, ClienteAdmin, ClienteDetalle, Rango, Reporte, RespuestaConsulta, TemaAdmin, UsuarioAdmin, AlertaAdmin,
 } from "./tipos";
 
@@ -95,6 +95,14 @@ export const api = {
     activarConexion: (id: number, activos: ActivoConexion[]) =>
       llamar<{ cuentas: number[] }>(`/admin/conexiones/${id}/activar`, { method: "POST", body: JSON.stringify({ activos }) }),
     capturas: (limite = 50) => llamar<Captura[]>(`/admin/capturas?limite=${limite}`),
+    guardarCrm: (cliente_id: number, cuerpo: { proveedor: string | null; empresa_ref: string | null; contacto_ref: string | null; config?: Record<string, unknown>; credencial?: string }) =>
+      llamar<{ estado: string }>(`/admin/clientes/${cliente_id}/crm`, { method: "PUT", body: JSON.stringify(cuerpo) }),
+    probarCrm: (cliente_id: number) => llamar<Record<string, unknown>>(`/admin/clientes/${cliente_id}/crm/probar`, { method: "POST" }),
+    empresasCrm: (proveedor: string, cliente_id?: number) =>
+      llamar<EmpresaCrm[]>(`/admin/crm/${proveedor}/empresas${cliente_id ? `?cliente_id=${cliente_id}` : ""}`),
+    evaluarCrm: (cliente_id: number, ejecutar = false) =>
+      llamar<EvaluacionCrm>(`/admin/clientes/${cliente_id}/crm/evaluar?ejecutar=${ejecutar}`, { method: "POST" }),
+    disparosCrm: (limite = 100) => llamar<DisparoCrm[]>(`/admin/puente/disparos?limite=${limite}`),
     alertas: (abiertas = true) => llamar<AlertaAdmin[]>(`/admin/alertas?abiertas=${abiertas}`),
     resolverAlerta: (id: number, resuelta: boolean) =>
       llamar<{ estado: string }>(`/admin/alertas/${id}`, { method: "PATCH", body: JSON.stringify({ resuelta }) }),

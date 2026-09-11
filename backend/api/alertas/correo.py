@@ -12,7 +12,12 @@ from api.config import Configuracion
 log = logging.getLogger(__name__)
 API = "https://api.resend.com/emails"
 COLOR = {"alta": "#dc2626", "media": "#f59e0b", "baja": "#64748b"}
-NOMBRE_TIPO = {"anomalia": "Caída", "oportunidad": "Oportunidad", "operativa": "Operativa"}
+NOMBRE_TIPO = {
+    "anomalia": "Caída",
+    "oportunidad": "Oportunidad",
+    "operativa": "Operativa",
+    "comercial": "CRM",
+}
 
 
 ESTILO_CAJA = "border:1px solid #e9e9ec;border-radius:14px;padding:12px 14px;margin:8px 0"

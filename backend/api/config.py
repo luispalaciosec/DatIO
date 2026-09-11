@@ -83,6 +83,14 @@ class Configuracion(BaseSettings):
     # Cache de /consulta (PT-12). 0 = desactivada.
     cache_ttl_seg: int = 900
 
+    # Puente CRM (PT-16): PrometIO con usuario de servicio de la agencia. HubSpot va por cliente.
+    prometio_url: str = ""
+    prometio_frontend_url: str = ""
+    prometio_supabase_url: str = ""
+    prometio_supabase_anon_key: str = ""
+    prometio_email: str = ""
+    prometio_password: str = ""
+
     # Radar competitivo (PT-15)
     apify_token: str = ""
     radar_dias_minimos: int = 7

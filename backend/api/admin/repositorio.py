@@ -42,10 +42,18 @@ class RepositorioAdmin:
 
     async def cliente(self, cliente_id: int) -> dict[str, Any] | None:
         f = await self._pool.fetchrow(
-            "SELECT id, nombre, slug, sector, activo, creado_en FROM clientes WHERE id = $1",
+            "SELECT id, nombre, slug, sector, activo, creado_en, crm_proveedor, crm_empresa_ref, "
+            "crm_contacto_ref, crm_config, "
+            "crm_credencial_cifrada IS NOT NULL AS crm_con_credencial "
+            "FROM clientes WHERE id = $1",
             cliente_id,
         )
-        return dict(f) if f else None
+        if f is None:
+            return None
+        d = dict(f)
+        if isinstance(d.get("crm_config"), str):
+            d["crm_config"] = json.loads(d["crm_config"])
+        return d
 
     async def crear_cliente(
         self, nombre: str, slug: str, sector: str | None, plantilla_id: int | None

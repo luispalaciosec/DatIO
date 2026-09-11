@@ -351,3 +351,8 @@ table.tarjeta a { color: inherit; }
 .radar-share-cifras span { font-size: 10px; color: var(--gris-500); text-transform: uppercase; letter-spacing: .04em; }
 .radar-share-mix { display: flex; flex-wrap: wrap; gap: 4px 10px; font-size: 11px; text-transform: capitalize; }
 @media (max-width: 800px) { .radar-share-fila { grid-template-columns: 1fr; } }
+
+.evaluacion-crm { margin-top: 12px; display: flex; flex-direction: column; gap: 10px; }
+.evaluacion-item { background: var(--gris-100); border-radius: var(--radio-sm); padding: 10px 14px; font-size: 13px; }
+.evaluacion-item p { margin: 6px 0 0; line-height: 1.4; }
+.boton-secundario { padding: 8px 14px; border-radius: 999px; border: 1px solid var(--gris-300); background: #fff; cursor: pointer; font: inherit; font-size: 13px; }

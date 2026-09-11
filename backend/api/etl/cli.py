@@ -23,6 +23,8 @@ from api.etl.conector_base import hoy_en
 from api.etl.radar import ResumenRadar, correr_radar
 from api.etl.repositorio import RepositorioETL
 from api.etl.runner import ResumenCorrida, correr_todos
+from api.puente.disparadores import ResumenPuente, correr_puente
+from api.puente.repositorio import RepositorioPuente
 
 
 async def ejecutar(
@@ -32,7 +34,7 @@ async def ejecutar(
     forzar_radar: bool = False,
     live: bool = False,
     alertas: bool = True,
-) -> tuple[ResumenCorrida, ResumenRadar | None, ResumenAlertas | None]:
+) -> tuple[ResumenCorrida, ResumenRadar | None, ResumenAlertas | None, ResumenPuente | None]:
     config = obtener_config()
     pool = await crear_pool(config.database_url)
     try:
@@ -53,7 +55,12 @@ async def ejecutar(
                 d for d in config.alertas_destinatarios_extra if d not in destinatarios
             ]
             await enviar_resumen(config, destinatarios, alertas_resumen.nuevas, hoy.isoformat())
-        return resumen, radar_resumen, alertas_resumen
+        puente_resumen = None
+        if alertas and plataforma is None and not live:
+            puente_resumen = await correr_puente(
+                RepositorioPuente(pool), config, hoy_en(config.zona_horaria)
+            )
+        return resumen, radar_resumen, alertas_resumen, puente_resumen
     finally:
         await pool.close()
 
@@ -69,7 +76,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--sin-alertas", action="store_true", help="no detectar ni avisar alertas")
     args = parser.parse_args(argv)
 
-    resumen, radar, alertas = asyncio.run(
+    resumen, radar, alertas, puente = asyncio.run(
         ejecutar(
             args.plataforma,
             args.hasta,
@@ -93,6 +100,14 @@ def main(argv: list[str] | None = None) -> int:
         print(
             f"radar: {radar.competidores} competidores, {radar.snapshots} valores, "
             f"USD {radar.costo_usd:.4f}, errores={radar.errores}, omitidos={radar.omitidos}"
+        )
+    if puente is not None:
+        for d in puente.disparos:
+            estado = f"error={d.error}" if d.error else f"ref={d.objeto_ref}"
+            print(f"puente: {d.cliente} · {d.accion.codigo} → {estado}")
+        print(
+            f"puente: {puente.clientes_evaluados} clientes con CRM, "
+            f"{len(puente.disparos)} disparos, omitidos={puente.omitidos}"
         )
     if alertas is not None:
         print(

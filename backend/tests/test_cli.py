@@ -4,8 +4,8 @@ from api.etl import cli
 from api.etl.runner import ResumenCorrida
 
 
-async def _resumen(errores: dict[int, str]) -> tuple[ResumenCorrida, None]:
-    return ResumenCorrida([], errores, []), None, None
+async def _resumen(errores: dict[int, str]) -> tuple[ResumenCorrida, None, None, None]:
+    return ResumenCorrida([], errores, []), None, None, None
 
 
 def test_cli_sale_0_sin_errores(monkeypatch) -> None:  # type: ignore[no-untyped-def]

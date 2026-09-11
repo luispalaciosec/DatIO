@@ -166,6 +166,11 @@ export interface ClienteDetalle {
   slug: string;
   sector: string | null;
   activo: boolean;
+  crm_proveedor: "prometio" | "hubspot" | null;
+  crm_empresa_ref: string | null;
+  crm_contacto_ref: string | null;
+  crm_config: Record<string, unknown>;
+  crm_con_credencial: boolean;
   tema: TemaAdmin;
   cuentas: CuentaAdmin[];
   usuarios: UsuarioAdmin[];
@@ -206,4 +211,15 @@ export interface Conexion {
   activos: ActivoConexion[];
   estado: "pendiente" | "activada";
   creado_en: string;
+}
+
+export interface EmpresaCrm { id: string; nombre: string | null; contactos: Array<{ id: string; nombre: string | null; email: string | null }> }
+export interface EvaluacionCrm {
+  cliente: string; crm: string; ejecutado: boolean; omitidos: string[];
+  candidatos: Array<{ codigo: string; tipo: string; titulo: string; evidencia: string; valor: number | null; prioridad: string }>;
+  disparados: Array<{ codigo: string; titulo: string; objeto_ref: string | null; error: string | null; url: string | null }>;
+}
+export interface DisparoCrm {
+  id: number; cliente_id: number | null; cliente: string | null; crm_proveedor: string | null; codigo: string;
+  titulo: string | null; contexto: Record<string, unknown>; crm_objeto_ref: string | null; error: string | null; disparado_en: string;
 }

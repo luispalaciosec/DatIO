@@ -43,6 +43,7 @@ export function App() {
       <Route path="/admin/usuarios" element={<Admin />} />
       <Route path="/admin/capturas" element={<Admin />} />
       <Route path="/admin/alertas" element={<Admin />} />
+      <Route path="/admin/puente" element={<Admin />} />
       <Route path="/:slug" element={<Reporte />} />
       <Route path="/:slug/imprimir" element={<Imprimir />} />
       <Route path="/:slug/:plataforma/:pagina" element={<Reporte />} />

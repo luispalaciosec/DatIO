@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link, useParams, useSearchParams } from "react-router-dom";
 import { api, ErrorApi } from "../lib/api";
-import type { ActivoConexion, Catalogos, ClienteDetalle, Conexion, CuentaAdmin, TemaAdmin } from "../lib/tipos";
+import type { EmpresaCrm, EvaluacionCrm, ActivoConexion, Catalogos, ClienteDetalle, Conexion, CuentaAdmin, TemaAdmin } from "../lib/tipos";
 import { supabase } from "../lib/supabase";
 
 export function FichaCliente() {
@@ -32,7 +32,7 @@ export function FichaCliente() {
           ))}
         </div>
       </div>
-      {pestana === "datos" && <Datos cliente={cliente} catalogos={catalogos} alGuardar={cargar} />}
+      {pestana === "datos" && <><Datos cliente={cliente} catalogos={catalogos} alGuardar={cargar} /><Crm cliente={cliente} alGuardar={cargar} /></>}
       {pestana === "marca" && <Marca cliente={cliente} alGuardar={cargar} />}
       {pestana === "cuentas" && <Cuentas cliente={cliente} catalogos={catalogos} alGuardar={cargar} />}
       {pestana === "competidores" && <Competidores cliente={cliente} alGuardar={cargar} />}
@@ -62,6 +62,115 @@ function Datos({ cliente, catalogos, alGuardar }: { cliente: ClienteDetalle; cat
       <label className="fila"><input type="checkbox" checked={f.activo} onChange={(e) => setF({ ...f, activo: e.target.checked })} /> Cliente activo (se captura y puede entrar)</label>
       <p className="sutil">El slug <code>{cliente.slug}</code> no se cambia: es la URL del reporte que ya tiene el cliente.</p>
       <button className="boton-pdf" type="submit">Guardar</button><Aviso texto={aviso} />
+    </form>
+  );
+}
+
+function Crm({ cliente, alGuardar }: { cliente: ClienteDetalle; alGuardar: () => void }) {
+  const [proveedor, setProveedor] = useState<string>(cliente.crm_proveedor ?? "");
+  const [empresa, setEmpresa] = useState<string>(cliente.crm_empresa_ref ?? "");
+  const [contacto, setContacto] = useState<string>(cliente.crm_contacto_ref ?? "");
+  const [token, setToken] = useState("");
+  const [dealstage, setDealstage] = useState<string>(String(cliente.crm_config?.dealstage ?? ""));
+  const [empresas, setEmpresas] = useState<EmpresaCrm[] | null>(null);
+  const [evaluacion, setEvaluacion] = useState<EvaluacionCrm | null>(null);
+  const [aviso, setAviso] = useState<string | null>(null);
+  const [ocupado, setOcupado] = useState(false);
+
+  async function guardar(e: React.FormEvent) {
+    e.preventDefault();
+    setOcupado(true);
+    try {
+      await api.admin.guardarCrm(cliente.id, {
+        proveedor: proveedor || null, empresa_ref: empresa || null, contacto_ref: contacto || null,
+        config: dealstage ? { ...cliente.crm_config, dealstage } : undefined, credencial: token || undefined,
+      });
+      setToken(""); setAviso("CRM guardado"); alGuardar();
+    } catch (err) { setAviso(`No se pudo guardar: ${(err as Error).message}`); }
+    setOcupado(false);
+  }
+  async function probar() {
+    setOcupado(true);
+    try { const r = await api.admin.probarCrm(cliente.id); setAviso(`Conexión OK: ${JSON.stringify(r).slice(0, 160)}`); }
+    catch (err) { setAviso(`Falló: ${(err as Error).message}`); }
+    setOcupado(false);
+  }
+  async function cargarEmpresas() {
+    setOcupado(true);
+    try { setEmpresas(await api.admin.empresasCrm(proveedor, cliente.id)); }
+    catch (err) { setAviso(`No se pudieron listar: ${(err as Error).message}`); }
+    setOcupado(false);
+  }
+  async function evaluar(ejecutar: boolean) {
+    if (ejecutar && !window.confirm("Esto crea oportunidades o tareas reales en el CRM. ¿Continuar?")) return;
+    setOcupado(true);
+    try { setEvaluacion(await api.admin.evaluarCrm(cliente.id, ejecutar)); }
+    catch (err) { setAviso(`Falló: ${(err as Error).message}`); }
+    setOcupado(false);
+  }
+  const empresaElegida = empresas?.find((e) => e.id === empresa);
+  return (
+    <form className="tarjeta formulario estrecho" onSubmit={guardar} style={{ marginTop: 16 }}>
+      <h3>Puente CRM</h3>
+      <p className="sutil">Dónde crea DatIO las oportunidades de este cliente. PrometIO usa el usuario de servicio de la agencia; HubSpot necesita un token de app privada del cliente.</p>
+      <label>CRM<select value={proveedor} onChange={(e) => { setProveedor(e.target.value); setEmpresas(null); }}>
+        <option value="">Sin CRM (no dispara)</option><option value="prometio">PrometIO (Geeks)</option><option value="hubspot">HubSpot</option>
+      </select></label>
+      {proveedor === "hubspot" && (
+        <>
+          <label>Token de app privada {cliente.crm_con_credencial && <span className="sutil">(ya hay uno guardado; déjalo vacío para conservarlo)</span>}
+            <input type="password" value={token} onChange={(e) => setToken(e.target.value)} placeholder="pat-na1-…" autoComplete="off" /></label>
+          <label>Etapa inicial del deal (id de HubSpot)<input value={dealstage} onChange={(e) => setDealstage(e.target.value)} placeholder="appointmentscheduled" /></label>
+        </>
+      )}
+      {proveedor && (
+        <>
+          <div className="fila" style={{ gap: 8 }}>
+            <label style={{ flex: 1 }}>Empresa en el CRM (id)<input value={empresa} onChange={(e) => setEmpresa(e.target.value)} /></label>
+            <button type="button" className="boton-secundario" disabled={ocupado} onClick={cargarEmpresas}>Elegir de la lista</button>
+          </div>
+          {empresas && (
+            <label>Empresas del CRM<select value={empresa} onChange={(e) => { setEmpresa(e.target.value); setContacto(""); }}>
+              <option value="">—</option>{empresas.map((e) => <option key={e.id} value={e.id}>{e.nombre ?? e.id}</option>)}
+            </select></label>
+          )}
+          {proveedor === "prometio" && (
+            empresaElegida && empresaElegida.contactos.length > 0 ? (
+              <label>Contacto (PrometIO lo exige)<select value={contacto} onChange={(e) => setContacto(e.target.value)}>
+                <option value="">—</option>{empresaElegida.contactos.map((c) => <option key={c.id} value={c.id}>{c.nombre ?? c.id}{c.email ? ` · ${c.email}` : ""}</option>)}
+              </select></label>
+            ) : <label>Contacto en PrometIO (id)<input value={contacto} onChange={(e) => setContacto(e.target.value)} /></label>
+          )}
+        </>
+      )}
+      <div className="fila" style={{ gap: 8, flexWrap: "wrap" }}>
+        <button className="boton-pdf" type="submit" disabled={ocupado}>Guardar</button>
+        {proveedor && <button type="button" className="boton-secundario" disabled={ocupado} onClick={probar}>Probar conexión</button>}
+        {cliente.crm_proveedor && cliente.crm_empresa_ref && (
+          <>
+            <button type="button" className="boton-secundario" disabled={ocupado} onClick={() => evaluar(false)}>Evaluar ahora (simular)</button>
+            <button type="button" className="boton-secundario" disabled={ocupado} onClick={() => evaluar(true)}>Disparar al CRM</button>
+          </>
+        )}
+      </div>
+      <Aviso texto={aviso} />
+      {evaluacion && (
+        <div className="evaluacion-crm">
+          <strong>{evaluacion.ejecutado ? "Disparado" : "Simulación"} · {evaluacion.candidatos.length} condición(es) hoy</strong>
+          {evaluacion.candidatos.length === 0 && <p className="sutil">Ningún disparador aplica hoy para este cliente. Eso es buena señal.</p>}
+          {evaluacion.candidatos.map((c) => (
+            <div key={c.codigo} className="evaluacion-item">
+              <div><b>{c.titulo}</b> <span className="sutil">· {c.tipo} · prioridad {c.prioridad}{c.valor ? ` · USD ${c.valor}` : ""}</span></div>
+              <p>{c.evidencia}</p>
+              {evaluacion.disparados.filter((d) => d.codigo === c.codigo).map((d) => (
+                <p key={d.codigo} className={d.error ? "delta baja" : "delta sube"}>{d.error ? `✗ ${d.error}` : `✓ creado en el CRM${d.url ? ` — ${d.url}` : ` (${d.objeto_ref})`}`}</p>
+              ))}
+              {evaluacion.ejecutado && !evaluacion.disparados.some((d) => d.codigo === c.codigo) && <p className="sutil">No se envió: ya se disparó en los últimos 30 días.</p>}
+            </div>
+          ))}
+          {evaluacion.omitidos.length > 0 && <p className="delta baja">{evaluacion.omitidos.join(" · ")}</p>}
+        </div>
+      )}
     </form>
   );
 }
