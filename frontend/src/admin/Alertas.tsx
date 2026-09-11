@@ -18,12 +18,9 @@ export function Alertas() {
   }
 
   return (
-    <div className="admin-seccion">
-      <div className="admin-seccion-cabecera">
-        <div>
-          <h2>Alertas</h2>
-          <p className="sutil">Caídas fuera de banda, oportunidades y problemas operativos detectados cada mañana. Se avisan por correo al equipo.</p>
-        </div>
+    <div className="admin-cuerpo">
+      <div className="encabezado">
+        <h1>Alertas<small>Caídas fuera de banda, oportunidades, problemas operativos y disparos al CRM detectados cada mañana. Se avisan por correo al equipo.</small></h1>
         <div className="subtabs">
           <button className={abiertas ? "activa" : ""} onClick={() => setAbiertas(true)}>Abiertas</button>
           <button className={!abiertas ? "activa" : ""} onClick={() => setAbiertas(false)}>Todas</button>
@@ -31,7 +28,7 @@ export function Alertas() {
       </div>
       {aviso && <p className="aviso">{aviso}</p>}
       {alertas === null ? <div className="bloque-cargando" /> : alertas.length === 0 ? (
-        <p className="sutil">Sin alertas {abiertas ? "abiertas" : "registradas"}. Buena señal.</p>
+        <div className="vacio">Sin alertas {abiertas ? "abiertas" : "registradas"}. Buena señal.</div>
       ) : (
         <div className="alertas-lista">
           {alertas.map((a) => (

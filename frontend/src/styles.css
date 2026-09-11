@@ -374,3 +374,60 @@ tr.sin-datos td { color: var(--gris-500); }
 .lista-marcable { list-style: none; margin: 0; padding: 0; max-height: 320px; overflow: auto; display: flex; flex-direction: column; gap: 4px; font-size: 13px; }
 .lista-marcable .sutil { font-size: 11px; margin-left: 4px; }
 @media (max-width: 800px) { .explorador-columnas { grid-template-columns: 1fr; } }
+
+/* ===== Administración: pulido de UI (secciones, botones, enlaces, espaciados) ===== */
+.admin-cuerpo { margin-top: 8px; }
+.admin-seccion { display: flex; flex-direction: column; gap: 16px; margin-top: 26px; }
+.admin-seccion-cabecera { display: flex; align-items: flex-end; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
+.admin-seccion-cabecera h2 { margin: 0 0 6px; font-size: 40px; font-weight: 200; line-height: 1.05; }
+.admin-seccion-cabecera .sutil { margin: 0; max-width: 720px; }
+.admin-seccion > .tarjeta > h3:first-child, .admin-seccion .tarjeta h3:first-child { margin-top: 0; }
+.tarjeta h3 { font-size: 22px; font-weight: 300; margin: 0 0 8px; }
+.tarjeta h3 + .sutil, .tarjeta > .sutil { margin-top: 0; line-height: 1.5; }
+.tarjeta .vacio { margin-top: 12px; }
+
+/* Botones: el pill oscuro también como enlace (antes heredaba el color del texto y quedaba
+   negro sobre negro dentro de las tablas). */
+.boton-pdf, a.boton-pdf, table.tarjeta a.boton-pdf { color: #fff !important; text-decoration: none; display: inline-flex; align-items: center; justify-content: center; line-height: 1.2; padding: 9px 16px; }
+.boton-pdf:hover, a.boton-pdf:hover { filter: brightness(1.15); }
+.boton-secundario { padding: 9px 16px; border-radius: 999px; border: 1px solid var(--gris-300); background: #fff; color: var(--gris-700); cursor: pointer; font: inherit; font-size: 13px; line-height: 1.2; display: inline-flex; align-items: center; }
+.boton-secundario:hover { border-color: var(--gris-500); background: var(--gris-100); }
+.boton-secundario:disabled, .boton-pdf:disabled { opacity: .55; cursor: not-allowed; }
+.enlace { background: none; border: 0; padding: 0; font: inherit; font-size: 13px; color: var(--color-primario); text-decoration: underline; text-underline-offset: 3px; cursor: pointer; }
+.enlace:hover { opacity: .8; }
+table.tarjeta a:not(.boton-pdf) { color: var(--color-primario); text-decoration: none; }
+table.tarjeta a:not(.boton-pdf):hover { text-decoration: underline; }
+table.tarjeta strong { font-weight: 500; color: var(--color-secundario); }
+.aviso { font-size: 13px; color: var(--rojo); margin: 0; }
+
+/* Subpestañas también como botones (Alertas, Datos, Radar) */
+.subtabs button { padding: 8px 16px; border-radius: 999px; border: 1px solid var(--gris-200); background: rgba(255,255,255,.7); font: inherit; font-size: 13px; color: var(--gris-700); cursor: pointer; }
+.subtabs button.activa { background: var(--color-primario); border-color: var(--color-primario); color: #fff; }
+.subtabs button:hover:not(.activa) { border-color: var(--gris-300); background: #fff; }
+
+/* Tablas del admin: aire entre filas y celdas alineadas */
+.admin table.publicaciones th { padding: 12px 14px; }
+.admin table.publicaciones td { padding: 12px 14px; }
+.admin table.publicaciones tr:last-child td { border-bottom: 0; }
+.admin table.tarjeta { padding: 6px 4px; }
+
+/* Alertas: tarjetas con aire, acciones alineadas */
+.alertas-lista { gap: 12px; }
+.alerta-tarjeta { padding: 16px 20px; }
+.alerta-titulo { margin: 10px 0 6px; font-size: 15px; }
+.alerta-acciones { align-items: center; gap: 16px; margin-top: 10px; }
+.alerta-acciones .enlace { font-size: 13px; }
+
+/* Formularios: botones en fila con separación y avisos legibles */
+.formulario .fila > button + button, .formulario .fila > .boton-pdf + .boton-secundario { margin-left: 0; }
+.formulario .fila { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.formulario .fila > label { flex: 1; }
+.formulario > .fila { margin-top: 4px; }
+.formulario .aviso-ok, .formulario .aviso { margin: 4px 0 0; }
+.formulario .sutil { line-height: 1.5; }
+.formulario label > .sutil { text-transform: none; letter-spacing: 0; }
+
+/* Bitácoras y catálogos: nunca pegados a la cabecera */
+.admin-seccion .tarjeta + .tarjeta { margin-top: 0; }
+.evaluacion-crm { margin-top: 14px; }
+.sin-conexion, .bloque-error { margin-top: 26px; }

@@ -10,12 +10,17 @@ export function Datos() {
   const [catalogo, setCatalogo] = useState<CatalogoPlataforma[] | null>(null);
   const [vista, setVista] = useState<"catalogo" | "explorador">("catalogo");
   useEffect(() => { api.admin.catalogoDatos().then((c) => setCatalogo(c.plataformas)); }, []);
-  if (!catalogo) return <div className="admin-seccion"><div className="bloque-cargando" /></div>;
+  if (!catalogo) return <div className="admin-cuerpo"><div className="bloque-cargando" /></div>;
+  const totalMetricas = catalogo.reduce((n, p) => n + p.metricas.length, 0);
+  const conDatos = catalogo.reduce((n, p) => n + p.metricas.filter((m) => m.hasta).length, 0);
   return (
-    <div className="admin-seccion">
-      <div className="subtabs" style={{ marginBottom: 12 }}>
-        <button className={vista === "catalogo" ? "activa" : ""} onClick={() => setVista("catalogo")}>Catálogo de conectores</button>
-        <button className={vista === "explorador" ? "activa" : ""} onClick={() => setVista("explorador")}>Explorador y descarga</button>
+    <div className="admin-cuerpo">
+      <div className="encabezado">
+        <h1>Datos<small>{totalMetricas} métricas mapeadas en {catalogo.length} conectores · {conDatos} con datos cargados</small></h1>
+        <div className="subtabs">
+          <button className={vista === "catalogo" ? "activa" : ""} onClick={() => setVista("catalogo")}>Catálogo de conectores</button>
+          <button className={vista === "explorador" ? "activa" : ""} onClick={() => setVista("explorador")}>Explorador y descarga</button>
+        </div>
       </div>
       {vista === "catalogo" ? <Catalogo plataformas={catalogo} /> : <Explorador plataformas={catalogo} />}
     </div>
@@ -102,9 +107,13 @@ function Explorador({ plataformas }: { plataformas: CatalogoPlataforma[] }) {
   useEffect(() => { setCuentas([]); setMetricas([]); setDimension(""); setResultado(null); }, [plataforma]);
   const metricasDisponibles = useMemo(() => {
     if (!p) return [];
-    if (!dimension) return p.metricas.filter((m) => m.hasta);
-    const permitidas = new Set(p.dimensiones.find((d) => d.dimension === dimension)?.metricas ?? []);
-    return p.metricas.filter((m) => permitidas.has(m.codigo));
+    const permitidas = dimension ? new Set(p.dimensiones.find((d) => d.dimension === dimension)?.metricas ?? []) : null;
+    const vistas = new Set<string>();
+    // Una métrica puede venir de varios campos nativos (p. ej. seguidores): se lista una vez
+    return p.metricas.filter((m) => {
+      if (vistas.has(m.codigo) || (permitidas ? !permitidas.has(m.codigo) : !m.hasta)) return false;
+      vistas.add(m.codigo); return true;
+    });
   }, [p, dimension]);
   const cuerpo = (): ConsultaDatos => ({ cuentas, metricas, desde, hasta, granularidad, dimension: dimension || null });
   const listo = cuentas.length > 0 && metricas.length > 0;

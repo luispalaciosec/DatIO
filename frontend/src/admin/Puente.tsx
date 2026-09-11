@@ -11,9 +11,11 @@ export function Puente() {
   const [disparos, setDisparos] = useState<DisparoCrm[] | null>(null);
   useEffect(() => { api.admin.disparosCrm().then(setDisparos); }, []);
   return (
-    <div className="admin-seccion">
+    <div className="admin-cuerpo">
+      <div className="encabezado"><h1>Puente CRM<small>{disparos ? `${disparos.length} disparo(s) registrados` : "cargando…"}</small></h1></div>
+      <div className="admin-seccion" style={{ marginTop: 0 }}>
       <div className="tarjeta">
-        <h3>Puente CRM</h3>
+        <h3>Cómo funciona</h3>
         <p className="sutil">
           Cada mañana, después de la captura, DatIO evalúa cuatro disparadores por cliente con CRM configurado: refuerzo de pauta
           (cierre proyectado muy por debajo del mes anterior), venta cruzada (buen orgánico sin pauta), alerta competitiva
@@ -45,6 +47,7 @@ export function Puente() {
             </tbody>
           </table>
         )}
+      </div>
       </div>
     </div>
   );

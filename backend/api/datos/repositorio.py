@@ -26,18 +26,18 @@ class RepositorioDatos:
             dict(f)
             for f in await self._pool.fetch(
                 """
+            WITH cobertura AS (
+                SELECT cu.plataforma, f.metrica_codigo, min(f.fecha) AS desde,
+                       max(f.fecha) AS hasta, count(DISTINCT f.cuenta_id) AS cuentas
+                FROM   fct_metrica_diaria f JOIN cuentas_conectadas cu ON cu.id = f.cuenta_id
+                GROUP  BY 1, 2
+            )
             SELECT m.plataforma, m.metrica_nativa, m.factor, d.codigo, d.nombre_es, d.unidad,
                    d.agregacion, d.es_acumulada, d.categoria,
                    c.desde, c.hasta, c.cuentas
             FROM   map_metrica_plataforma m
             JOIN   dim_metrica d ON d.codigo = m.metrica_codigo
-            LEFT   JOIN LATERAL (
-                SELECT min(f.fecha) AS desde, max(f.fecha) AS hasta,
-                       count(DISTINCT f.cuenta_id) AS cuentas
-                FROM   fct_metrica_diaria f
-                JOIN   cuentas_conectadas cu ON cu.id = f.cuenta_id
-                WHERE  cu.plataforma = m.plataforma AND f.metrica_codigo = d.codigo
-            ) c ON TRUE
+            LEFT   JOIN cobertura c ON c.plataforma = m.plataforma AND c.metrica_codigo = d.codigo
             ORDER  BY m.plataforma, d.categoria, d.nombre_es
             """
             )
@@ -72,12 +72,14 @@ class RepositorioDatos:
             dict(f)
             for f in await self._pool.fetch(
                 """
+            WITH cobertura AS (
+                SELECT cuenta_id, min(fecha) AS desde, max(fecha) AS hasta, count(*) AS filas
+                FROM   fct_metrica_diaria GROUP BY 1
+            )
             SELECT cu.id, cu.plataforma, cu.nombre_cuenta, cu.id_externo, cl.id AS cliente_id,
-                   cl.nombre AS cliente, cu.activo,
-                   (SELECT min(fecha) FROM fct_metrica_diaria WHERE cuenta_id = cu.id) AS desde,
-                   (SELECT max(fecha) FROM fct_metrica_diaria WHERE cuenta_id = cu.id) AS hasta,
-                   (SELECT count(*) FROM fct_metrica_diaria WHERE cuenta_id = cu.id) AS filas
+                   cl.nombre AS cliente, cu.activo, c.desde, c.hasta, COALESCE(c.filas, 0) AS filas
             FROM   cuentas_conectadas cu JOIN clientes cl ON cl.id = cu.cliente_id
+            LEFT   JOIN cobertura c ON c.cuenta_id = cu.id
             ORDER  BY cl.nombre, cu.plataforma
             """
             )
