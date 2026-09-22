@@ -83,6 +83,9 @@ class Configuracion(BaseSettings):
     # Cache de /consulta (PT-12). 0 = desactivada.
     cache_ttl_seg: int = 900
 
+    # Seguridad: peticiones por IP y minuto antes de responder 429
+    limite_peticiones_min: int = 600
+
     # Puente CRM (PT-16): PrometIO con usuario de servicio de la agencia. HubSpot va por cliente.
     prometio_url: str = ""
     prometio_frontend_url: str = ""

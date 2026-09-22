@@ -17,6 +17,7 @@ from api.consulta.router import router as router_consulta
 from api.db import crear_pool
 from api.etl.router import router as router_etl
 from api.pdf.router import router as router_pdf
+from api.seguridad import CabecerasSeguridad, LimitePeticiones
 
 
 def crear_app(config: Configuracion | None = None) -> FastAPI:
@@ -41,6 +42,10 @@ def crear_app(config: Configuracion | None = None) -> FastAPI:
     app.include_router(router_conectar)
     app.include_router(router_puente)
     app.include_router(router_datos)
+    # Orden: el último add_middleware es el más externo. CORS afuera para que las respuestas
+    # 429 y las cabeceras también lleven Access-Control-*.
+    app.add_middleware(CabecerasSeguridad)
+    app.add_middleware(LimitePeticiones, maximo=cfg.limite_peticiones_min, segundos=60.0)
     app.add_middleware(
         CORSMiddleware,
         allow_origins=cfg.origenes_permitidos,
