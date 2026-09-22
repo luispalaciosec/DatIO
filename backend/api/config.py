@@ -86,6 +86,9 @@ class Configuracion(BaseSettings):
     # Seguridad: peticiones por IP y minuto antes de responder 429
     limite_peticiones_min: int = 600
 
+    # Google Play Console: bucket de informes por defecto (pubsite_prod_rev_...)
+    google_play_bucket: str = ""
+
     # Puente CRM (PT-16): PrometIO con usuario de servicio de la agencia. HubSpot va por cliente.
     prometio_url: str = ""
     prometio_frontend_url: str = ""

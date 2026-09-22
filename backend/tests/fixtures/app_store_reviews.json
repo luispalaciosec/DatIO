@@ -1,0 +1,25 @@
+{
+ "data": [
+  {
+   "id": "r1",
+   "attributes": {
+    "rating": 5,
+    "createdDate": "2026-09-01T10:00:00-07:00"
+   }
+  },
+  {
+   "id": "r2",
+   "attributes": {
+    "rating": 3,
+    "createdDate": "2026-09-01T18:00:00-07:00"
+   }
+  },
+  {
+   "id": "r3",
+   "attributes": {
+    "rating": 1,
+    "createdDate": "2026-09-02T09:00:00-07:00"
+   }
+  }
+ ]
+}

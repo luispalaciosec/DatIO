@@ -2,8 +2,11 @@
 
 from decimal import Decimal
 
+from api.etl.conectores.app_store import ConectorAppStore
+from api.etl.conectores.crm import ConectorHubspot, ConectorPrometio
 from api.etl.conectores.demo import ConectorDemo
 from api.etl.conectores.ga4 import ConectorGA4
+from api.etl.conectores.google_play import ConectorGooglePlay
 from api.etl.conectores.gsc import ConectorGSC
 from api.etl.conectores.meta_ads import ConectorMetaAds
 from api.etl.conectores.meta_fb import ConectorMetaFB
@@ -18,6 +21,10 @@ CONECTORES = [
     ConectorMetaFB,
     ConectorMetaIG,
     ConectorMetaAds,
+    ConectorAppStore,
+    ConectorGooglePlay,
+    ConectorPrometio,
+    ConectorHubspot,
 ]
 PLATAFORMAS = {
     "meta_ig",
@@ -29,10 +36,14 @@ PLATAFORMAS = {
     "ga4",
     "gsc",
     "google_ads",
+    "app_store",
+    "google_play",
+    "prometio",
+    "hubspot",
 }
 
 
-def test_seed_tiene_metricas_y_mapeos_para_las_9_plataformas() -> None:
+def test_seed_tiene_metricas_y_mapeos_para_todas_las_plataformas() -> None:
     metricas = metricas_del_seed()
     mapeos = mapeos_del_seed()
     assert len(metricas) >= 40

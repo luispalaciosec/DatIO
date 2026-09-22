@@ -431,3 +431,5 @@ table.tarjeta strong { font-weight: 500; color: var(--color-secundario); }
 .admin-seccion .tarjeta + .tarjeta { margin-top: 0; }
 .evaluacion-crm { margin-top: 14px; }
 .sin-conexion, .bloque-error { margin-top: 26px; }
+
+.formulario textarea { padding: 10px 12px; border: 1px solid var(--gris-300); border-radius: 12px; font: inherit; font-size: 12px; font-family: ui-monospace, monospace; color: var(--color-secundario); background: #fff; text-transform: none; letter-spacing: 0; resize: vertical; }

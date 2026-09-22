@@ -1,0 +1,45 @@
+{
+ "deals": [
+  {
+   "id": "1",
+   "properties": {
+    "createdate": "2026-09-01T14:00:00.000Z",
+    "closedate": "2026-09-02T14:00:00.000Z",
+    "amount": "2500",
+    "dealstage": "closedwon",
+    "hs_is_closed_won": "true",
+    "hs_is_closed": "true"
+   }
+  },
+  {
+   "id": "2",
+   "properties": {
+    "createdate": "2026-09-02T14:00:00.000Z",
+    "closedate": null,
+    "amount": "700",
+    "dealstage": "appointmentscheduled",
+    "hs_is_closed_won": "false",
+    "hs_is_closed": "false"
+   }
+  },
+  {
+   "id": "3",
+   "properties": {
+    "createdate": "2026-08-10T14:00:00.000Z",
+    "closedate": "2026-09-01T10:00:00.000Z",
+    "amount": "100",
+    "dealstage": "closedlost",
+    "hs_is_closed_won": "false",
+    "hs_is_closed": "true"
+   }
+  }
+ ],
+ "contactos": [
+  {
+   "id": "a",
+   "properties": {
+    "createdate": 1788357600000
+   }
+  }
+ ]
+}

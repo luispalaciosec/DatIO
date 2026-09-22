@@ -288,6 +288,10 @@ function Cuentas({ cliente, catalogos, alGuardar }: { cliente: ClienteDetalle; c
     tiktok: "Usuario de TikTok tal como aparece en Metricool.",
     youtube: "ID del canal (UC...). Conector pendiente.",
     google_ads: "Customer ID sin guiones. Conector pendiente.",
+    app_store: "Apple ID de la app (número, en App Store Connect → App Information). Credencial: JSON {\"issuer_id\",\"key_id\",\"private_key\",\"vendor_number\"} de una clave de API con rol Sales and Reports.",
+    google_play: "Nombre del paquete (com.empresa.app). Credencial opcional: JSON {\"bucket\":\"pubsite_prod_rev_…\"}; sin ella usa GOOGLE_PLAY_BUCKET. Invitar al Service Account de DatIO en Play Console con permiso de ver estadísticas.",
+    prometio: "Organización de PrometIO (solo informativo, p. ej. geeks). Usa el usuario de servicio PROMETIO_* de la agencia.",
+    hubspot: "Portal ID de HubSpot. Credencial: token de app privada con scopes crm.objects.deals.read y crm.objects.contacts.read.",
   };
   async function crear(e: React.FormEvent) {
     e.preventDefault();
@@ -346,7 +350,11 @@ function Cuentas({ cliente, catalogos, alGuardar }: { cliente: ClienteDetalle; c
         <label>ID externo<input required value={f.id_externo} onChange={(e) => setF({ ...f, id_externo: e.target.value })} /></label>
         <p className="sutil">{AYUDA[f.plataforma]}</p>
         <label>Nombre visible<input value={f.nombre_cuenta} onChange={(e) => setF({ ...f, nombre_cuenta: e.target.value })} placeholder="@cuenta o nombre de la página" /></label>
-        <label>Token propio (opcional)<input type="password" value={f.credencial} onChange={(e) => setF({ ...f, credencial: e.target.value })} autoComplete="off" /></label>
+        <label>{["app_store", "google_play"].includes(f.plataforma) ? "Credencial (JSON)" : "Token propio (opcional)"}
+          {["app_store", "google_play"].includes(f.plataforma)
+            ? <textarea rows={5} value={f.credencial} onChange={(e) => setF({ ...f, credencial: e.target.value })} autoComplete="off" placeholder='{"issuer_id":"…","key_id":"…","private_key":"-----BEGIN PRIVATE KEY-----…","vendor_number":"…"}' />
+            : <input type="password" value={f.credencial} onChange={(e) => setF({ ...f, credencial: e.target.value })} autoComplete="off" />}
+        </label>
         <p className="sutil">Se cifra en el servidor y nunca vuelve a mostrarse. Déjalo vacío para usar la credencial de la agencia.</p>
         <button className="boton-pdf" type="submit">Conectar</button><Aviso texto={aviso} />
       </form>
