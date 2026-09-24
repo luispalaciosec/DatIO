@@ -10,7 +10,7 @@ import { Pagina } from "./Pagina";
 const NOMBRES: Record<string, string> = {
   meta_fb: "Facebook", meta_ig: "Instagram", linkedin: "LinkedIn", tiktok: "TikTok",
   youtube: "YouTube", ga4: "Sitio web", gsc: "Búsqueda", meta_ads: "Meta Ads", google_ads: "Google Ads",
-  app_store: "App Store", google_play: "Google Play", prometio: "CRM", hubspot: "CRM",
+  app_store: "App Store", google_play: "Google Play", prometio: "CRM", hubspot: "CRM", zoho: "CRM", google_negocio: "Google Negocio",
   todas: "Resumen",
 };
 const NOMBRE_PAGINA: Record<string, string> = { metricas: "Métricas", publicaciones: "Publicaciones", benchmark: "Benchmark", audiencia: "Audiencia", busqueda: "Búsqueda" };

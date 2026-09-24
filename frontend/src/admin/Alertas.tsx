@@ -4,7 +4,7 @@ import { api, ErrorApi } from "../lib/api";
 import type { AlertaAdmin } from "../lib/tipos";
 
 const NOMBRE_TIPO: Record<string, string> = { anomalia: "Caída", oportunidad: "Oportunidad", operativa: "Operativa", comercial: "CRM" };
-const NOMBRE_RED: Record<string, string> = { meta_ig: "Instagram", meta_fb: "Facebook", linkedin: "LinkedIn", tiktok: "TikTok", youtube: "YouTube", ga4: "Sitio web", gsc: "Search Console", meta_ads: "Meta Ads", app_store: "App Store", google_play: "Google Play", prometio: "CRM PrometIO", hubspot: "CRM HubSpot" };
+const NOMBRE_RED: Record<string, string> = { meta_ig: "Instagram", meta_fb: "Facebook", linkedin: "LinkedIn", tiktok: "TikTok", youtube: "YouTube", ga4: "Sitio web", gsc: "Search Console", meta_ads: "Meta Ads", app_store: "App Store", google_play: "Google Play", prometio: "CRM PrometIO", hubspot: "CRM HubSpot", zoho: "CRM Zoho", google_negocio: "Google Negocio" };
 
 export function Alertas() {
   const [alertas, setAlertas] = useState<AlertaAdmin[] | null>(null);

@@ -6,11 +6,13 @@ from api.etl.conectores.app_store import ConectorAppStore
 from api.etl.conectores.crm import ConectorHubspot, ConectorPrometio
 from api.etl.conectores.demo import ConectorDemo
 from api.etl.conectores.ga4 import ConectorGA4
+from api.etl.conectores.google_negocio import ConectorGoogleNegocio
 from api.etl.conectores.google_play import ConectorGooglePlay
 from api.etl.conectores.gsc import ConectorGSC
 from api.etl.conectores.meta_ads import ConectorMetaAds
 from api.etl.conectores.meta_fb import ConectorMetaFB
 from api.etl.conectores.meta_ig import ConectorMetaIG
+from api.etl.conectores.zoho import ConectorZoho
 from tests.conftest import requiere_db
 from tests.semilla import mapeos_del_seed, metricas_del_seed
 
@@ -25,6 +27,8 @@ CONECTORES = [
     ConectorGooglePlay,
     ConectorPrometio,
     ConectorHubspot,
+    ConectorZoho,
+    ConectorGoogleNegocio,
 ]
 PLATAFORMAS = {
     "meta_ig",
@@ -40,6 +44,8 @@ PLATAFORMAS = {
     "google_play",
     "prometio",
     "hubspot",
+    "zoho",
+    "google_negocio",
 }
 
 

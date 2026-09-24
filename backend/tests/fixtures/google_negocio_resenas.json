@@ -1,0 +1,19 @@
+{
+ "reviews": [
+  {
+   "reviewId": "a",
+   "starRating": "FIVE",
+   "createTime": "2026-09-01T15:00:00.000Z"
+  },
+  {
+   "reviewId": "b",
+   "starRating": "TWO",
+   "createTime": "2026-09-01T18:00:00.000Z"
+  },
+  {
+   "reviewId": "c",
+   "starRating": "FOUR",
+   "createTime": "2026-09-02T09:00:00.000Z"
+  }
+ ]
+}

@@ -291,6 +291,8 @@ function Cuentas({ cliente, catalogos, alGuardar }: { cliente: ClienteDetalle; c
     app_store: "Apple ID de la app (número, en App Store Connect → App Information). Credencial: JSON {\"issuer_id\",\"key_id\",\"private_key\",\"vendor_number\"} de una clave de API con rol Sales and Reports.",
     google_play: "Nombre del paquete (com.empresa.app). Credencial opcional: JSON {\"bucket\":\"pubsite_prod_rev_…\"}; sin ella usa GOOGLE_PLAY_BUCKET. Invitar al Service Account de DatIO en Play Console con permiso de ver estadísticas.",
     prometio: "Organización de PrometIO (solo informativo, p. ej. geeks). Usa el usuario de servicio PROMETIO_* de la agencia.",
+    zoho: "ID de la organización (informativo). Credencial: JSON {\"client_id\",\"client_secret\",\"refresh_token\",\"dominio\":\"com\"} de una app Self Client en api-console.zoho.com con scope ZohoCRM.modules.READ.",
+    google_negocio: "Se conecta con el botón Google Analytics · Search Console · YouTube · Negocio: aparecen las fichas de negocio del usuario. A mano: accounts/{cuenta}/locations/{ficha}.",
     hubspot: "Portal ID de HubSpot. Credencial: token de app privada con scopes crm.objects.deals.read y crm.objects.contacts.read.",
   };
   async function crear(e: React.FormEvent) {
@@ -350,8 +352,8 @@ function Cuentas({ cliente, catalogos, alGuardar }: { cliente: ClienteDetalle; c
         <label>ID externo<input required value={f.id_externo} onChange={(e) => setF({ ...f, id_externo: e.target.value })} /></label>
         <p className="sutil">{AYUDA[f.plataforma]}</p>
         <label>Nombre visible<input value={f.nombre_cuenta} onChange={(e) => setF({ ...f, nombre_cuenta: e.target.value })} placeholder="@cuenta o nombre de la página" /></label>
-        <label>{["app_store", "google_play"].includes(f.plataforma) ? "Credencial (JSON)" : "Token propio (opcional)"}
-          {["app_store", "google_play"].includes(f.plataforma)
+        <label>{["app_store", "google_play", "zoho"].includes(f.plataforma) ? "Credencial (JSON)" : "Token propio (opcional)"}
+          {["app_store", "google_play", "zoho"].includes(f.plataforma)
             ? <textarea rows={5} value={f.credencial} onChange={(e) => setF({ ...f, credencial: e.target.value })} autoComplete="off" placeholder='{"issuer_id":"…","key_id":"…","private_key":"-----BEGIN PRIVATE KEY-----…","vendor_number":"…"}' />
             : <input type="password" value={f.credencial} onChange={(e) => setF({ ...f, credencial: e.target.value })} autoComplete="off" />}
         </label>

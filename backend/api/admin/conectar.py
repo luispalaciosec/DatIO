@@ -34,6 +34,7 @@ SCOPES_GOOGLE = (
     "https://www.googleapis.com/auth/webmasters.readonly",
     "https://www.googleapis.com/auth/youtube.readonly",
     "https://www.googleapis.com/auth/yt-analytics.readonly",
+    "https://www.googleapis.com/auth/business.manage",
 )
 
 
@@ -351,6 +352,32 @@ async def _activos_google(acceso: str) -> list[Activo]:
             activos.append(_aviso("YouTube", r))
         for canal in r.json().get("items", []):
             activos.append(Activo("youtube", canal["id"], canal["snippet"]["title"], {}))
+        # Google Business Profile: cuentas → fichas. Google exige aprobar el acceso a estas
+        # APIs por proyecto; hasta entonces responde 403 y se muestra como aviso.
+        r = await http.get(
+            "https://mybusinessaccountmanagement.googleapis.com/v1/accounts", headers=cab
+        )
+        if r.status_code >= 400:
+            activos.append(_aviso("Google Business Profile", r))
+        for cuenta in r.json().get("accounts", []) if r.status_code < 400 else []:
+            rl = await http.get(
+                f"https://mybusinessbusinessinformation.googleapis.com/v1/{cuenta['name']}/locations",
+                params={"readMask": "name,title,storefrontAddress", "pageSize": 100},
+                headers=cab,
+            )
+            if rl.status_code >= 400:
+                activos.append(_aviso(f"Fichas de {cuenta.get('accountName', cuenta['name'])}", rl))
+                continue
+            for ficha in rl.json().get("locations", []):
+                direccion = (ficha.get("storefrontAddress") or {}).get("locality")
+                activos.append(
+                    Activo(
+                        "google_negocio",
+                        f"{cuenta['name']}/{ficha['name']}",
+                        f"{ficha.get('title')}{' · ' + direccion if direccion else ''}",
+                        {"cuenta": cuenta.get("accountName")},
+                    )
+                )
     return activos
 
 

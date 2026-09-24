@@ -12,7 +12,9 @@ from cryptography.hazmat.primitives.asymmetric import ec
 
 from api.etl.conectores.app_store import ConectorAppStore, leer_informe_ventas, token_app_store
 from api.etl.conectores.crm import ConectorHubspot, ConectorPrometio
+from api.etl.conectores.google_negocio import ConectorGoogleNegocio
 from api.etl.conectores.google_play import ConectorGooglePlay, leer_csv_play, meses
+from api.etl.conectores.zoho import ConectorZoho, etapa_es
 from api.etl.repositorio import Cuenta
 from tests.semilla import mapeos_del_seed
 
@@ -149,3 +151,43 @@ async def test_credenciales_faltantes_fallan_claro(config) -> None:  # type: ign
         )  # type: ignore[arg-type]
         with pytest.raises(RuntimeError, match="no tiene"):
             await c.extraer(date(2026, 9, 1), date(2026, 9, 2))
+
+
+def test_zoho_etapas_y_metricas(config) -> None:  # type: ignore[no-untyped-def]
+    c = _con(ConectorZoho, "zoho", "org-1", config)
+    datos = json.loads((F / "zoho_crm.json").read_text())
+    payload = [{"desde": "2026-09-01", "hasta": "2026-09-02", **datos}]
+    v = {(f, m): x for f, m, x in c.normalizar(payload)}
+    assert v[(date(2026, 9, 1), "oportunidades_ganadas")] == Decimal(1)
+    assert v[(date(2026, 9, 1), "valor_ganado")] == Decimal(1200)
+    assert v[(date(2026, 9, 2), "oportunidades_perdidas")] == Decimal(1)
+    assert v[(date(2026, 9, 2), "oportunidades_creadas")] == Decimal(2)
+    assert v[(date(2026, 9, 2), "oportunidades_abiertas")] == Decimal(
+        2
+    )  # negotiation + qualification
+    assert v[(date(2026, 9, 2), "valor_pipeline")] == Decimal(500)  # Amount None cuenta 0
+    assert v[(date(2026, 9, 1), "contactos_nuevos")] == Decimal(1)
+    # Etapas en español o personalizadas
+    assert etapa_es("Ganado", ("ganad",), None) and etapa_es("Cerrado perdido", ("perdid",), None)
+    assert etapa_es("Firmado", (), ["Firmado"]) and not etapa_es("Closed Won", (), ["Firmado"])
+
+
+def test_google_negocio_metricas_y_resenas(config) -> None:  # type: ignore[no-untyped-def]
+    c = _con(ConectorGoogleNegocio, "google_negocio", "accounts/1/locations/9", config)
+    assert c._ficha() == "locations/9"
+    payload = [
+        {"tipo": "metricas", **json.loads((F / "google_negocio_metricas.json").read_text())},
+        {"tipo": "resenas", **json.loads((F / "google_negocio_resenas.json").read_text())},
+    ]
+    filas = c.normalizar(payload)
+    v: dict[tuple[date, str], Decimal] = {}
+    for f, m, x in filas:  # dos nativas (desktop+mobile) suman en la misma canónica
+        v[(f, m)] = v.get((f, m), Decimal(0)) + x
+    assert v[(date(2026, 9, 1), "vistas_maps")] == Decimal(300)
+    assert v[(date(2026, 9, 2), "vistas_maps")] == Decimal(35)  # valor ausente = 0
+    assert v[(date(2026, 9, 1), "llamadas")] == Decimal(7)
+    assert v[(date(2026, 9, 1), "clics_sitio_web")] == Decimal(12)
+    assert v[(date(2026, 9, 1), "calificaciones")] == Decimal(2)
+    assert v[(date(2026, 9, 1), "calificacion_promedio")] == Decimal("3.5")
+    assert v[(date(2026, 9, 2), "calificacion_promedio")] == Decimal(4)
+    assert not c.metricas_sin_mapeo

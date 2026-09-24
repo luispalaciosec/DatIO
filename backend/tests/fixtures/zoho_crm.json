@@ -1,0 +1,42 @@
+{
+ "deals": [
+  {
+   "id": "1",
+   "Created_Time": "2026-08-20T10:00:00-05:00",
+   "Closing_Date": "2026-09-01",
+   "Stage": "Closed Won",
+   "Amount": 1200
+  },
+  {
+   "id": "2",
+   "Created_Time": "2026-09-02T10:00:00-05:00",
+   "Closing_Date": "2026-10-15",
+   "Stage": "Negotiation/Review",
+   "Amount": 500
+  },
+  {
+   "id": "3",
+   "Created_Time": "2026-09-01T10:00:00-05:00",
+   "Closing_Date": "2026-09-02",
+   "Stage": "Closed Lost",
+   "Amount": 300
+  },
+  {
+   "id": "4",
+   "Created_Time": "2026-09-02T12:00:00-05:00",
+   "Closing_Date": null,
+   "Stage": "Qualification",
+   "Amount": null
+  }
+ ],
+ "contactos": [
+  {
+   "id": "c1",
+   "Created_Time": "2026-09-01T08:00:00-05:00"
+  },
+  {
+   "id": "c2",
+   "Created_Time": "2026-07-01T08:00:00-05:00"
+  }
+ ]
+}

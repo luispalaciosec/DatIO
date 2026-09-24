@@ -1,0 +1,83 @@
+{
+ "multiDailyMetricTimeSeries": [
+  {
+   "dailyMetricTimeSeries": [
+    {
+     "dailyMetric": "BUSINESS_IMPRESSIONS_DESKTOP_MAPS",
+     "timeSeries": {
+      "datedValues": [
+       {
+        "date": {
+         "year": 2026,
+         "month": 9,
+         "day": 1
+        },
+        "value": "40"
+       },
+       {
+        "date": {
+         "year": 2026,
+         "month": 9,
+         "day": 2
+        },
+        "value": "35"
+       }
+      ]
+     }
+    },
+    {
+     "dailyMetric": "BUSINESS_IMPRESSIONS_MOBILE_MAPS",
+     "timeSeries": {
+      "datedValues": [
+       {
+        "date": {
+         "year": 2026,
+         "month": 9,
+         "day": 1
+        },
+        "value": "260"
+       },
+       {
+        "date": {
+         "year": 2026,
+         "month": 9,
+         "day": 2
+        }
+       }
+      ]
+     }
+    },
+    {
+     "dailyMetric": "CALL_CLICKS",
+     "timeSeries": {
+      "datedValues": [
+       {
+        "date": {
+         "year": 2026,
+         "month": 9,
+         "day": 1
+        },
+        "value": "7"
+       }
+      ]
+     }
+    },
+    {
+     "dailyMetric": "WEBSITE_CLICKS",
+     "timeSeries": {
+      "datedValues": [
+       {
+        "date": {
+         "year": 2026,
+         "month": 9,
+         "day": 1
+        },
+        "value": "12"
+       }
+      ]
+     }
+    }
+   ]
+  }
+ ]
+}

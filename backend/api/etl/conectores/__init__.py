@@ -5,10 +5,12 @@ from api.etl.conectores import (  # noqa: F401
     crm,
     demo,
     ga4,
+    google_negocio,
     google_play,
     gsc,
     meta_ads,
     meta_fb,
     meta_ig,
     meta_publicaciones,
+    zoho,
 )
