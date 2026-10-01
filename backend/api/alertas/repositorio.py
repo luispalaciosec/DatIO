@@ -140,6 +140,25 @@ class RepositorioAlertas:
         )
         return r.endswith("1")
 
+    async def radar_atrasado(self, dias: int) -> list[dict[str, Any]]:
+        """Clientes activos con competidores cuyo último snapshot del radar tiene más de N días
+        (o nunca se capturó). El radar es semanal: más de 10 días es que no está corriendo."""
+        filas = await self._pool.fetch(
+            """
+            SELECT c.id AS cliente_id, c.nombre AS cliente, count(DISTINCT k.id) AS competidores,
+                   max(s.fecha_snapshot) AS ultimo
+            FROM   clientes c
+            JOIN   cliente_competidores k ON k.cliente_id = c.id
+            LEFT   JOIN fct_competidor_snapshot s ON s.competidor_id = k.id
+            WHERE  c.activo
+            GROUP  BY c.id
+            HAVING max(s.fecha_snapshot) IS NULL
+                OR max(s.fecha_snapshot) < current_date - $1::int
+            """,
+            dias,
+        )
+        return [dict(f) for f in filas]
+
     async def correos_equipo(self) -> list[str]:
         filas = await self._pool.fetch(
             "SELECT email FROM usuarios WHERE rol = 'equipo' AND activo ORDER BY email"

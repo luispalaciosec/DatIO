@@ -14,6 +14,7 @@ log = logging.getLogger(__name__)
 DIAS_SIN_PUBLICAR = 14
 DIAS_AVISO_TOKEN = 7
 DIAS_DEDUPE = 3
+DIAS_RADAR_ATRASADO = 10
 NOMBRES_RED = {
     "meta_ig": "Instagram",
     "meta_fb": "Facebook",
@@ -23,6 +24,7 @@ NOMBRES_RED = {
     "ga4": "Sitio web",
     "gsc": "Search Console",
     "meta_ads": "Meta Ads",
+    "radar": "Radar",
 }
 
 
@@ -169,4 +171,27 @@ async def correr_alertas(repo: RepositorioAlertas, hoy: date) -> ResumenAlertas:
                     "sin_publicar",
                     {"ultima_publicacion": ultima.isoformat() if ultima else None, "dias": dias},
                 )
+
+    # --- radar competitivo detenido (por cliente, no por cuenta) ---------------------------
+    for atrasado in await repo.radar_atrasado(DIAS_RADAR_ATRASADO):
+        clave = f"radar_atrasado:{atrasado['cliente_id']}"
+        seudo = {
+            "id": None,
+            "cliente_id": atrasado["cliente_id"],
+            "cliente": atrasado["cliente"],
+            "plataforma": "radar",
+        }
+        desde = atrasado["ultimo"].strftime("%d/%m") if atrasado["ultimo"] else "nunca"
+        await emitir(
+            seudo,
+            "operativa",
+            "alta",
+            f"{atrasado['cliente']} · Radar: sin captura de la competencia desde {desde}. "
+            "Revisar APIFY_TOKEN en el servicio del cron",
+            clave,
+            {
+                "ultimo": atrasado["ultimo"].isoformat() if atrasado["ultimo"] else None,
+                "competidores": atrasado["competidores"],
+            },
+        )
     return resumen

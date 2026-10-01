@@ -138,3 +138,37 @@ async def test_correr_alertas_detecta_y_no_duplica(pool, cliente_a) -> None:  # 
     await pool.execute(
         "DELETE FROM jobs_ejecucion WHERE cuenta_id = $1 AND estado = 'error'", cuenta
     )
+
+
+@requiere_db
+async def test_radar_atrasado_genera_alerta_operativa(pool, cliente_a) -> None:  # type: ignore[no-untyped-def]
+    """Un cliente con competidores y sin snapshot reciente debe avisar: el radar no corre."""
+    kid = await pool.fetchval(
+        "INSERT INTO cliente_competidores (cliente_id, plataforma, nombre, handle) "
+        "VALUES ($1, 'meta_ig', 'Rival', 'rival') RETURNING id",
+        cliente_a.id,
+    )
+    await pool.execute(
+        "INSERT INTO fct_competidor_snapshot "
+        "(competidor_id, fecha_snapshot, metrica_codigo, valor) "
+        "VALUES ($1, current_date - 25, 'seguidores', 10)",
+        kid,
+    )
+    repo = RepositorioAlertas(pool)
+    atrasados = [a for a in await repo.radar_atrasado(10) if a["cliente_id"] == cliente_a.id]
+    assert len(atrasados) == 1 and atrasados[0]["competidores"] == 1
+    resumen = await correr_alertas(repo, date.today())
+    mias = [a for a in resumen.nuevas if a.cliente_id == cliente_a.id and a.red == "Radar"]
+    assert len(mias) == 1 and "sin captura de la competencia" in mias[0].titulo
+    # Con un snapshot de hoy deja de estar atrasado
+    await pool.execute(
+        "INSERT INTO fct_competidor_snapshot "
+        "(competidor_id, fecha_snapshot, metrica_codigo, valor) "
+        "VALUES ($1, current_date, 'seguidores', 11)",
+        kid,
+    )
+    assert not [a for a in await repo.radar_atrasado(10) if a["cliente_id"] == cliente_a.id]
+    await pool.execute(
+        "DELETE FROM alertas WHERE detalle->>'clave' = $1", f"radar_atrasado:{cliente_a.id}"
+    )
+    await pool.execute("DELETE FROM cliente_competidores WHERE id = $1", kid)
