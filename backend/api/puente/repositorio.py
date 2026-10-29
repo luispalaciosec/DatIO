@@ -8,7 +8,7 @@ import asyncpg
 
 METRICA_PRINCIPAL = {
     "meta_ig": "alcance",
-    "meta_fb": "alcance",
+    "meta_fb": "interacciones",
     "ga4": "sesiones",
     "linkedin": "impresiones",
     "tiktok": "visualizaciones",
@@ -113,7 +113,7 @@ class RepositorioPuente:
             SELECT count(c.*) AS cuentas,
                    COALESCE(sum(v.valor), 0) AS gasto
             FROM   cuentas_conectadas c
-            LEFT   JOIN v_metrica_actual v ON v.cuenta_id = c.id AND v.metrica_codigo = 'gasto'
+            LEFT   JOIN v_metrica_actual v ON v.cuenta_id = c.id AND v.metrica_codigo = 'inversion'
                    AND v.fecha >= current_date - $2::int
             WHERE  c.cliente_id = $1 AND c.activo AND c.plataforma IN ('meta_ads', 'google_ads')
             """,

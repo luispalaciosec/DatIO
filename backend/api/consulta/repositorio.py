@@ -51,6 +51,14 @@ class RepositorioConsulta:
 
     # ---- estructura ---------------------------------------------------------
 
+    async def registrar_visita(self, instancia_id: int, usuario_email: str | None) -> None:
+        """Una fila por apertura del reporte (PT-19 health score la usa)."""
+        await self._pool.execute(
+            "INSERT INTO reporte_visitas (instancia_id, usuario_email) VALUES ($1, $2)",
+            instancia_id,
+            usuario_email,
+        )
+
     async def instancia_por_slug(self, slug_publico: str) -> Instancia | None:
         f = await self._pool.fetchrow(
             "SELECT id, cliente_id, plantilla_id, nombre_publico, slug_publico "

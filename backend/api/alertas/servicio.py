@@ -15,6 +15,7 @@ DIAS_SIN_PUBLICAR = 14
 DIAS_AVISO_TOKEN = 7
 DIAS_DEDUPE = 3
 DIAS_RADAR_ATRASADO = 10
+DIAS_DATOS_ATRASADOS = 4
 NOMBRES_RED = {
     "meta_ig": "Instagram",
     "meta_fb": "Facebook",
@@ -45,6 +46,7 @@ class ResumenAlertas:
     nuevas: list[AlertaNueva] = field(default_factory=list)
     cuentas_revisadas: int = 0
     metricas_evaluadas: int = 0
+    cerradas: int = 0
 
 
 def _pct(x: float) -> str:
@@ -62,6 +64,8 @@ async def correr_alertas(repo: RepositorioAlertas, hoy: date) -> ResumenAlertas:
         for e in await repo.jobs_con_error(datetime.now(UTC) - timedelta(hours=26))
     }
 
+    vigentes: set[tuple[int | None, str]] = set()
+
     async def emitir(
         cuenta: dict[str, Any],
         tipo: str,
@@ -70,7 +74,13 @@ async def correr_alertas(repo: RepositorioAlertas, hoy: date) -> ResumenAlertas:
         clave: str,
         detalle: dict[str, Any],
     ) -> None:
-        if await repo.existe_abierta(cuenta["id"], tipo, clave, DIAS_DEDUPE):
+        if tipo == "operativa":
+            vigentes.add((cuenta["id"], clave))
+            # Una operativa abierta con la misma clave no se repite: se cierra sola cuando
+            # la condición desaparece (ver cerrar_operativas_no_vigentes).
+            if await repo.existe_abierta_cualquiera(cuenta["id"], tipo, clave):
+                return
+        elif await repo.existe_abierta(cuenta["id"], tipo, clave, DIAS_DEDUPE):
             return
         detalle = {
             "clave": clave,
@@ -172,6 +182,24 @@ async def correr_alertas(repo: RepositorioAlertas, hoy: date) -> ResumenAlertas:
                     {"ultima_publicacion": ultima.isoformat() if ultima else None, "dias": dias},
                 )
 
+    # --- cuentas sin datos recientes (puente Metricool detenido, token muerto, etc.) ---------
+    for cuenta in await repo.cuentas_sin_datos_recientes(DIAS_DATOS_ATRASADOS):
+        red = NOMBRES_RED.get(cuenta["plataforma"], cuenta["plataforma"])
+        ultima = cuenta["ultima"]
+        detalle_txt = (
+            f"sin datos desde el {ultima.strftime('%d/%m')} ({(hoy - ultima).days} días)"
+            if ultima
+            else "nunca ha traído datos"
+        )
+        await emitir(
+            cuenta,
+            "operativa",
+            "alta" if ultima else "media",
+            f"{cuenta['cliente']} · {red}: {detalle_txt}",
+            "datos_atrasados",
+            {"ultima": ultima.isoformat() if ultima else None},
+        )
+
     # --- radar competitivo detenido (por cliente, no por cuenta) ---------------------------
     for atrasado in await repo.radar_atrasado(DIAS_RADAR_ATRASADO):
         clave = f"radar_atrasado:{atrasado['cliente_id']}"
@@ -194,4 +222,5 @@ async def correr_alertas(repo: RepositorioAlertas, hoy: date) -> ResumenAlertas:
                 "competidores": atrasado["competidores"],
             },
         )
+    resumen.cerradas = await repo.cerrar_operativas_no_vigentes(vigentes)
     return resumen

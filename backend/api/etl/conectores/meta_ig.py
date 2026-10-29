@@ -161,6 +161,8 @@ class ConectorMetaIG(ConectorMetaBase):
                 continue
             for serie in bloque["data"]:
                 valor = (serie.get("total_value") or {}).get("value")
+                if valor is not None and float(valor) < 0:
+                    continue  # Meta devuelve -1 cuando la métrica no está disponible ese día
                 mapeada = self.mapear(serie["name"], valor)
                 if mapeada is not None:
                     salida.append((fecha, *mapeada))

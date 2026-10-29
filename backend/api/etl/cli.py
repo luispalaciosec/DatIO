@@ -20,9 +20,11 @@ from api.alertas.servicio import ResumenAlertas, correr_alertas
 from api.config import obtener_config
 from api.db import crear_pool
 from api.etl.conector_base import hoy_en
+from api.etl.mantenimiento import mantenimiento
 from api.etl.radar import ResumenRadar, correr_radar
 from api.etl.repositorio import RepositorioETL
 from api.etl.runner import ResumenCorrida, correr_todos
+from api.prediccion.evaluacion import evaluar_proyecciones
 from api.puente.disparadores import ResumenPuente, correr_puente
 from api.puente.repositorio import RepositorioPuente
 
@@ -57,9 +59,14 @@ async def ejecutar(
             await enviar_resumen(config, destinatarios, alertas_resumen.nuevas, hoy.isoformat())
         puente_resumen = None
         if alertas and plataforma is None and not live:
-            puente_resumen = await correr_puente(
-                RepositorioPuente(pool), config, hoy_en(config.zona_horaria)
-            )
+            hoy = hoy_en(config.zona_horaria)
+            puente_resumen = await correr_puente(RepositorioPuente(pool), config, hoy)
+            evaluadas = await evaluar_proyecciones(pool, hoy)
+            if evaluadas:
+                logging.getLogger(__name__).info("proyecciones evaluadas: %s", evaluadas)
+            if hoy.weekday() == 6:  # domingo: compactar snapshots y caducar conexiones
+                m = await mantenimiento(pool)
+                logging.getLogger(__name__).info("mantenimiento: %s", m)
         return resumen, radar_resumen, alertas_resumen, puente_resumen
     finally:
         await pool.close()

@@ -14,7 +14,7 @@ METRICAS_VIGILADAS: dict[str, list[str]] = {
     "youtube": ["impresiones", "seguidores"],
     "ga4": ["sesiones", "conversiones_web"],
     "gsc": ["clics_busqueda", "impresiones_busqueda"],
-    "meta_ads": ["gasto", "impresiones", "clics"],
+    "meta_ads": ["inversion", "impresiones_pauta", "clics_pauta"],
 }
 REDES_CON_PUBLICACIONES = ("meta_ig", "meta_fb", "linkedin", "tiktok")
 
@@ -133,6 +133,60 @@ class RepositorioAlertas:
                 d["detalle"] = json.loads(d["detalle"])
             salida.append(d)
         return salida
+
+    async def existe_abierta_cualquiera(self, cuenta_id: int | None, tipo: str, clave: str) -> bool:
+        v = await self._pool.fetchval(
+            "SELECT 1 FROM alertas WHERE cuenta_id IS NOT DISTINCT FROM $1 AND tipo = $2 "
+            "AND detalle->>'clave' = $3 AND NOT resuelta LIMIT 1",
+            cuenta_id,
+            tipo,
+            clave,
+        )
+        return v is not None
+
+    async def cerrar_operativas_no_vigentes(self, vigentes: set[tuple[int | None, str]]) -> int:
+        """Resuelve las alertas operativas abiertas cuya condición ya no se cumple hoy."""
+        filas = await self._pool.fetch(
+            "SELECT id, cuenta_id, detalle->>'clave' AS clave FROM alertas "
+            "WHERE tipo = 'operativa' AND NOT resuelta"
+        )
+        cerrar = [int(f["id"]) for f in filas if (f["cuenta_id"], f["clave"]) not in vigentes]
+        if cerrar:
+            await self._pool.execute(
+                "UPDATE alertas SET resuelta = TRUE WHERE id = ANY($1::bigint[])", cerrar
+            )
+        return len(cerrar)
+
+    async def cuentas_sin_datos_recientes(self, dias: int) -> list[dict[str, Any]]:
+        """Cuentas activas cuya última fila es de hace más de N días, o que nunca trajeron datos
+        pese a llevar más de N días conectadas."""
+        filas = await self._pool.fetch(
+            """
+            SELECT c.id, c.cliente_id, cl.nombre AS cliente, cl.slug, c.plataforma,
+                   c.nombre_cuenta, c.token_expira_en, c.creado_en, x.ultima
+            FROM   cuentas_conectadas c
+            JOIN   clientes cl ON cl.id = c.cliente_id
+            LEFT   JOIN LATERAL (SELECT max(fecha) AS ultima FROM fct_metrica_diaria f
+                                 WHERE f.cuenta_id = c.id) x ON TRUE
+            WHERE  c.activo AND cl.activo
+              AND  (x.ultima < current_date - $1::int
+                    OR (x.ultima IS NULL AND c.creado_en < now() - ($1::int || ' days')::interval))
+            ORDER  BY cl.nombre, c.plataforma
+            """,
+            dias,
+        )
+        return [dict(f) for f in filas]
+
+    async def registrar_visita(
+        self, instancia_id: int, usuario_email: str | None, pagina_slug: str | None
+    ) -> None:
+        await self._pool.execute(
+            "INSERT INTO reporte_visitas (instancia_id, usuario_email, pagina_slug) "
+            "VALUES ($1, $2, $3)",
+            instancia_id,
+            usuario_email,
+            pagina_slug,
+        )
 
     async def resolver(self, alerta_id: int, resuelta: bool = True) -> bool:
         r = await self._pool.execute(

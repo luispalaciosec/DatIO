@@ -127,6 +127,7 @@ async def estructura_reporte(
     if instancia is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Reporte no encontrado")
     _verificar_acceso(usuario, instancia)
+    await repo.registrar_visita(instancia.id, usuario.email)
 
     paginas = []
     for p in await repo.paginas(instancia.plantilla_id):
