@@ -27,7 +27,9 @@ DURACION_ESTADO = timedelta(minutes=10)
 PROVEEDORES = ("meta", "google", "linkedin")
 
 # Community Management API: lectura de páginas de empresa que el usuario administra.
-SCOPES_LINKEDIN = ("r_organization_admin", "r_organization_social", "rw_organization_admin")
+# Community Management API: r_organization_social (estadísticas y posts) + rw_organization_admin
+# (listar las páginas que el usuario administra). LINKEDIN_SCOPES en el entorno los sobreescribe.
+SCOPES_LINKEDIN = ("r_organization_social", "rw_organization_admin")
 
 SCOPES_GOOGLE = (
     "https://www.googleapis.com/auth/analytics.readonly",
@@ -141,7 +143,7 @@ def url_inicio(config: Configuracion, proveedor: str, estado: str) -> str:
                 "client_id": config.linkedin_client_id,
                 "redirect_uri": url_retorno(config, "linkedin"),
                 "state": estado,
-                "scope": " ".join(SCOPES_LINKEDIN),
+                "scope": " ".join(config.linkedin_scopes or SCOPES_LINKEDIN),
             }
         )
     raise ConexionError(f"Proveedor desconocido: {proveedor}")
@@ -383,7 +385,13 @@ async def _activos_google(acceso: str) -> list[Activo]:
 
 def credencial_para_guardar(proveedor: str, token: dict[str, Any]) -> str:
     """Lo que se cifra en cuentas_conectadas. Meta: el token. Google: JSON con refresh_token."""
-    if proveedor in ("meta", "linkedin"):
+    if proveedor == "meta":
+        return str(token["access_token"])
+    if proveedor == "linkedin":
+        if token.get("refresh_token"):  # app con renovación programática
+            return json.dumps(
+                {"access_token": token["access_token"], "refresh_token": token["refresh_token"]}
+            )
         return str(token["access_token"])
     if not token.get("refresh_token"):
         raise ConexionError("Google no devolvió refresh_token; repite la conexión")

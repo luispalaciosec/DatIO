@@ -14,6 +14,7 @@ from api.etl.conectores.app_store import ConectorAppStore, leer_informe_ventas, 
 from api.etl.conectores.crm import ConectorHubspot, ConectorPrometio
 from api.etl.conectores.google_negocio import ConectorGoogleNegocio
 from api.etl.conectores.google_play import ConectorGooglePlay, leer_csv_play, meses
+from api.etl.conectores.linkedin import ConectorLinkedIn, ConectorLinkedInPublicaciones, intervalo
 from api.etl.conectores.zoho import ConectorZoho, etapa_es
 from api.etl.repositorio import Cuenta
 from tests.semilla import mapeos_del_seed
@@ -191,3 +192,41 @@ def test_google_negocio_metricas_y_resenas(config) -> None:  # type: ignore[no-u
     assert v[(date(2026, 9, 1), "calificacion_promedio")] == Decimal("3.5")
     assert v[(date(2026, 9, 2), "calificacion_promedio")] == Decimal(4)
     assert not c.metricas_sin_mapeo
+
+
+def test_linkedin_estadisticas_de_pagina(config) -> None:  # type: ignore[no-untyped-def]
+    c = _con(ConectorLinkedIn, "linkedin", "urn:li:organization:1", config)
+    d = json.loads((F / "linkedin_stats.json").read_text())
+    payload = [
+        {"tipo": "seguidores_total", "fecha": "2026-10-02", **d["red"]},
+        {"tipo": "seguidores", **d["seguidores"]},
+        {"tipo": "compartidos", **d["compartidos"]},
+        {"tipo": "pagina", **d["pagina"]},
+    ]
+    v = {(f, m): x for f, m, x in c.normalizar(payload)}
+    assert v[(date(2026, 10, 2), "seguidores")] == Decimal(3400)
+    assert v[(date(2026, 10, 1), "seguidores_nuevos")] == Decimal(6)
+    assert v[(date(2026, 10, 2), "seguidores_nuevos")] == Decimal(-2)
+    assert v[(date(2026, 10, 1), "impresiones")] == Decimal(1200)
+    assert v[(date(2026, 10, 1), "alcance")] == Decimal(900)
+    assert v[(date(2026, 10, 1), "interacciones")] == Decimal(86)  # 30+4+2+50
+    assert v[(date(2026, 10, 1), "tasa_engagement")] == Decimal("7.17")
+    assert v[(date(2026, 10, 1), "visualizaciones_pagina")] == Decimal(75)
+    assert not c.metricas_sin_mapeo
+    assert intervalo(date(2026, 10, 1), date(2026, 10, 2)).startswith("(timeRange:(start:")
+
+
+def test_linkedin_publicaciones(config) -> None:  # type: ignore[no-untyped-def]
+    c = _con(ConectorLinkedInPublicaciones, "linkedin", "urn:li:organization:1", config)
+    d = json.loads((F / "linkedin_posts.json").read_text())
+    pubs = c.normalizar_publicaciones([{"tipo": "posts", **d}])
+    assert [p.id_externo for p in pubs] == [
+        "urn:li:share:7001",
+        "urn:li:share:7002",
+        "urn:li:share:6999",
+    ]
+    assert pubs[0].tipo == "imagen" and pubs[1].tipo == "articulo" and pubs[2].tipo == "texto"
+    assert pubs[0].metricas["impresiones"] == Decimal(500)
+    assert pubs[0].metricas["interacciones"] == Decimal(33)
+    assert pubs[1].metricas == {}  # sin estadísticas: no se inventa
+    assert pubs[0].permalink.endswith("urn:li:share:7001")

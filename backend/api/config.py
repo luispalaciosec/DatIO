@@ -74,6 +74,17 @@ class Configuracion(BaseSettings):
     )
     linkedin_client_id: str = ""
     linkedin_client_secret: str = ""
+    # Permisos OAuth de LinkedIn (separados por espacio o coma). Vacío = los de conectar.py.
+    linkedin_scopes: Annotated[list[str], NoDecode] = Field(default_factory=list)
+
+    @field_validator("linkedin_scopes", mode="before")
+    @classmethod
+    def _parsear_scopes(cls, valor: Any) -> list[str]:
+        if not valor:
+            return []
+        if isinstance(valor, str):
+            return [s for s in valor.replace(",", " ").split() if s]
+        return list(valor)
 
     # Alertas por correo (PT-14) vía Resend. Sin clave, las alertas solo se ven en el admin.
     resend_api_key: str = ""

@@ -9,6 +9,7 @@ from api.etl.conectores.ga4 import ConectorGA4
 from api.etl.conectores.google_negocio import ConectorGoogleNegocio
 from api.etl.conectores.google_play import ConectorGooglePlay
 from api.etl.conectores.gsc import ConectorGSC
+from api.etl.conectores.linkedin import ConectorLinkedIn
 from api.etl.conectores.meta_ads import ConectorMetaAds
 from api.etl.conectores.meta_fb import ConectorMetaFB
 from api.etl.conectores.meta_ig import ConectorMetaIG
@@ -29,6 +30,7 @@ CONECTORES = [
     ConectorHubspot,
     ConectorZoho,
     ConectorGoogleNegocio,
+    ConectorLinkedIn,
 ]
 PLATAFORMAS = {
     "meta_ig",

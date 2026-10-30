@@ -8,6 +8,7 @@ from api.etl.conectores import (  # noqa: F401
     google_negocio,
     google_play,
     gsc,
+    linkedin,
     meta_ads,
     meta_fb,
     meta_ig,

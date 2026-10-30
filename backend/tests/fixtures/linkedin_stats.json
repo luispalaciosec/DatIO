@@ -1,0 +1,80 @@
+{
+ "red": {
+  "firstDegreeSize": 3400
+ },
+ "seguidores": {
+  "elements": [
+   {
+    "timeRange": {
+     "start": 1790812800000,
+     "end": 1790899200000
+    },
+    "followerGains": {
+     "organicFollowerGain": 5,
+     "paidFollowerGain": 1
+    }
+   },
+   {
+    "timeRange": {
+     "start": 1790899200000,
+     "end": 1790985600000
+    },
+    "followerGains": {
+     "organicFollowerGain": -2,
+     "paidFollowerGain": 0
+    }
+   }
+  ]
+ },
+ "compartidos": {
+  "elements": [
+   {
+    "timeRange": {
+     "start": 1790812800000,
+     "end": 1790899200000
+    },
+    "totalShareStatistics": {
+     "impressionCount": 1200,
+     "uniqueImpressionsCount": 900,
+     "likeCount": 30,
+     "commentCount": 4,
+     "shareCount": 2,
+     "clickCount": 50,
+     "engagement": 0.0717
+    }
+   },
+   {
+    "timeRange": {
+     "start": 1790899200000,
+     "end": 1790985600000
+    },
+    "totalShareStatistics": {
+     "impressionCount": 800,
+     "uniqueImpressionsCount": 600,
+     "likeCount": 10,
+     "commentCount": 0,
+     "shareCount": 1,
+     "clickCount": 20,
+     "engagement": 0.03875
+    }
+   }
+  ]
+ },
+ "pagina": {
+  "elements": [
+   {
+    "timeRange": {
+     "start": 1790812800000,
+     "end": 1790899200000
+    },
+    "totalPageStatistics": {
+     "views": {
+      "allPageViews": {
+       "pageViews": 75
+      }
+     }
+    }
+   }
+  ]
+ }
+}

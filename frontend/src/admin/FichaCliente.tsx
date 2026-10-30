@@ -284,7 +284,7 @@ function Cuentas({ cliente, catalogos, alGuardar }: { cliente: ClienteDetalle; c
     meta_ads: "Ad Account ID con prefijo act_.",
     ga4: "Property ID numérico de GA4. Dar acceso de lectura al Service Account de DatIO.",
     gsc: "siteUrl exacto de Search Console: https://dominio.com/ o sc-domain:dominio.com",
-    linkedin: "URN de la página: urn:li:organization:123456. Llega por el puente Metricool.",
+    linkedin: "URN de la página: urn:li:organization:123456. Usa «Conectar con LinkedIn» para que la cuenta tenga su token (conector nativo); sin token sigue dependiendo del puente Metricool.",
     tiktok: "Usuario de TikTok tal como aparece en Metricool.",
     youtube: "ID del canal (UC...). Conector pendiente.",
     google_ads: "Customer ID sin guiones. Conector pendiente.",

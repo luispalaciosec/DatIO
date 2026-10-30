@@ -1,0 +1,39 @@
+{
+ "posts": [
+  {
+   "id": "urn:li:share:7001",
+   "commentary": "Nueva sucursal",
+   "publishedAt": 1790899200000,
+   "content": {
+    "media": {
+     "id": "urn:li:image:abc"
+    }
+   }
+  },
+  {
+   "id": "urn:li:share:7002",
+   "commentary": "Art\u00edculo",
+   "createdAt": 1790812800000,
+   "content": {
+    "article": {
+     "source": "https://x"
+    }
+   }
+  },
+  {
+   "id": "urn:li:share:6999",
+   "commentary": "Viejo",
+   "publishedAt": 1787356800000
+  }
+ ],
+ "stats": {
+  "urn:li:share:7001": {
+   "impressionCount": 500,
+   "likeCount": 20,
+   "commentCount": 3,
+   "shareCount": 1,
+   "clickCount": 9,
+   "engagement": 0.066
+  }
+ }
+}
