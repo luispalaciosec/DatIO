@@ -10,6 +10,7 @@ id_externo = urn:li:organization:NNN. Credencial cifrada: el access token (texto
 import json
 from datetime import UTC, date, datetime, timedelta
 from typing import Any
+from urllib.parse import quote
 
 import httpx
 
@@ -65,10 +66,21 @@ class LinkedInBase(ConectorBase):
         }
 
     async def get(self, http: httpx.AsyncClient, token: str, ruta: str, **params: Any) -> Any:
-        r = await http.get(f"{API}/{ruta}", headers=self._cab(token), params=params)
+        """Rest.li 2.0: la sintaxis estructurada ((), List(...), ':') va sin codificar y los
+        URN dentro van codificados. httpx codificaría los paréntesis, así que la query se arma
+        a mano; los valores llegan ya con los URN codificados (ver urn_codificado)."""
+        query = "&".join(f"{k}={quote(str(v), safe='(),:%=')}" for k, v in params.items())
+        # raw_path evita que httpx vuelva a codificar los %3A de los URN (→ %253A)
+        ruta_cruda = f"/rest/{ruta}" + (f"?{query}" if query else "")
+        url = httpx.URL(scheme="https", host="api.linkedin.com", raw_path=ruta_cruda.encode())
+        r = await http.get(url, headers=self._cab(token))
         if r.status_code >= 400:
             raise LinkedInError(f"LinkedIn {ruta} → {r.status_code}: {r.text[:300]}")
         return r.json()
+
+
+def urn_codificado(urn: str) -> str:
+    return quote(urn, safe="")
 
 
 @registrar
@@ -91,11 +103,15 @@ class ConectorLinkedIn(LinkedInBase):
 
     async def extraer(self, desde: date, hasta: date) -> list[dict[str, Any]]:
         token = await self._token()
-        urn = self.cuenta.id_externo
+        urn = urn_codificado(self.cuenta.id_externo)
         ti = intervalo(desde, hasta)
         async with httpx.AsyncClient(timeout=self.timeout_seg) as http:
+            # Rest.li 2.0: los URN en la ruta y dentro de List(...) van codificados (%3A)
             red = await self.get(
-                http, token, f"networkSizes/{urn}", edgeType="CompanyFollowedByMember"
+                http,
+                token,
+                f"networkSizes/{urn}",
+                edgeType="COMPANY_FOLLOWED_BY_MEMBER",
             )
             seguidores = await self.get(
                 http,
@@ -212,42 +228,44 @@ class ConectorLinkedInPublicaciones(LinkedInBase, ConectorPublicacionesBase):
 
     async def extraer(self, desde: date, hasta: date) -> list[dict[str, Any]]:
         token = await self._token()
-        urn = self.cuenta.id_externo
+        urn = urn_codificado(self.cuenta.id_externo)
         async with httpx.AsyncClient(timeout=self.timeout_seg) as http:
-            r = await http.get(
-                f"{API}/posts",
-                headers=self._cab(token),
-                params={"q": "author", "author": urn, "count": 50, "sortBy": "LAST_MODIFIED"},
+            cuerpo = await self.get(
+                http, token, "posts", q="author", author=urn, count=50, sortBy="LAST_MODIFIED"
             )
-            if r.status_code >= 400:
-                raise LinkedInError(f"LinkedIn posts → {r.status_code}: {r.text[:300]}")
             posts = [
                 p
-                for p in r.json().get("elements", [])
-                if _dia(p.get("publishedAt") or p.get("createdAt"))
-                and _dia(p.get("publishedAt") or p.get("createdAt")) >= desde  # type: ignore[operator]
+                for p in cuerpo.get("elements", [])
+                if (f := _dia(p.get("publishedAt") or p.get("createdAt"))) and f >= desde
             ]
             stats: dict[str, Any] = {}
-            for i in range(0, len(posts), 20):
-                lote = posts[i : i + 20]
-                urns = ",".join(p["id"] for p in lote)
-                campo = (
-                    "ugcPosts" if lote and lote[0]["id"].startswith("urn:li:ugcPost") else "shares"
-                )
-                rs = await http.get(
-                    f"{API}/organizationalEntityShareStatistics",
-                    headers=self._cab(token),
-                    params={
-                        "q": "organizationalEntity",
-                        "organizationalEntity": urn,
-                        campo: f"List({urns})",
-                    },
-                )
-                if rs.status_code < 400:
-                    for e in rs.json().get("elements", []):
+            # Las estadísticas se piden por tipo de URN: shares=List(...) o ugcPosts=List(...)
+            grupos = {
+                "ugcPosts": [p for p in posts if p["id"].startswith("urn:li:ugcPost")],
+                "shares": [p for p in posts if p["id"].startswith("urn:li:share")],
+            }
+            lotes = [
+                (campo, lista[i : i + 20])
+                for campo, lista in grupos.items()
+                for i in range(0, len(lista), 20)
+            ]
+            for campo, lote in lotes:
+                urns = ",".join(urn_codificado(p["id"]) for p in lote)
+                try:
+                    rs = await self.get(
+                        http,
+                        token,
+                        "organizationalEntityShareStatistics",
+                        q="organizationalEntity",
+                        organizationalEntity=urn,
+                        **{campo: f"List({urns})"},
+                    )
+                    for e in rs.get("elements", []):
                         clave = e.get("share") or e.get("ugcPost")
                         if clave:
                             stats[str(clave)] = e.get("totalShareStatistics") or {}
+                except LinkedInError as e:
+                    stats.setdefault("_errores", []).append(str(e)[:200])
         return [{"tipo": "posts", "posts": posts, "stats": stats}]
 
     def normalizar_publicaciones(self, payload: list[dict[str, Any]]) -> list[Publicacion]:

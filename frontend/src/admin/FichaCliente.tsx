@@ -329,9 +329,9 @@ function Cuentas({ cliente, catalogos, alGuardar }: { cliente: ClienteDetalle; c
           alCancelar={() => { setConexion(null); setParams({}); }}
         />
       )}
-      <div className="bloque" style={{ "--ancho": 7 } as React.CSSProperties}>
+      <div className="bloque cuentas-lista" style={{ "--ancho": 7 } as React.CSSProperties}>
         {cliente.cuentas.length === 0 ? <div className="vacio">Sin cuentas conectadas todavía.</div> : (
-          <table className="publicaciones tarjeta">
+          <div className="tarjeta tabla-scroll"><table className="publicaciones">
             <thead><tr><th>Red</th><th>ID externo</th><th>Nombre</th><th>Credencial</th><th>Última captura</th><th></th></tr></thead>
             <tbody>{cliente.cuentas.map((c) => (
               <tr key={c.id} style={{ opacity: c.activo ? 1 : 0.5 }}>
@@ -340,7 +340,7 @@ function Cuentas({ cliente, catalogos, alGuardar }: { cliente: ClienteDetalle; c
                 <td>{c.ultima_captura ? new Date(c.ultima_captura).toLocaleString("es-EC") : "nunca"}</td>
                 <td><button className="boton-pdf" onClick={() => alternar(c)}>{c.activo ? "Pausar" : "Activar"}</button></td>
               </tr>))}</tbody>
-          </table>
+          </table></div>
         )}
       </div>
       <form className="bloque tarjeta formulario" style={{ "--ancho": 5 } as React.CSSProperties} onSubmit={crear}>

@@ -433,3 +433,9 @@ table.tarjeta strong { font-weight: 500; color: var(--color-secundario); }
 .sin-conexion, .bloque-error { margin-top: 26px; }
 
 .formulario textarea { padding: 10px 12px; border: 1px solid var(--gris-300); border-radius: 12px; font: inherit; font-size: 12px; font-family: ui-monospace, monospace; color: var(--color-secundario); background: #fff; text-transform: none; letter-spacing: 0; resize: vertical; }
+
+/* Ficha del cliente: la tabla de cuentas hace scroll horizontal y nunca se monta sobre el
+   formulario; en pantallas medianas el formulario pasa abajo. */
+.tabla-scroll { padding: 6px 4px; overflow-x: auto; }
+.tabla-scroll table { min-width: 720px; }
+@media (max-width: 1280px) { .cuentas-lista, .cuentas-lista + .formulario { grid-column: span 12; } }
