@@ -18,7 +18,6 @@ from api.etl.conector_publicaciones import ConectorPublicacionesBase, Publicacio
 from api.etl.registro import registrar, registrar_publicaciones
 
 API = "https://api.linkedin.com/rest"
-VERSION = "202409"
 
 
 class LinkedInError(RuntimeError):
@@ -61,7 +60,7 @@ class LinkedInBase(ConectorBase):
     def _cab(self, token: str) -> dict[str, str]:
         return {
             "Authorization": f"Bearer {token}",
-            "LinkedIn-Version": VERSION,
+            "LinkedIn-Version": self.config.linkedin_api_version,
             "X-Restli-Protocol-Version": "2.0.0",
         }
 

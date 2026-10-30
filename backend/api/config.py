@@ -74,6 +74,8 @@ class Configuracion(BaseSettings):
     )
     linkedin_client_id: str = ""
     linkedin_client_secret: str = ""
+    # Versión mensual de la API REST de LinkedIn (caducan al año). Ej: 202609
+    linkedin_api_version: str = "202609"
     # Permisos OAuth de LinkedIn (separados por espacio o coma). Vacío = los de conectar.py.
     linkedin_scopes: Annotated[list[str], NoDecode] = Field(default_factory=list)
 

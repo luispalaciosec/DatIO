@@ -200,15 +200,15 @@ async def listar_activos(
     if proveedor == "meta":
         return await _activos_meta(config, acceso)
     if proveedor == "linkedin":
-        return await _activos_linkedin(acceso)
+        return await _activos_linkedin(config, acceso)
     return await _activos_google(acceso)
 
 
-async def _activos_linkedin(acceso: str) -> list[Activo]:
+async def _activos_linkedin(config: Configuracion, acceso: str) -> list[Activo]:
     """Páginas de empresa donde el usuario es administrador (organizationAcls)."""
     cab = {
         "Authorization": f"Bearer {acceso}",
-        "LinkedIn-Version": "202409",
+        "LinkedIn-Version": config.linkedin_api_version,
         "X-Restli-Protocol-Version": "2.0.0",
     }
     activos: list[Activo] = []
