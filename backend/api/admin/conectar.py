@@ -215,21 +215,23 @@ async def _activos_linkedin(acceso: str) -> list[Activo]:
     async with httpx.AsyncClient(timeout=30) as http:
         r = await http.get(
             "https://api.linkedin.com/rest/organizationAcls",
-            params={
-                "q": "roleAssignee",
-                "role": "ADMINISTRATOR",
-                "state": "APPROVED",
-                "projection": "(elements*(organization~(localizedName)))",
-            },
+            params={"q": "roleAssignee", "role": "ADMINISTRATOR", "state": "APPROVED"},
             headers=cab,
         )
         if r.status_code >= 400:
             raise ConexionError(f"LinkedIn no permitió listar páginas: {r.text[:200]}")
-        for e in r.json().get("elements", []):
-            urn = e.get("organization")
-            nombre = (e.get("organization~") or {}).get("localizedName", urn)
-            if urn:
-                activos.append(Activo("linkedin", urn, nombre, {}))
+        urns = [e["organization"] for e in r.json().get("elements", []) if e.get("organization")]
+        # Las versiones recientes de la API no aceptan `projection`: el nombre de cada página
+        # se resuelve con una llamada por organización (son pocas).
+        for urn in urns:
+            nombre = urn
+            org_id = urn.rsplit(":", 1)[-1]
+            ro = await http.get(
+                f"https://api.linkedin.com/rest/organizations/{org_id}", headers=cab
+            )
+            if ro.status_code < 400:
+                nombre = ro.json().get("localizedName") or urn
+            activos.append(Activo("linkedin", urn, nombre, {"id": org_id}))
     return activos
 
 
