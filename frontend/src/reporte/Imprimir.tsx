@@ -40,7 +40,7 @@ export function Imprimir() {
   return (
     <TemaProvider tema={reporte.tema}>
       <div className="impresion" data-impresion-lista="1">
-        {reporte.paginas.filter((p) => p.cuentas > 0).map((p: TPagina) => (
+        {reporte.paginas.filter((p) => p.cuentas > 0 && p.bloques.length > 0).map((p: TPagina) => (
           <section className="hoja" key={p.id}>
             <header className="hoja-cabecera">
               <div className="marca">

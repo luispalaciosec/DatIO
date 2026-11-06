@@ -35,6 +35,7 @@ export interface Pagina {
 }
 
 export interface Reporte {
+  es_equipo?: boolean;
   instancia_id: number;
   nombre_publico: string | null;
   slug_publico: string;
@@ -239,3 +240,9 @@ export interface ConsultaDatos {
   cuentas: number[]; metricas: string[]; desde: string; hasta: string; granularidad: "dia" | "semana" | "mes" | "total"; dimension: string | null; limite?: number;
 }
 export interface ResultadoDatos { columnas: string[]; filas: Array<Record<string, string | number | null>>; truncado: boolean }
+
+export interface BloqueEditor { id: number; tipo: string; orden: number; config: Record<string, unknown>; override: Record<string, unknown>; oculto: boolean }
+export interface PaginaEditor { id: number; plataforma: string | null; slug: string; titulo: string; cuentas: number; bloques: BloqueEditor[] }
+export interface EnvioReporte { periodo: string; destinatarios: string[]; automatico: boolean; estado: string; error: string | null; enviado_en: string }
+export interface EstructuraReporte { instancia_id: number; slug: string; paginas: PaginaEditor[]; envios: EnvioReporte[] }
+export interface ResultadoInvitacion { url: string; resultados: Array<{ email: string; estado: string; detalle: string | null }> }

@@ -10,6 +10,7 @@ from api.admin.router import router as router_admin
 from api.admin.router_conectar import router as router_conectar
 from api.admin.router_datos import router as router_datos
 from api.admin.router_puente import router as router_puente
+from api.admin.router_reporte import router as router_reporte
 from api.auth.router import router as router_auth
 from api.config import Configuracion, obtener_config
 from api.consulta.cache import CacheConsulta
@@ -42,6 +43,7 @@ def crear_app(config: Configuracion | None = None) -> FastAPI:
     app.include_router(router_conectar)
     app.include_router(router_puente)
     app.include_router(router_datos)
+    app.include_router(router_reporte)
     # Orden: el último add_middleware es el más externo. CORS afuera para que las respuestas
     # 429 y las cabeceras también lleven Access-Control-*.
     app.add_middleware(CabecerasSeguridad)

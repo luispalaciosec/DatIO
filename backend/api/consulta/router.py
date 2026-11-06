@@ -41,6 +41,7 @@ def _cache(request: Request) -> CacheConsulta | None:
 @router.post("/consulta")
 async def resolver_bloque(
     req: ConsultaBloque,
+    request: Request,
     usuario: Annotated[UsuarioActual, Depends(usuario_actual)],
     repo: Annotated[RepositorioConsulta, Depends(_repo)],
     cache: Annotated[CacheConsulta | None, Depends(_cache)],
@@ -79,7 +80,14 @@ async def resolver_bloque(
     config_bloque = {**bloque.config}
     config_bloque.setdefault("plataforma", bloque.plataforma)
     ctx = Contexto(
-        repo, cuentas, instancia.cliente_id, config_bloque, req.desde, req.hasta, req.comparar
+        repo,
+        cuentas,
+        instancia.cliente_id,
+        config_bloque,
+        req.desde,
+        req.hasta,
+        req.comparar,
+        request.app.state.config,
     )
     resultado = await resolvedor(ctx)
     respuesta = {
@@ -151,6 +159,7 @@ async def estructura_reporte(
             }
         )
     return {
+        "es_equipo": usuario.es_equipo,
         "instancia_id": instancia.id,
         "nombre_publico": instancia.nombre_publico,
         "slug_publico": instancia.slug_publico,

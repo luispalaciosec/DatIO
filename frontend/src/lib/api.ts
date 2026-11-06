@@ -1,5 +1,5 @@
 import { supabase } from "./supabase";
-import type { CatalogoPlataforma, ConsultaDatos, ResultadoDatos, EmpresaCrm, EvaluacionCrm, DisparoCrm,
+import type { EstructuraReporte, ResultadoInvitacion, CatalogoPlataforma, ConsultaDatos, ResultadoDatos, EmpresaCrm, EvaluacionCrm, DisparoCrm,
   ActivoConexion, Conexion, Captura, Catalogos, ClienteAdmin, ClienteDetalle, Rango, Reporte, RespuestaConsulta, TemaAdmin, UsuarioAdmin, AlertaAdmin,
 } from "./tipos";
 
@@ -116,6 +116,15 @@ export const api = {
       if (!r.ok) throw new ErrorApi(r.status, await r.text());
       return r.blob();
     },
+    invitar: (cliente_id: number, emails: string[], enviar_correo = true) =>
+      llamar<ResultadoInvitacion>(`/admin/clientes/${cliente_id}/invitar`, { method: "POST", body: JSON.stringify({ emails, enviar_correo }) }),
+    estructuraReporte: (cliente_id: number) => llamar<EstructuraReporte>(`/admin/clientes/${cliente_id}/reporte`),
+    guardarBloque: (cliente_id: number, bloque_id: number, cuerpo: { oculto: boolean; config: Record<string, unknown> }) =>
+      llamar<{ estado: string }>(`/admin/clientes/${cliente_id}/reporte/bloques/${bloque_id}`, { method: "PUT", body: JSON.stringify(cuerpo) }),
+    ocultarPagina: (cliente_id: number, pagina_id: number, oculto: boolean) =>
+      llamar<{ bloques: number }>(`/admin/clientes/${cliente_id}/reporte/paginas/${pagina_id}`, { method: "PUT", body: JSON.stringify({ oculto }) }),
+    enviarReporte: (cliente_id: number, cuerpo: { destinatarios?: string[]; mes?: string }) =>
+      llamar<{ estado: string; destinatarios: string[]; periodo: string }>(`/admin/clientes/${cliente_id}/reporte/enviar`, { method: "POST", body: JSON.stringify(cuerpo) }),
     alertas: (abiertas = true) => llamar<AlertaAdmin[]>(`/admin/alertas?abiertas=${abiertas}`),
     resolverAlerta: (id: number, resuelta: boolean) =>
       llamar<{ estado: string }>(`/admin/alertas/${id}`, { method: "PATCH", body: JSON.stringify({ resuelta }) }),

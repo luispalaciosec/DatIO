@@ -49,6 +49,59 @@ class RepositorioConsulta:
         )
         return v.isoformat() if v else ""
 
+    @property
+    def pool(self) -> asyncpg.Pool:
+        return self._pool
+
+    # ---- narrativa (cache por día) -------------------------------------------
+
+    async def narrativa(
+        self, cliente_id: int, plataforma: str, desde: date, hasta: date
+    ) -> dict[str, Any] | None:
+        f = await self._pool.fetchrow(
+            "SELECT texto, fuente, hechos FROM narrativas WHERE cliente_id = $1 "
+            "AND plataforma = $2 AND desde = $3 AND hasta = $4 AND generada_el = CURRENT_DATE",
+            cliente_id,
+            plataforma,
+            desde,
+            hasta,
+        )
+        if f is None:
+            return None
+        hechos = f["hechos"]
+        return {
+            "texto": f["texto"],
+            "fuente": f["fuente"],
+            "hechos": json.loads(hechos) if isinstance(hechos, str) else hechos,
+        }
+
+    async def guardar_narrativa(
+        self,
+        cliente_id: int,
+        plataforma: str,
+        desde: date,
+        hasta: date,
+        texto: str,
+        fuente: str,
+        hechos: dict[str, Any],
+    ) -> None:
+        await self._pool.execute(
+            """
+            INSERT INTO narrativas (cliente_id, plataforma, desde, hasta, texto, fuente, hechos)
+            VALUES ($1, $2, $3, $4, $5, $6, $7::jsonb)
+            ON CONFLICT (cliente_id, plataforma, desde, hasta) DO UPDATE SET
+                texto = EXCLUDED.texto, fuente = EXCLUDED.fuente, hechos = EXCLUDED.hechos,
+                generada_el = CURRENT_DATE
+            """,
+            cliente_id,
+            plataforma,
+            desde,
+            hasta,
+            texto,
+            fuente,
+            json.dumps(hechos, default=str),
+        )
+
     # ---- estructura ---------------------------------------------------------
 
     async def registrar_visita(self, instancia_id: int, usuario_email: str | None) -> None:

@@ -5,6 +5,7 @@ from dataclasses import dataclass, field
 from datetime import date
 from typing import Any
 
+from api.config import Configuracion
 from api.consulta.repositorio import RepositorioConsulta
 
 
@@ -17,6 +18,7 @@ class Contexto:
     desde: date
     hasta: date
     comparar: str | None
+    app: Configuracion | None = None  # configuración de la app (LLM, etc.); None en tests
 
 
 @dataclass
@@ -59,6 +61,7 @@ from api.resolvedores import (  # noqa: E402, F401 — registra los resolvedores
     dimensiones,
     distribucion_geo,
     kpi_fila,
+    narrativa,
     pacing_mes,
     radar_pauta,
     serie_temporal,

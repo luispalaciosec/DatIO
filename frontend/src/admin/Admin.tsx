@@ -46,7 +46,7 @@ function ListaClientes() {
   const [clientes, setClientes] = useState<ClienteAdmin[] | null>(null);
   const [catalogos, setCatalogos] = useState<Catalogos | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [nuevo, setNuevo] = useState({ nombre: "", slug: "", sector: "" });
+  const [nuevo, setNuevo] = useState({ nombre: "", slug: "", sector: "", correos: "" });
   const navigate = useNavigate();
 
   const cargar = () => api.admin.clientes().then(setClientes).catch((e: ErrorApi) => setError(e.message));
@@ -56,6 +56,10 @@ function ListaClientes() {
     e.preventDefault();
     try {
       const r = await api.admin.crearCliente({ nombre: nuevo.nombre, slug: nuevo.slug, sector: nuevo.sector || null });
+      const correos = nuevo.correos.split(/[\s,;]+/).map((x) => x.trim()).filter(Boolean);
+      // Se habilita el acceso ya; la invitación por correo se envía desde la ficha cuando el
+      // reporte tenga cuentas conectadas (no invitamos a un reporte vacío).
+      if (correos.length) await api.admin.invitar(r.id, correos, false).catch(() => null);
       navigate(`/admin/clientes/${r.id}`);
     } catch (err) {
       setError((err as ErrorApi).message);
@@ -96,7 +100,8 @@ function ListaClientes() {
               <option value="">—</option>
               {catalogos?.sectores.map((s) => <option key={s} value={s}>{s}</option>)}
             </select></label>
-            <p className="sutil">Se crea con tema por defecto y un reporte con la plantilla RRSS Full. Los clientes del sector banca o financiero usan proveedor de IA occidental.</p>
+            <label>Correos del cliente (opcional)<input value={nuevo.correos} onChange={(e) => setNuevo({ ...nuevo, correos: e.target.value })} placeholder="gerente@cliente.com, marketing@cliente.com" /></label>
+            <p className="sutil">Al crearlo te llevamos a su ficha con los pasos de puesta en marcha: marca, cuentas, competidores, reporte e invitación. Se crea con tema por defecto y un reporte con la plantilla RRSS Full. Los clientes del sector banca o financiero usan proveedor de IA occidental.</p>
             <button className="boton-pdf" type="submit">Crear cliente</button>
           </form>
         </div>

@@ -3,6 +3,7 @@ import { Link, useParams, useSearchParams } from "react-router-dom";
 import { api, ErrorApi } from "../lib/api";
 import type { EmpresaCrm, EvaluacionCrm, ActivoConexion, Catalogos, ClienteDetalle, Conexion, CuentaAdmin, TemaAdmin } from "../lib/tipos";
 import { supabase } from "../lib/supabase";
+import { EditorReporte } from "./EditorReporte";
 
 export function FichaCliente() {
   const { id = "0" } = useParams();
@@ -10,7 +11,7 @@ export function FichaCliente() {
   const [catalogos, setCatalogos] = useState<Catalogos | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [params] = useSearchParams();
-  const [pestana, setPestana] = useState<"datos" | "marca" | "cuentas" | "competidores" | "usuarios">(
+  const [pestana, setPestana] = useState<Pestana>(
     params.get("conexion") || params.get("error") ? "cuentas" : "datos",
   );
 
@@ -25,18 +26,48 @@ export function FichaCliente() {
       <div className="encabezado">
         <h1>{cliente.nombre}<small><Link to={`/${cliente.slug}`}>/{cliente.slug}</Link> · {cliente.sector ?? "sin sector"}{!cliente.activo && " · inactivo"}</small></h1>
         <div className="subtabs">
-          {(["datos", "marca", "cuentas", "competidores", "usuarios"] as const).map((p) => (
+          {(["datos", "marca", "cuentas", "competidores", "usuarios", "reporte"] as const).map((p) => (
             <a key={p} href="#" className={pestana === p ? "activa" : ""} onClick={(e) => { e.preventDefault(); setPestana(p); }}>
-              {{ datos: "Datos", marca: "Marca", cuentas: `Cuentas (${cliente.cuentas.length})`, competidores: `Competidores (${cliente.competidores.length})`, usuarios: `Usuarios (${cliente.usuarios.length})` }[p]}
+              {{ datos: "Datos", marca: "Marca", cuentas: `Cuentas (${cliente.cuentas.length})`, competidores: `Competidores (${cliente.competidores.length})`, usuarios: `Usuarios (${cliente.usuarios.length})`, reporte: "Reporte" }[p]}
             </a>
           ))}
         </div>
       </div>
+      <PuestaEnMarcha cliente={cliente} irA={setPestana} />
       {pestana === "datos" && <><Datos cliente={cliente} catalogos={catalogos} alGuardar={cargar} /><Crm cliente={cliente} alGuardar={cargar} /></>}
       {pestana === "marca" && <Marca cliente={cliente} alGuardar={cargar} />}
       {pestana === "cuentas" && <Cuentas cliente={cliente} catalogos={catalogos} alGuardar={cargar} />}
       {pestana === "competidores" && <Competidores cliente={cliente} alGuardar={cargar} />}
       {pestana === "usuarios" && <UsuariosCliente cliente={cliente} alGuardar={cargar} />}
+      {pestana === "reporte" && <EditorReporte cliente={cliente} />}
+    </div>
+  );
+}
+
+type Pestana = "datos" | "marca" | "cuentas" | "competidores" | "usuarios" | "reporte";
+
+/** Checklist de alta: qué falta para que el cliente pueda usar su reporte. Se oculta al completarse. */
+function PuestaEnMarcha({ cliente, irA }: { cliente: ClienteDetalle; irA: (p: Pestana) => void }) {
+  const usuarios = cliente.usuarios.filter((u) => u.activo).length;
+  const pasos: Array<{ hecho: boolean; texto: string; detalle: string; pestana: Pestana }> = [
+    { hecho: Boolean(cliente.tema.logo_url), texto: "Marca", detalle: cliente.tema.logo_url ? "logo y colores listos" : "sube el logo y define colores", pestana: "marca" },
+    { hecho: cliente.cuentas.length > 0, texto: "Cuentas", detalle: cliente.cuentas.length ? `${cliente.cuentas.length} conectada(s)` : "conecta al menos una red", pestana: "cuentas" },
+    { hecho: cliente.competidores.length > 0, texto: "Competidores", detalle: cliente.competidores.length ? `${cliente.competidores.length} en el radar` : "agrega 4 a 6 por red", pestana: "competidores" },
+    { hecho: usuarios > 0, texto: "Reporte", detalle: "revisa qué páginas y bloques verá", pestana: "reporte" },
+    { hecho: usuarios > 0, texto: "Invitación", detalle: usuarios ? `${usuarios} usuario(s) con acceso` : "invita al cliente por correo", pestana: "usuarios" },
+  ];
+  if (pasos.every((p) => p.hecho)) return null;
+  return (
+    <div className="tarjeta puesta-en-marcha">
+      <strong>Puesta en marcha</strong>
+      <div className="pasos">
+        {pasos.map((p, i) => (
+          <button type="button" key={p.texto} className={`paso ${p.hecho ? "hecho" : ""}`} onClick={() => irA(p.pestana)}>
+            <span className="paso-num">{p.hecho ? "✓" : i + 1}</span>
+            <span><b>{p.texto}</b><small>{p.detalle}</small></span>
+          </button>
+        ))}
+      </div>
     </div>
   );
 }
@@ -367,10 +398,21 @@ function Cuentas({ cliente, catalogos, alGuardar }: { cliente: ClienteDetalle; c
 function UsuariosCliente({ cliente, alGuardar }: { cliente: ClienteDetalle; alGuardar: () => void }) {
   const [email, setEmail] = useState("");
   const [aviso, setAviso] = useState<string | null>(null);
+  const [conCorreo, setConCorreo] = useState(true);
+  const TEXTO: Record<string, string> = { invitado: "invitación enviada", habilitado: "acceso habilitado" };
   async function agregar(e: React.FormEvent) {
     e.preventDefault();
-    try { await api.admin.guardarUsuario({ email, rol: "cliente", cliente_id: cliente.id }); setEmail(""); setAviso("Usuario habilitado. Puede entrar con Google o enlace por correo."); alGuardar(); }
-    catch (err) { setAviso((err as ErrorApi).message); }
+    const emails = email.split(/[\s,;]+/).map((x) => x.trim()).filter(Boolean);
+    try {
+      const r = await api.admin.invitar(cliente.id, emails, conCorreo);
+      setEmail("");
+      setAviso(r.resultados.map((x) => {
+        if (x.estado === "habilitado_sin_correo") return `${x.email}: acceso habilitado, pero el correo no salió (${x.detalle ?? "sin detalle"})`;
+        if (x.estado === "omitido") return `${x.email}: omitido (${x.detalle})`;
+        return `${x.email}: ${TEXTO[x.estado] ?? x.estado}`;
+      }).join(" · "));
+      alGuardar();
+    } catch (err) { setAviso((err as ErrorApi).message); }
   }
   async function quitar(e: string) { await api.admin.desactivarUsuario(e); alGuardar(); }
   return (
@@ -385,7 +427,8 @@ function UsuariosCliente({ cliente, alGuardar }: { cliente: ClienteDetalle; alGu
       </div>
       <form className="bloque tarjeta formulario" style={{ "--ancho": 5 } as React.CSSProperties} onSubmit={agregar}>
         <h3>Dar acceso</h3>
-        <label>Email del cliente<input type="email" required value={email} onChange={(e) => setEmail(e.target.value)} /></label>
+        <label>Correos del cliente (uno o varios, separados por coma)<input required value={email} onChange={(e) => setEmail(e.target.value)} placeholder="gerente@cliente.com, marketing@cliente.com" /></label>
+        <label className="fila"><input type="checkbox" checked={conCorreo} onChange={(e) => setConCorreo(e.target.checked)} /> Enviar correo de invitación con el enlace al reporte</label>
         <p className="sutil">Solo verá el reporte de {cliente.nombre}. Con la misma cuenta de Google o por enlace al correo.</p>
         <button className="boton-pdf" type="submit">Habilitar</button><Aviso texto={aviso} />
       </form>

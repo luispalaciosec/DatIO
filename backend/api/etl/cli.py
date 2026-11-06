@@ -27,6 +27,7 @@ from api.etl.runner import ResumenCorrida, correr_todos
 from api.prediccion.evaluacion import evaluar_proyecciones
 from api.puente.disparadores import ResumenPuente, correr_puente
 from api.puente.repositorio import RepositorioPuente
+from api.reportes.envio import enviar_mensuales
 
 
 async def ejecutar(
@@ -64,6 +65,10 @@ async def ejecutar(
             evaluadas = await evaluar_proyecciones(pool, hoy)
             if evaluadas:
                 logging.getLogger(__name__).info("proyecciones evaluadas: %s", evaluadas)
+            for envio in await enviar_mensuales(pool, config, hoy):
+                logging.getLogger(__name__).info(
+                    "reporte mensual %s: %s %s", envio.cliente, envio.estado, envio.error or ""
+                )
             if hoy.weekday() == 6:  # domingo: compactar snapshots y caducar conexiones
                 m = await mantenimiento(pool)
                 logging.getLogger(__name__).info("mantenimiento: %s", m)

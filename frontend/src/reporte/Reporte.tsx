@@ -35,8 +35,9 @@ export function Reporte() {
 
   const actual: TPagina | undefined = useMemo(() => {
     if (!reporte) return undefined;
-    return reporte.paginas.find((p) => (p.plataforma ?? "todas") === plataforma && p.slug === pagina)
-      ?? reporte.paginas[0];
+    const lista = reporte.es_equipo ? reporte.paginas : reporte.paginas.filter((p) => p.cuentas > 0 && p.bloques.length > 0);
+    const base = lista.length ? lista : reporte.paginas;
+    return base.find((p) => (p.plataforma ?? "todas") === plataforma && p.slug === pagina) ?? base[0];
   }, [reporte, plataforma, pagina]);
 
   useEffect(() => {
@@ -48,7 +49,11 @@ export function Reporte() {
   if (error) return <div className="entrar"><div className="tarjeta"><h1>Reporte</h1><p>{error}</p></div></div>;
   if (!reporte || !actual) return <div className="lienzo"><div className="bloque-cargando" /></div>;
 
-  const porRed = agrupar(reporte.paginas);
+  // El cliente solo ve redes conectadas y con contenido; el equipo ve todas (para configurar).
+  const visibles = reporte.es_equipo
+    ? reporte.paginas
+    : reporte.paginas.filter((p) => p.cuentas > 0 && p.bloques.length > 0);
+  const porRed = agrupar(visibles.length ? visibles : reporte.paginas);
   const redActual = actual.plataforma ?? "todas";
   const ruta = (p: TPagina) => `/${slug}/${p.plataforma ?? "todas"}/${p.slug}?${params}`;
 
@@ -61,11 +66,15 @@ export function Reporte() {
             <span>{reporte.tema.nombre}</span>
           </div>
           <nav className="tabs">
-            {Object.entries(porRed).map(([red, paginas]) => (
-              <Link key={red} className={red === redActual ? "activa" : ""} to={ruta(paginas[0])}>
-                {NOMBRES[red] ?? red}
-              </Link>
-            ))}
+            {Object.entries(porRed)
+              // Conectadas primero; las que no tienen cuenta (solo las ve el equipo) van atenuadas.
+              .sort((a, b) => Number(b[1][0].cuentas > 0) - Number(a[1][0].cuentas > 0))
+              .map(([red, paginas]) => (
+                <Link key={red} className={`${red === redActual ? "activa" : ""} ${paginas[0].cuentas > 0 ? "" : "sin-cuenta"}`} to={ruta(paginas[0])}
+                  title={paginas[0].cuentas > 0 ? undefined : "Sin cuenta conectada: el cliente no ve esta red"}>
+                  {NOMBRES[red] ?? red}
+                </Link>
+              ))}
           </nav>
           <div className="acciones">
             <BotonPdf slug={slug} rango={rango} />

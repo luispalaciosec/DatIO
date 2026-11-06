@@ -19,6 +19,7 @@ import { TopPublicaciones } from "../bloques/TopPublicaciones";
 import { RendimientoFormato } from "../bloques/RendimientoFormato";
 import { MejorDia } from "../bloques/MejorDia";
 import { PacingMes } from "../bloques/PacingMes";
+import { Narrativa } from "../bloques/Narrativa";
 import { RadarAnuncios } from "../bloques/RadarAnuncios";
 import { RadarShare } from "../bloques/RadarShare";
 
@@ -62,6 +63,8 @@ export function Bloque({ reporte, pagina, bloque, rango }: {
       return <RadarAnuncios respuesta={respuesta as never} />;
     case "radar_share_of_voice":
       return <RadarShare respuesta={respuesta as never} />;
+    case "narrativa":
+      return <Narrativa respuesta={respuesta as never} />;
     case "pacing_mes":
       return <PacingMes respuesta={respuesta as never} provisional={provisional} />;
     case "kpi_fila":
