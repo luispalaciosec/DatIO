@@ -117,68 +117,119 @@ Estos aparecen repetidos en varios documentos porque violarlos rompe el sistema:
 
 ## Stack
 
-Python 3.12 · FastAPI · PostgreSQL 15 · React + Vite · Railway · Playwright ·
-statsforecast · LiteLLM (router multi-proveedor: Google, DeepSeek, Together)
+Python 3.12 · FastAPI (async, asyncpg) · PostgreSQL 17 en Supabase (Auth + Storage) ·
+React + Vite + TypeScript + Recharts · Railway (API y cron) · Vercel (frontend) · Playwright
+(PDF) · Pillow · LiteLLM (router multi-proveedor) · Apify (radar de competencia) · Resend (correo).
 
 ---
 
-## Arranque
-
-La base vive en **Supabase** (errata E-05). El esquema `sql/001` y la migración `sql/002`
-ya están aplicados en el proyecto `DatIO` junto con el seed de métricas.
+## Arranque local
 
 ```bash
 cd backend
 python3 -m venv .venv && .venv/bin/pip install -e ".[dev]"
-cp .env.example .env        # completar DATABASE_URL (pooler de Supabase, puerto 5432) y secretos
-.venv/bin/uvicorn api.main:app --reload
-.venv/bin/pytest -q          # los tests de base corren solo si DATABASE_URL está definido
+cp .env.example .env            # DATABASE_URL (pooler de Supabase, puerto 5432) y secretos
+.venv/bin/uvicorn api.main:app --port 8000
+.venv/bin/ruff check . && .venv/bin/mypy && .venv/bin/pytest -q   # tests de base solo con DATABASE_URL
+
+cd ../frontend
+cp .env.example .env            # VITE_API_URL, VITE_SUPABASE_URL, VITE_SUPABASE_KEY
+npm install && npx vite --port 5174
 ```
 
 Estructura del monorepo:
 
 | Carpeta | Contenido |
 |---|---|
-| `backend/` | API FastAPI, ETL, conectores y tests (Python) |
-| `frontend/` | Renderer React + Vite white-label (PT-09/10), desplegado en https://dat-io.vercel.app |
-| `sql/` | Esquema canónico, migraciones y seeds (compartido) |
-| `spec/` | Especificación |
+| `backend/api/etl/` | Núcleo ETL, runner, cron (`python -m api.etl.cli`), radar, mantenimiento y `conectores/` |
+| `backend/api/consulta/`, `resolvedores/` | `POST /consulta`, `GET /reportes/{slug}`, cache en proceso y un resolvedor por tipo de bloque |
+| `backend/api/admin/` | Módulo administrador: clientes, marca, cuentas, OAuth, competidores, CRM, datos, reporte |
+| `backend/api/alertas/`, `prediccion/`, `puente/`, `narrativa/`, `reportes/` | Anomalías y correo diario, pacing y evaluación, puente CRM, narrativa, invitaciones y envío mensual |
+| `backend/api/pdf/`, `llm/`, `datos/` | Export PDF, router LLM (`llm_uso`), explorador de datos |
+| `frontend/src/reporte/`, `bloques/`, `admin/` | Renderer white-label, biblioteca de bloques, administración |
+| `sql/` | `001` esquema canónico (no se edita), migraciones `002`–`014` y `seeds/` (métricas y plantilla) |
+| `spec/` | Especificación original |
 
-Con Docker (opcional): `docker compose up -d` levanta Postgres local con esquema y seed aplicados.
+Migraciones nuevas: `sql/0NN_<descripcion>.sql`, aplicadas en Supabase (panel SQL o MCP) y
+documentadas en el commit. Los seeds son idempotentes y se pueden volver a correr.
 
-Migraciones nuevas: `sql/0NN_<descripcion>.sql`, aplicadas con Supabase CLI o el panel SQL.
-`sql/001` no se edita.
+### Despliegue
 
-### Estado de construcción (Fase 0)
+- **API**: Railway, servicio `DatIO` desde `backend/` (Dockerfile con Chromium para el PDF).
+  https://datio-production.up.railway.app
+- **Cron**: Railway, servicio `datio-cron`, mismo repo, `Cron Schedule = 0 11 * * *` (06:00
+  Ecuador), `python -m api.etl.cli`. Ejecuta en orden: captura de todas las cuentas (re-sync
+  28 días), radar semanal, alertas y correo al equipo, puente CRM, evaluación de proyecciones,
+  envío mensual del PDF (días 1 a 5) y mantenimiento los domingos. **Toda variable nueva en
+  `DatIO` debe replicarse en `datio-cron`** (referencia `${{DatIO.NOMBRE}}`) o moverse a
+  Shared Variables; ya causó dos incidentes.
+- **Frontend**: Vercel, proyecto `dat-io`, root `frontend/`. https://dat-io.vercel.app
+  (`vercel.json` lleva las cabeceras de seguridad y la CSP, que nombra el dominio de la API).
 
-| PT | Estado | Dónde |
-|---|---|---|
-| PT-01 Base | listo | `backend/pyproject.toml`, `docker-compose.yml`, `.github/`, `backend/api/config.py`, `backend/api/main.py` |
-| PT-02 Semántica | listo (46 métricas, 89 mapeos, 9 plataformas) | `sql/seeds/metricas.sql`, `backend/tests/test_semantica.py` |
-| PT-03 Núcleo ETL | listo | `backend/api/etl/`, `backend/tests/test_etl_core.py` |
-| PT-07 API y auth | listo (Supabase Auth, `usuarios` en `sql/002`) | `backend/api/auth/`, `backend/api/deps.py`, `backend/tests/test_auth.py` |
-| PT-04 GA4 + GSC | listo, **capturando** para geeks.com.ec (piloto) | `backend/api/etl/conectores/ga4.py`, `gsc.py` |
-| PT-05 Meta IG + FB | listo, **capturando** para Geeks Ecuador (piloto) | `backend/api/etl/conectores/meta_fb.py`, `meta_ig.py`, `meta_base.py` |
-| PT-06 Meta Ads | listo, capturando (cuenta piloto sin pauta activa) | `backend/api/etl/conectores/meta_ads.py` |
-| PT-08 Resolvedores | listo: `POST /consulta`, `GET /reportes/{slug}`, plantilla RRSS Full (`sql/seeds/plantilla_rrss.sql`) | `backend/api/consulta/`, `backend/api/resolvedores/` |
-| PT-09 Renderer y tema | listo: React + Vite, `TemaProvider`, grid 12 col, ruteo por slug/red/página, estados por bloque | `frontend/src/reporte/`, `frontend/src/tema/` |
-| PT-10 Bloques | listo: los 6 base + `distribucion_geo`; página Métricas de Banco Amazonas renderiza con datos reales | `frontend/src/bloques/` |
-| PT-11 Export PDF | listo: `GET /reportes/{slug}/pdf?desde&hasta`, Playwright sobre `/{slug}/imprimir?modo=print` con token de render de 5 min; botón Descargar PDF | `backend/api/pdf/`, `frontend/src/reporte/Imprimir.tsx` |
-| Administración | listo (fuera de spec, documentado): `/admin` para rol equipo — clientes, marca (logo/banner a Supabase Storage, bucket `marcas`), cuentas con token cifrado, usuarios, capturas | `backend/api/admin/`, `frontend/src/admin/`, `sql/003_storage_marcas.sql` |
-| Conectar con un clic | listo: OAuth de Meta (Facebook Login for Business, config `META_LOGIN_CONFIG_ID`) y Google (GA4, GSC, YouTube con refresh token) desde el admin; `sql/004_conexiones_oauth.sql` | `backend/api/admin/conectar.py`, `router_conectar.py` |
-| Publicaciones | listo: métricas por post de Instagram y Facebook (`dim_publicacion` + `fct_publicacion_diaria`), segunda fila de KPIs por red | `backend/api/etl/conector_publicaciones.py`, `conectores/meta_publicaciones.py` |
-| PT-04d/e LinkedIn + TikTok | puente Metricool: `POST /etl/importar/metricool` alimentado por una rutina de Claude con el MCP de Metricool | `backend/api/etl/conectores/metricool.py` |
+### Variables de entorno (backend)
 
-Notas de los conectores Meta (v21): Meta retiró impresiones y alcance a nivel página de
-Facebook; quedan a nivel publicación. En Instagram `impressions` fue reemplazada por `views`
-y las métricas de cuenta solo salen como `total_value`, por lo que se consulta un día por
-llamada. Los tokens de System User van cifrados en `cuentas_conectadas` con `appsecret_proof`.
+| Grupo | Variables |
+|---|---|
+| Base y auth | `DATABASE_URL`, `SUPABASE_URL`, `SUPABASE_JWT_SECRET`, `CLAVE_CIFRADO`, `AMBIENTE`, `ORIGENES_PERMITIDOS`, `FRONTEND_URL`, `API_URL`, `PDF_SECRET`, `CRON_SECRET`, `LIMITE_PETICIONES_MIN` |
+| Meta | `META_APP_ID`, `META_APP_SECRET`, `META_SYSTEM_USER_ID`, `META_SYSTEM_USER_TOKEN`, `META_LOGIN_CONFIG_ID`, `META_BUSINESS_ID` |
+| Google | `GOOGLE_SERVICE_ACCOUNT_JSON`, `GOOGLE_OAUTH_CLIENT_ID` / `GOOGLE_CLIENT_ID`, `GOOGLE_OAUTH_CLIENT_SECRET` / `GOOGLE_CLIENT_SECRET`, `GOOGLE_PLAY_BUCKET` |
+| LinkedIn | `LINKEDIN_CLIENT_ID`, `LINKEDIN_CLIENT_SECRET`, `LINKEDIN_API_VERSION` (AAAAMM, caduca al año), `LINKEDIN_SCOPES` (opcional) |
+| Radar | `APIFY_TOKEN`, `RADAR_DIAS_MINIMOS` |
+| Correo | `RESEND_API_KEY`, `CORREO_REMITENTE`, `ALERTAS_DESTINATARIOS_EXTRA` |
+| CRM PrometIO | `PROMETIO_URL`, `PROMETIO_FRONTEND_URL`, `PROMETIO_SUPABASE_URL`, `PROMETIO_SUPABASE_ANON_KEY`, `PROMETIO_EMAIL`, `PROMETIO_PASSWORD` |
+| LLM | `LLM_MODELOS` (JSON por tarea), `GEMINI_API_KEY`, `DEEPSEEK_API_KEY`, `TOGETHER_AI_API_KEY` |
 
-Captura diaria: en Railway, un segundo servicio del mismo repo (root `backend/`) con
-`Cron Schedule = 0 11 * * *` (06:00 Ecuador) y Start Command `python -m api.etl.cli`.
-El endpoint `POST /etl/correr` con header `X-Cron-Secret` queda para disparos manuales.
+Las credenciales por cuenta (tokens de Meta, refresh tokens de Google, claves de App Store,
+Zoho, HubSpot) nunca van en variables: se cifran con `pgcrypto` en `cuentas_conectadas`.
 
-Luego abrir `spec/06-paquetes-de-trabajo.md` y arrancar PT-01.
+---
 
-**En paralelo, fuera del código, hoy mismo:** enviar el App Review de Meta, crear el
-Service Account de Google Cloud, y correr la prueba de costo real de Apify.
+## Estado de construcción
+
+Todo lo listado está en producción con datos reales (clientes piloto: Banco Amazonas, Geeks
+Ecuador, Grupo Jerilex, Jerivet). 141 tests.
+
+### Paquetes del spec
+
+| PT | Estado |
+|---|---|
+| PT-01 Base, PT-02 Semántica, PT-03 Núcleo ETL, PT-07 API y auth | listo |
+| PT-04 GA4 + Search Console (con dimensiones), PT-05 Meta IG + FB (+ publicaciones), PT-06 Meta Ads | listo, capturando |
+| PT-04d LinkedIn | **nativo** (Community Management API) para cuentas con token; puente Metricool para el resto |
+| PT-04e TikTok | puente Metricool (`POST /etl/importar/metricool`); app nativa pendiente de crear |
+| PT-04b Google Ads, PT-04c YouTube | mapeados; bloqueados por developer token y acceso al canal |
+| PT-08 Resolvedores, PT-09 Renderer, PT-10 Bloques, PT-11 PDF | listo (26 tipos de bloque) |
+| PT-12 Cache + live | listo (cache en proceso invalidada por la última captura; `--live` intradía provisional) |
+| PT-13 Pacing | listo (`pacing_mes`, proyecciones guardadas y evaluadas al cerrar el mes) |
+| PT-14 Alertas | listo: anomalías (STL simplificada + z-score), operativas (capturas, tokens, sin publicar, datos atrasados, radar detenido), correo diario por Resend |
+| PT-15 Radar | listo: Instagram, Facebook y TikTok vía Apify (semanal), benchmark completo, radar de pauta (Meta Ad Library) |
+| PT-16 Puente CRM | listo: PrometIO y HubSpot, 4 disparadores con ventana de 30 días |
+| PT-17 Genoma, PT-18 WhatsApp | descartados por decisión del cliente |
+| PT-19 Health score | pendiente (ya se registran visitas al reporte) |
+| PT-20 Forecasting | pendiente por datos: desde ~febrero 2027 con estacionalidad semanal |
+
+### Fuera del spec, construido
+
+- **Administración** (`/admin`, rol equipo): clientes con puesta en marcha, marca, cuentas
+  (botones Conectar con Meta / Business Manager / Google / LinkedIn y alta manual),
+  competidores, usuarios e invitaciones, editor del reporte por cliente (ocultar páginas y
+  bloques, textos, objetivos), alertas, puente CRM, explorador de datos con descarga CSV y
+  catálogo de conectores, capturas.
+- **Conectores adicionales**: App Store Connect, Google Play Console, Google Business Profile,
+  CRM PrometIO / HubSpot / Zoho como fuente de datos.
+- **Narrativa** por página: redacción por reglas a partir de hechos calculados; si hay LLM,
+  reescritura aceptada solo cuando toda cifra existe en los hechos.
+- **Envío mensual** del PDF con resumen narrado a los usuarios del cliente (días 1 a 5).
+- **Seguridad**: esquema `public` cerrado a los roles de PostgREST (sql/011), RLS en todas las
+  tablas, cabeceras y CSP, límite de peticiones por IP. Ver `sql/011_endurecer_acceso.sql`.
+- **Mantenimiento**: compactación semanal de snapshots sin cambio de valor y caducidad de
+  conexiones OAuth pendientes.
+
+### Notas de plataformas
+
+- Meta v21: sin impresiones ni alcance a nivel página de Facebook; Instagram usa `views` y
+  métricas de cuenta por día; `-1` significa "no disponible" y se omite.
+- LinkedIn REST exige una versión mensual vigente (`LINKEDIN_API_VERSION`) y URN codificados en
+  rutas y `List(...)`.
+- Google Business Profile y Google Play necesitan aprobación/invitación previa en Google.
+- Las miniaturas de Instagram no se enlazan: el radar copia una versión reducida a la base.
