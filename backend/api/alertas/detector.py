@@ -16,6 +16,9 @@ MINIMO_PUNTOS = 21
 Z_MINIMO = 3.0
 CAMBIO_MINIMO = 0.30
 VOLUMEN_MINIMO = 20.0
+# Seguidores: el incremento diario normal suele ser 0–5; sin un piso absoluto, perder 3
+# seguidores contra un esperado de 1 salía como "cayó 300 %".
+MOVIMIENTO_MINIMO_SEGUIDORES = 15.0
 CONSISTENCIA_MAD = 1.4826
 
 
@@ -70,6 +73,8 @@ def detectar(
     if escala <= 0:
         return None
     if agregacion != "ultimo" and abs(esperado) < VOLUMEN_MINIMO:
+        return None
+    if agregacion == "ultimo" and abs(valor - esperado) < MOVIMIENTO_MINIMO_SEGUIDORES:
         return None
     z = (valor - esperado) / escala
     cambio = (valor - esperado) / esperado if esperado else (1.0 if valor > 0 else -1.0)

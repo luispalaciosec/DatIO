@@ -1,3 +1,4 @@
+import { EquipoContext } from "../lib/equipo";
 import { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { api, ErrorApi } from "../lib/api";
@@ -59,6 +60,7 @@ export function Reporte() {
 
   return (
     <TemaProvider tema={reporte.tema}>
+      <EquipoContext.Provider value={Boolean(reporte.es_equipo)}>
       <div className="lienzo">
         <header className="cabecera">
           <div className="marca">
@@ -107,6 +109,7 @@ export function Reporte() {
           <SinConexion red={NOMBRES[redActual] ?? redActual} />
         )}
       </div>
+    </EquipoContext.Provider>
     </TemaProvider>
   );
 }

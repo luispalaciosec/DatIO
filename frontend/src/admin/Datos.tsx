@@ -27,18 +27,37 @@ export function Datos() {
   );
 }
 
+type MetricaCatalogo = CatalogoPlataforma["metricas"][number];
+
+/** Una fila por métrica de DatIO: si varios campos nativos alimentan la misma (p. ej. dos
+ * nombres de "seguidores nuevos" según la versión de la API), se listan juntos. */
+function agruparPorCodigo(metricas: MetricaCatalogo[]): (MetricaCatalogo & { nativas: MetricaCatalogo[] })[] {
+  const grupos = new Map<string, MetricaCatalogo & { nativas: MetricaCatalogo[] }>();
+  for (const m of metricas) {
+    const g = grupos.get(m.codigo);
+    if (g) g.nativas.push(m);
+    else grupos.set(m.codigo, { ...m, nativas: [m] });
+  }
+  return [...grupos.values()];
+}
+
 function Catalogo({ plataformas }: { plataformas: CatalogoPlataforma[] }) {
   const [abierta, setAbierta] = useState<string | null>(plataformas.find((p) => p.metricas.some((m) => m.hasta))?.codigo ?? null);
+  const [soloConDatos, setSoloConDatos] = useState(true);
   return (
     <div className="catalogo">
       <p className="sutil">Todo lo que cada conector entrega a DatIO: la métrica tal como la llama la plataforma, cómo se llama aquí, cómo se agrega y desde cuándo hay datos reales. Las que no tienen fecha están mapeadas pero ninguna cuenta las ha traído todavía.</p>
+      <label className="fila sutil"><input type="checkbox" checked={soloConDatos} onChange={(e) => setSoloConDatos(e.target.checked)} /> Ocultar métricas sin datos en redes que ya tienen datos</label>
       {plataformas.map((p) => {
-        const conDatos = p.metricas.filter((m) => m.hasta).length;
+        const grupos = agruparPorCodigo(p.metricas);
+        const conDatos = grupos.filter((m) => m.hasta).length;
+        const visibles = soloConDatos && conDatos > 0 ? grupos.filter((m) => m.hasta) : grupos;
+        const ocultas = grupos.length - visibles.length;
         return (
           <div key={p.codigo} className="tarjeta catalogo-plataforma">
             <button type="button" className="catalogo-cabecera" onClick={() => setAbierta(abierta === p.codigo ? null : p.codigo)}>
               <strong>{p.nombre}</strong>
-              <span className="sutil">{p.metricas.length} métricas · {conDatos} con datos · {p.dimensiones.length} dimensiones · {p.publicaciones.length} métricas por publicación · {p.cuentas.length} cuentas</span>
+              <span className="sutil">{grupos.length} métricas · {conDatos} con datos · {p.dimensiones.length} dimensiones · {p.publicaciones.length} métricas por publicación · {p.cuentas.length} cuentas</span>
               <span>{abierta === p.codigo ? "▾" : "▸"}</span>
             </button>
             {abierta === p.codigo && (
@@ -48,9 +67,12 @@ function Catalogo({ plataformas }: { plataformas: CatalogoPlataforma[] }) {
                   <table className="publicaciones">
                     <thead><tr><th>En DatIO</th><th>Código</th><th>Nombre nativo en {p.nombre}</th><th>Unidad</th><th>Agregación</th><th>Categoría</th><th>Datos desde</th><th>Hasta</th><th>Cuentas</th></tr></thead>
                     <tbody>
-                      {p.metricas.map((m) => (
-                        <tr key={m.metrica_nativa} className={m.hasta ? "" : "sin-datos"}>
-                          <td>{m.nombre_es}</td><td><code>{m.codigo}</code></td><td><code>{m.metrica_nativa}</code>{m.factor && Number(m.factor) !== 1 ? <span className="sutil"> ×{m.factor}</span> : null}</td>
+                      {visibles.map((m) => (
+                        <tr key={m.codigo} className={m.hasta ? "" : "sin-datos"}>
+                          <td>{m.nombre_es}</td><td><code>{m.codigo}</code></td>
+                          <td>{m.nativas.map((n, i) => (
+                            <span key={n.metrica_nativa}>{i > 0 && <span className="sutil"> · </span>}<code>{n.metrica_nativa}</code>{n.factor && Number(n.factor) !== 1 ? <span className="sutil"> ×{n.factor}</span> : null}</span>
+                          ))}{m.nativas.length > 1 && <div className="sutil">la plataforma lo entrega con {m.nativas.length} nombres según la versión de su API; DatIO los une</div>}</td>
                           <td>{NOMBRE_UNIDAD[m.unidad] ?? m.unidad}</td><td>{NOMBRE_AGG[m.agregacion] ?? m.agregacion}{m.es_acumulada ? " (acumulada)" : ""}</td>
                           <td>{m.categoria}</td><td>{m.desde ?? "—"}</td><td>{m.hasta ?? "—"}</td><td>{m.cuentas ?? 0}</td>
                         </tr>
@@ -58,6 +80,7 @@ function Catalogo({ plataformas }: { plataformas: CatalogoPlataforma[] }) {
                     </tbody>
                   </table>
                 </div>
+                {ocultas > 0 && <p className="sutil">{ocultas} métrica(s) mapeada(s) sin datos ocultas. Desmarca la casilla de arriba para verlas.</p>}
                 {p.dimensiones.length > 0 && (
                   <>
                     <h4>Dimensiones (desgloses)</h4>

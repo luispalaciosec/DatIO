@@ -138,6 +138,9 @@ async def resolver(ctx: Contexto) -> Resultado:
             (v / total_inter * 100) if v is not None and total_inter else None
         )
 
+    fuera_de_red = (
+        await ctx.repo.competidores_fuera_de_red(ctx.cliente_id, plataforma) if plataforma else []
+    )
     lider_eng = next(
         (f["nombre"] for f in filas if f["posicion"].get("tasa_engagement") == 1), None
     )
@@ -150,5 +153,6 @@ async def resolver(ctx: Contexto) -> Resultado:
             "sin_competidores": len(competidores) == 0,
             "marcas": len(filas),
             "lider_engagement": lider_eng,
+            "fuera_de_red": fuera_de_red,
         },
     )

@@ -346,6 +346,22 @@ class RepositorioConsulta:
 
     # ---- benchmark de competencia (PT-15) --------------------------------------
 
+    async def competidores_fuera_de_red(self, cliente_id: int, plataforma: str) -> list[str]:
+        """Nombres de competidores cargados en otras redes del cliente pero no en esta."""
+        filas = await self._pool.fetch(
+            """
+            SELECT DISTINCT k.nombre FROM cliente_competidores k
+            WHERE  k.cliente_id = $1 AND k.plataforma <> $2
+              AND  NOT EXISTS (SELECT 1 FROM cliente_competidores o
+                               WHERE o.cliente_id = k.cliente_id AND o.plataforma = $2
+                                 AND lower(trim(o.nombre)) = lower(trim(k.nombre)))
+            ORDER  BY k.nombre
+            """,
+            cliente_id,
+            plataforma,
+        )
+        return [str(f["nombre"]) for f in filas]
+
     async def competidores_con_snapshots(
         self, cliente_id: int, plataforma: str | None, codigos: list[str]
     ) -> list[dict[str, Any]]:

@@ -1,3 +1,4 @@
+import { useEsEquipo } from "../lib/equipo";
 import { urlImagen } from "../lib/api";
 import { formatearValor } from "../lib/formato";
 import type { RespuestaConsulta } from "../lib/tipos";
@@ -26,6 +27,7 @@ function celda(v: number | null, formato: string): string {
 }
 
 export function BenchmarkTabla({ respuesta }: { respuesta: RespuestaConsulta<FilaTabla[]> }) {
+  const esEquipo = useEsEquipo();
   const columnas = (respuesta.meta.columnas as Columna[]) ?? [];
   const filas = respuesta.datos;
   if (respuesta.meta.sin_competidores) {
@@ -34,6 +36,7 @@ export function BenchmarkTabla({ respuesta }: { respuesta: RespuestaConsulta<Fil
   const max: Record<string, number> = {};
   for (const c of columnas) max[c.metrica] = Math.max(...filas.map((f) => f.valores[c.metrica] ?? 0), 0);
   const marcas = filas.length;
+  const fueraDeRed = (respuesta.meta.fuera_de_red as string[] | undefined) ?? [];
   return (
     <div className="bench-tabla-envoltura">
       <table className="bench-tabla">
@@ -88,6 +91,12 @@ export function BenchmarkTabla({ respuesta }: { respuesta: RespuestaConsulta<Fil
         Promedios por publicación calculados sobre las últimas {String(respuesta.meta.ultimas_publicaciones ?? 12)} publicaciones de cada marca. Engagement = interacciones por publicación / seguidores.
         {respuesta.meta.snapshot ? ` Competencia capturada el ${String(respuesta.meta.snapshot)}.` : ""}
       </div>
+      {esEquipo && fueraDeRed.length > 0 && (
+        <div className="aviso-conexion">
+          <p><strong>Solo para el equipo:</strong> {fueraDeRed.join(", ")} {fueraDeRed.length === 1 ? "está cargado" : "están cargados"} como competencia en otras redes pero no en esta, por eso no {fueraDeRed.length === 1 ? "aparece" : "aparecen"} aquí.</p>
+          <p>Se agregan en Administración → ficha del cliente → Competidores (columna de esta red).</p>
+        </div>
+      )}
     </div>
   );
 }

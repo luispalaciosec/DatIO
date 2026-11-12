@@ -5,9 +5,9 @@ from datetime import date, timedelta
 import pytest
 
 from api.alertas.correo import enviar_resumen, renderizar_resumen
-from api.alertas.detector import detectar
+from api.alertas.detector import Anomalia, detectar
 from api.alertas.repositorio import RepositorioAlertas
-from api.alertas.servicio import AlertaNueva, correr_alertas
+from api.alertas.servicio import AlertaNueva, correr_alertas, describir_anomalia
 from api.config import Configuracion
 from tests.conftest import requiere_db
 
@@ -172,3 +172,27 @@ async def test_radar_atrasado_genera_alerta_operativa(pool, cliente_a) -> None: 
         "DELETE FROM alertas WHERE detalle->>'clave' = $1", f"radar_atrasado:{cliente_a.id}"
     )
     await pool.execute("DELETE FROM cliente_competidores WHERE id = $1", kid)
+
+
+def test_seguidores_movimiento_chico_no_alerta() -> None:
+    # Gana 0–1 seguidores al día y un día pierde 3: antes salía "cayó 300 %".
+    serie = {date(2026, 7, 1) + timedelta(days=i): 5000.0 + (i % 2) for i in range(60)}
+    dia = date(2026, 8, 29)
+    serie[dia] = serie[dia - timedelta(days=1)] - 3
+    assert detectar(serie, dia, agregacion="ultimo") is None
+
+
+def test_describir_anomalia_legible() -> None:
+    dia = date(2026, 11, 1)
+    salto = Anomalia(dia, 131417.0, 165.0, 40.0, 795.47, "oportunidad", "alta")
+    assert describir_anomalia(salto, "alcance", "suma") == (
+        "alcance se multiplicó ×796 el 01/11 (esperado 165, real 131.417)"
+    )
+    doble = Anomalia(dia, 400.0, 160.0, 6.0, 1.5, "oportunidad", "alta")
+    assert "×2.5" in describir_anomalia(doble, "interacciones", "suma")
+    caida = Anomalia(dia, 2332.0, 3610.0, -3.2, -0.354, "anomalia", "media")
+    assert describir_anomalia(caida, "sesiones", "suma").startswith("sesiones cayó 35 %")
+    perdio = Anomalia(dia, -400.0, 5.0, -9.0, -81.0, "anomalia", "alta")
+    assert describir_anomalia(perdio, "seguidores", "ultimo") == (
+        "perdió 400 seguidores el 01/11 (lo normal: 5 por día)"
+    )

@@ -109,6 +109,14 @@ async def _borrar_cliente(pool: asyncpg.Pool, cliente_id: int) -> None:
         "(SELECT id FROM cuentas_conectadas WHERE cliente_id = $1)",
         cliente_id,
     )
+    # Otras corridas (alertas, proyecciones) pueden haber escrito sobre las cuentas de prueba;
+    # sin esto el borrado del cliente falla por FK y deja basura en la base.
+    for tabla in ("alertas", "fct_proyeccion"):
+        await pool.execute(
+            f"DELETE FROM {tabla} WHERE cuenta_id IN "
+            "(SELECT id FROM cuentas_conectadas WHERE cliente_id = $1)",
+            cliente_id,
+        )
     await pool.execute(
         "DELETE FROM jobs_ejecucion WHERE cuenta_id IN "
         "(SELECT id FROM cuentas_conectadas WHERE cliente_id = $1)",

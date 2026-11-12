@@ -72,13 +72,17 @@ function PuestaEnMarcha({ cliente, irA }: { cliente: ClienteDetalle; irA: (p: Pe
   );
 }
 
-function Aviso({ texto }: { texto: string | null }) {
-  return texto ? <div className="aviso-ok">{texto}</div> : null;
+type TextoAviso = string | { error: string } | null;
+
+function Aviso({ texto }: { texto: TextoAviso }) {
+  if (!texto) return null;
+  if (typeof texto === "string") return <div className="aviso-ok">{texto}</div>;
+  return <div className="aviso" role="alert">{texto.error}</div>;
 }
 
 function Datos({ cliente, catalogos, alGuardar }: { cliente: ClienteDetalle; catalogos: Catalogos | null; alGuardar: () => void }) {
   const [f, setF] = useState({ nombre: cliente.nombre, sector: cliente.sector ?? "", activo: cliente.activo });
-  const [aviso, setAviso] = useState<string | null>(null);
+  const [aviso, setAviso] = useState<TextoAviso>(null);
   async function guardar(e: React.FormEvent) {
     e.preventDefault();
     await api.admin.editarCliente(cliente.id, { nombre: f.nombre, sector: f.sector || null, activo: f.activo });
@@ -105,7 +109,7 @@ function Crm({ cliente, alGuardar }: { cliente: ClienteDetalle; alGuardar: () =>
   const [dealstage, setDealstage] = useState<string>(String(cliente.crm_config?.dealstage ?? ""));
   const [empresas, setEmpresas] = useState<EmpresaCrm[] | null>(null);
   const [evaluacion, setEvaluacion] = useState<EvaluacionCrm | null>(null);
-  const [aviso, setAviso] = useState<string | null>(null);
+  const [aviso, setAviso] = useState<TextoAviso>(null);
   const [ocupado, setOcupado] = useState(false);
 
   async function guardar(e: React.FormEvent) {
@@ -117,26 +121,26 @@ function Crm({ cliente, alGuardar }: { cliente: ClienteDetalle; alGuardar: () =>
         config: dealstage ? { ...cliente.crm_config, dealstage } : undefined, credencial: token || undefined,
       });
       setToken(""); setAviso("CRM guardado"); alGuardar();
-    } catch (err) { setAviso(`No se pudo guardar: ${(err as Error).message}`); }
+    } catch (err) { setAviso({ error: `No se pudo guardar: ${(err as Error).message}` }); }
     setOcupado(false);
   }
   async function probar() {
     setOcupado(true);
     try { const r = await api.admin.probarCrm(cliente.id); setAviso(`Conexión OK: ${JSON.stringify(r).slice(0, 160)}`); }
-    catch (err) { setAviso(`Falló: ${(err as Error).message}`); }
+    catch (err) { setAviso({ error: `Falló: ${(err as Error).message}` }); }
     setOcupado(false);
   }
   async function cargarEmpresas() {
     setOcupado(true);
     try { setEmpresas(await api.admin.empresasCrm(proveedor, cliente.id)); }
-    catch (err) { setAviso(`No se pudieron listar: ${(err as Error).message}`); }
+    catch (err) { setAviso({ error: `No se pudieron listar: ${(err as Error).message}` }); }
     setOcupado(false);
   }
   async function evaluar(ejecutar: boolean) {
     if (ejecutar && !window.confirm("Esto crea oportunidades o tareas reales en el CRM. ¿Continuar?")) return;
     setOcupado(true);
     try { setEvaluacion(await api.admin.evaluarCrm(cliente.id, ejecutar)); }
-    catch (err) { setAviso(`Falló: ${(err as Error).message}`); }
+    catch (err) { setAviso({ error: `Falló: ${(err as Error).message}` }); }
     setOcupado(false);
   }
   const empresaElegida = empresas?.find((e) => e.id === empresa);
@@ -208,7 +212,7 @@ function Crm({ cliente, alGuardar }: { cliente: ClienteDetalle; alGuardar: () =>
 
 function Marca({ cliente, alGuardar }: { cliente: ClienteDetalle; alGuardar: () => void }) {
   const [t, setT] = useState<TemaAdmin>(cliente.tema);
-  const [aviso, setAviso] = useState<string | null>(null);
+  const [aviso, setAviso] = useState<TextoAviso>(null);
   const [subiendo, setSubiendo] = useState<string | null>(null);
 
   async function subir(campo: "logo_url" | "banner_url", archivo: File) {
@@ -217,7 +221,7 @@ function Marca({ cliente, alGuardar }: { cliente: ClienteDetalle; alGuardar: () 
     const ruta = `${cliente.slug}/${campo === "logo_url" ? "logo" : "banner"}-${Date.now()}.${ext}`;
     const { error } = await supabase.storage.from("marcas").upload(ruta, archivo, { upsert: true, contentType: archivo.type });
     setSubiendo(null);
-    if (error) { setAviso(`No se pudo subir: ${error.message}`); return; }
+    if (error) { setAviso({ error: `No se pudo subir: ${error.message}` }); return; }
     const url = supabase.storage.from("marcas").getPublicUrl(ruta).data.publicUrl;
     const nuevo = { ...t, [campo]: url };
     setT(nuevo);
@@ -271,7 +275,7 @@ function Marca({ cliente, alGuardar }: { cliente: ClienteDetalle; alGuardar: () 
 
 function Cuentas({ cliente, catalogos, alGuardar }: { cliente: ClienteDetalle; catalogos: Catalogos | null; alGuardar: () => void }) {
   const [f, setF] = useState({ plataforma: "meta_ig", id_externo: "", nombre_cuenta: "", credencial: "" });
-  const [aviso, setAviso] = useState<string | null>(null);
+  const [aviso, setAviso] = useState<TextoAviso>(null);
   const [params, setParams] = useSearchParams();
   const [conexion, setConexion] = useState<Conexion | null>(null);
   const [elegidos, setElegidos] = useState<Set<string>>(new Set());
@@ -283,21 +287,21 @@ function Cuentas({ cliente, catalogos, alGuardar }: { cliente: ClienteDetalle; c
     api.admin.conexion(Number(conexionId)).then((c) => {
       setConexion(c);
       setElegidos(new Set(c.activos.filter((a) => a.plataforma !== "aviso").map((a) => `${a.plataforma}|${a.id_externo}`)));
-    }).catch((e: ErrorApi) => setAviso(e.message));
+    }).catch((e: ErrorApi) => setAviso({ error: e.message }));
   }, [conexionId]);
 
   async function conectar(proveedor: "meta" | "google" | "linkedin") {
     try {
       const { url } = await api.admin.iniciarConexion(proveedor, cliente.id);
       window.location.href = url;
-    } catch (err) { setAviso((err as ErrorApi).message); }
+    } catch (err) { setAviso({ error: (err as ErrorApi).message }); }
   }
 
   async function importarBusiness() {
     try {
       const r = await api.admin.importarBusiness(cliente.id);
       setParams({ conexion: String(r.conexion_id) });
-    } catch (err) { setAviso((err as ErrorApi).message); }
+    } catch (err) { setAviso({ error: (err as ErrorApi).message }); }
   }
 
   async function activar() {
@@ -307,7 +311,7 @@ function Cuentas({ cliente, catalogos, alGuardar }: { cliente: ClienteDetalle; c
       const r = await api.admin.activarConexion(conexion.id, activos);
       setAviso(`${r.cuentas.length} cuenta(s) conectada(s). Se capturan en la próxima corrida diaria.`);
       setConexion(null); setParams({}); alGuardar();
-    } catch (err) { setAviso((err as ErrorApi).message); }
+    } catch (err) { setAviso({ error: (err as ErrorApi).message }); }
   }
   const AYUDA: Record<string, string> = {
     meta_fb: "Page ID de la página de Facebook. Token: System User de Meta (si va vacío usa el de la agencia).",
@@ -331,7 +335,7 @@ function Cuentas({ cliente, catalogos, alGuardar }: { cliente: ClienteDetalle; c
     try {
       await api.admin.crearCuenta(cliente.id, { plataforma: f.plataforma, id_externo: f.id_externo, nombre_cuenta: f.nombre_cuenta || undefined, credencial: f.credencial || undefined });
       setF({ ...f, id_externo: "", nombre_cuenta: "", credencial: "" }); setAviso("Cuenta conectada. Se captura en la próxima corrida diaria."); alGuardar();
-    } catch (err) { setAviso((err as ErrorApi).message); }
+    } catch (err) { setAviso({ error: (err as ErrorApi).message }); }
   }
   async function alternar(c: CuentaAdmin) { await api.admin.editarCuenta(c.id, { activo: !c.activo }); alGuardar(); }
   return (
@@ -397,7 +401,7 @@ function Cuentas({ cliente, catalogos, alGuardar }: { cliente: ClienteDetalle; c
 
 function UsuariosCliente({ cliente, alGuardar }: { cliente: ClienteDetalle; alGuardar: () => void }) {
   const [email, setEmail] = useState("");
-  const [aviso, setAviso] = useState<string | null>(null);
+  const [aviso, setAviso] = useState<TextoAviso>(null);
   const [conCorreo, setConCorreo] = useState(true);
   const TEXTO: Record<string, string> = { invitado: "invitación enviada", habilitado: "acceso habilitado" };
   async function agregar(e: React.FormEvent) {
@@ -412,7 +416,7 @@ function UsuariosCliente({ cliente, alGuardar }: { cliente: ClienteDetalle; alGu
         return `${x.email}: ${TEXTO[x.estado] ?? x.estado}`;
       }).join(" · "));
       alGuardar();
-    } catch (err) { setAviso((err as ErrorApi).message); }
+    } catch (err) { setAviso({ error: (err as ErrorApi).message }); }
   }
   async function quitar(e: string) { await api.admin.desactivarUsuario(e); alGuardar(); }
   return (
@@ -512,44 +516,94 @@ function SelectorActivos({ conexion, catalogos, elegidos, setElegidos, alActivar
 }
 
 const REDES_COMPETENCIA = [["meta_ig", "Instagram"], ["meta_fb", "Facebook"], ["tiktok", "TikTok"], ["linkedin", "LinkedIn"], ["youtube", "YouTube"]] as const;
+const EJEMPLO_HANDLE: Record<string, string> = {
+  meta_ig: "@bancoguayaquil", meta_fb: "BancoGuayaquil o URL de la página", tiktok: "@bancoguayaquil",
+  linkedin: "URL de la página", youtube: "@canal o URL",
+};
+const clave = (nombre: string) => nombre.trim().toLowerCase();
 
 function Competidores({ cliente, alGuardar }: { cliente: ClienteDetalle; alGuardar: () => void }) {
-  const [f, setF] = useState({ plataforma: "meta_ig", nombre: "", handle: "" });
-  const [aviso, setAviso] = useState<string | null>(null);
+  const [nombre, setNombre] = useState("");
+  const [handles, setHandles] = useState<Record<string, string>>({});
+  const [aviso, setAviso] = useState<TextoAviso>(null);
+  const [ocupado, setOcupado] = useState(false);
+
+  // Matriz competidor × red: deja a la vista en qué redes falta cada uno.
+  const filas = new Map<string, { nombre: string; redes: Map<string, (typeof cliente.competidores)[number]> }>();
+  for (const c of cliente.competidores) {
+    const f = filas.get(clave(c.nombre)) ?? { nombre: c.nombre, redes: new Map() };
+    f.redes.set(c.plataforma, c);
+    filas.set(clave(c.nombre), f);
+  }
+  const porRed = (red: string) => cliente.competidores.filter((c) => c.plataforma === red).length;
+  const redesUsadas = REDES_COMPETENCIA.filter(([r]) => porRed(r) > 0 || r === "meta_ig" || r === "meta_fb");
+
+  function editar(n: string) {
+    setNombre(n);
+    const f = filas.get(clave(n));
+    // Solo se precargan los usuarios si el nombre es de un competidor ya cargado.
+    if (f) setHandles(Object.fromEntries(REDES_COMPETENCIA.map(([r]) => [r, f.redes.get(r)?.handle ?? ""])));
+  }
+
   async function agregar(e: React.FormEvent) {
     e.preventDefault();
-    try {
-      await api.admin.crearCompetidor(cliente.id, { plataforma: f.plataforma, nombre: f.nombre, handle: f.handle, orden: cliente.competidores.length });
-      setF({ ...f, nombre: "", handle: "" }); setAviso("Competidor agregado. Entra al radar semanal."); alGuardar();
-    } catch (err) { setAviso((err as ErrorApi).message); }
+    const existentes = filas.get(clave(nombre))?.redes;
+    const nuevos = REDES_COMPETENCIA.filter(([r]) => (handles[r] ?? "").trim() && !existentes?.has(r));
+    if (!nuevos.length) { setAviso({ error: "Escribe el usuario en al menos una red donde aún no esté." }); return; }
+    setOcupado(true);
+    const fallos: string[] = []; const ok: string[] = [];
+    for (const [r, n] of nuevos) {
+      try {
+        await api.admin.crearCompetidor(cliente.id, { plataforma: r, nombre: nombre.trim(), handle: handles[r].trim(), orden: porRed(r) });
+        ok.push(n);
+      } catch (err) { fallos.push(`${n}: ${(err as ErrorApi).message}`); }
+    }
+    setOcupado(false);
+    if (fallos.length) setAviso({ error: `${ok.length ? `Agregado en ${ok.join(", ")}. ` : ""}No se pudo en ${fallos.join(" · ")}` });
+    else { setAviso(`${nombre.trim()} agregado en ${ok.join(", ")}. Entra al radar semanal.`); setNombre(""); setHandles({}); }
+    alGuardar();
   }
   async function quitar(id: number) { await api.admin.borrarCompetidor(id); alGuardar(); }
-  const porRed = new Map<string, typeof cliente.competidores>();
-  for (const c of cliente.competidores) porRed.set(c.plataforma_nombre, [...(porRed.get(c.plataforma_nombre) ?? []), c]);
+
   return (
     <div className="grid">
       <div className="bloque" style={{ "--ancho": 7 } as React.CSSProperties}>
-        {cliente.competidores.length === 0 ? <div className="vacio">Sin competidores todavía. Se recomiendan entre 4 y 6 por red.</div> : (
-          [...porRed.entries()].map(([red, lista]) => (
-            <table className="publicaciones tarjeta" key={red} style={{ marginBottom: 14 }}>
-              <thead><tr><th>{red}</th><th>Usuario</th><th>Último snapshot</th><th></th></tr></thead>
-              <tbody>{lista.map((c) => (
-                <tr key={c.id}><td><strong>{c.nombre}</strong></td><td><code>{c.handle}</code></td>
-                  <td>{c.ultimo_snapshot ? new Date(c.ultimo_snapshot).toLocaleDateString("es-EC") : "aún no"}</td>
-                  <td><button className="boton-pdf secundario" onClick={() => quitar(c.id)}>Quitar</button></td></tr>))}</tbody>
+        {filas.size === 0 ? <div className="vacio">Sin competidores todavía. Se recomiendan entre 4 y 6, en cada red donde estén.</div> : (
+          <div className="tabla-scroll">
+            <table className="publicaciones tarjeta matriz-competidores">
+              <thead><tr><th>Competidor</th>{redesUsadas.map(([r, n]) => <th key={r}>{n} <span className="sutil">({porRed(r)})</span></th>)}</tr></thead>
+              <tbody>{[...filas.values()].map((f) => (
+                <tr key={f.nombre}>
+                  <td><button type="button" className="enlace" onClick={() => editar(f.nombre)} title="Completar sus redes">{f.nombre}</button></td>
+                  {redesUsadas.map(([r]) => {
+                    const c = f.redes.get(r);
+                    return c ? (
+                      <td key={r}><code>{c.handle}</code>
+                        <div className="sutil">{c.ultimo_snapshot ? `snapshot ${new Date(c.ultimo_snapshot).toLocaleDateString("es-EC")}` : "aún sin snapshot"}
+                          {" · "}<button type="button" className="enlace peligro" onClick={() => quitar(c.id)}>quitar</button></div></td>
+                    ) : <td key={r} className="falta"><button type="button" className="enlace" onClick={() => editar(f.nombre)}>+ agregar</button></td>;
+                  })}
+                </tr>))}</tbody>
             </table>
-          ))
+          </div>
         )}
+        {filas.size > 0 && <p className="sutil">El benchmark de cada red solo compara a los competidores cargados en esa red. Las celdas «+ agregar» son redes donde ese competidor todavía no entra al radar.</p>}
       </div>
       <form className="bloque tarjeta formulario" style={{ "--ancho": 5 } as React.CSSProperties} onSubmit={agregar}>
         <h3>Agregar competidor</h3>
-        <label>Red<select value={f.plataforma} onChange={(e) => setF({ ...f, plataforma: e.target.value })}>
-          {REDES_COMPETENCIA.map(([c, n]) => <option key={c} value={c}>{n}</option>)}
-        </select></label>
-        <label>Nombre<input required value={f.nombre} onChange={(e) => setF({ ...f, nombre: e.target.value })} placeholder="Banco Guayaquil" /></label>
-        <label>Usuario o URL del perfil<input required value={f.handle} onChange={(e) => setF({ ...f, handle: e.target.value })} placeholder="@bancoguayaquil o https://www.facebook.com/BancoGuayaquil" /></label>
+        <label>Nombre<input required value={nombre} onChange={(e) => editar(e.target.value)} placeholder="Banco Guayaquil" list="competidores-existentes" /></label>
+        <datalist id="competidores-existentes">{[...filas.values()].map((f) => <option key={f.nombre} value={f.nombre} />)}</datalist>
+        <p className="sutil">Llena el usuario en cada red donde esté. Se crea uno por red.</p>
+        {REDES_COMPETENCIA.map(([r, n]) => {
+          const ya = filas.get(clave(nombre))?.redes.has(r);
+          return (
+            <label key={r}>{n}{ya && <span className="sutil"> · ya está</span>}
+              <input value={handles[r] ?? ""} disabled={ya} onChange={(e) => setHandles({ ...handles, [r]: e.target.value })} placeholder={EJEMPLO_HANDLE[r]} />
+            </label>
+          );
+        })}
         <p className="sutil">El radar toma un snapshot semanal de seguidores y publicaciones vía Apify (errata E-02). Costo aproximado: unos centavos por perfil y semana.</p>
-        <button className="boton-pdf" type="submit">Agregar</button><Aviso texto={aviso} />
+        <button className="boton-pdf" type="submit" disabled={ocupado}>{ocupado ? "Agregando…" : "Agregar"}</button><Aviso texto={aviso} />
       </form>
     </div>
   );

@@ -466,3 +466,10 @@ table.tarjeta strong { font-weight: 500; color: var(--color-secundario); }
 .cabecera .tabs { max-width: 100%; overflow-x: auto; scrollbar-width: none; margin: 0; flex: 1 1 320px; }
 .cabecera .tabs::-webkit-scrollbar { display: none; }
 .tabs a.sin-cuenta:not(.activa) { opacity: .45; }
+
+/* Competidores: matriz competidor × red */
+.matriz-competidores td { vertical-align: top; }
+.matriz-competidores td .sutil { margin-top: 4px; font-size: 11px; }
+.matriz-competidores td.falta { background: var(--gris-50, #f8fafc); }
+.enlace.peligro { color: var(--rojo); }
+.formulario input:disabled { opacity: .55; }

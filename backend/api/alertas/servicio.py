@@ -6,7 +6,7 @@ from dataclasses import dataclass, field
 from datetime import UTC, date, datetime, timedelta
 from typing import Any
 
-from api.alertas.detector import VENTANA_DIAS, detectar
+from api.alertas.detector import VENTANA_DIAS, Anomalia, detectar
 from api.alertas.repositorio import METRICAS_VIGILADAS, REDES_CON_PUBLICACIONES, RepositorioAlertas
 
 log = logging.getLogger(__name__)
@@ -16,6 +16,8 @@ DIAS_AVISO_TOKEN = 7
 DIAS_DEDUPE = 3
 DIAS_RADAR_ATRASADO = 10
 DIAS_DATOS_ATRASADOS = 4
+# Una anomalía o una oportunidad deja de ser accionable pasado este plazo: se cierra sola.
+DIAS_VIGENCIA_ANOMALIA = 14
 NOMBRES_RED = {
     "meta_ig": "Instagram",
     "meta_fb": "Facebook",
@@ -51,6 +53,35 @@ class ResumenAlertas:
 
 def _pct(x: float) -> str:
     return f"{abs(x) * 100:.0f} %"
+
+
+def _num(x: float) -> str:
+    return f"{x:,.0f}".replace(",", ".")
+
+
+def describir_anomalia(a: Anomalia, codigo: str, agregacion: str) -> str:
+    """Frase legible para el gerente: seguidores en unidades, saltos grandes como múltiplo."""
+    fecha = a.fecha.strftime("%d/%m")
+    if agregacion == "ultimo":
+        verbo = "ganó" if a.valor >= 0 else "perdió"
+        nombre = codigo.replace("_", " ")
+        return (
+            f"{verbo} {_num(abs(a.valor))} {nombre} el {fecha} "
+            f"(lo normal: {_num(a.esperado)} por día)"
+        )
+    nombre = codigo.replace("_", " ")
+    if a.cambio >= 1.0 and a.esperado > 0:
+        veces = a.valor / a.esperado
+        cifra = f"×{veces:,.1f}".replace(",", ".") if veces < 10 else f"×{_num(veces)}"
+        return (
+            f"{nombre} se multiplicó {cifra} el {fecha} "
+            f"(esperado {_num(a.esperado)}, real {_num(a.valor)})"
+        )
+    verbo = "cayó" if a.tipo == "anomalia" else "subió"
+    return (
+        f"{nombre} {verbo} {_pct(a.cambio)} el {fecha} "
+        f"(esperado {_num(a.esperado)}, real {_num(a.valor)})"
+    )
 
 
 async def correr_alertas(repo: RepositorioAlertas, hoy: date) -> ResumenAlertas:
@@ -114,16 +145,11 @@ async def correr_alertas(repo: RepositorioAlertas, hoy: date) -> ResumenAlertas:
             )
             for codigo, serie in series.items():
                 resumen.metricas_evaluadas += 1
-                a = detectar(serie, ayer, agregaciones.get(codigo, "suma"))
+                agregacion = agregaciones.get(codigo, "suma")
+                a = detectar(serie, ayer, agregacion)
                 if a is None:
                     continue
-                verbo = "cayó" if a.tipo == "anomalia" else "subió"
-                nombre = codigo.replace("_", " ")
-                titulo = (
-                    f"{cuenta['cliente']} · {red}: {nombre} {verbo} {_pct(a.cambio)} "
-                    f"el {a.fecha.strftime('%d/%m')} "
-                    f"(esperado {a.esperado:,.0f}, real {a.valor:,.0f})"
-                )
+                titulo = f"{cuenta['cliente']} · {red}: {describir_anomalia(a, codigo, agregacion)}"
                 await emitir(
                     cuenta,
                     a.tipo,
@@ -223,4 +249,5 @@ async def correr_alertas(repo: RepositorioAlertas, hoy: date) -> ResumenAlertas:
             },
         )
     resumen.cerradas = await repo.cerrar_operativas_no_vigentes(vigentes)
+    resumen.cerradas += await repo.cerrar_anomalias_vencidas(DIAS_VIGENCIA_ANOMALIA)
     return resumen

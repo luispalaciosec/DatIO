@@ -157,6 +157,16 @@ class RepositorioAlertas:
             )
         return len(cerrar)
 
+    async def cerrar_anomalias_vencidas(self, dias: int) -> int:
+        """Resuelve anomalías y oportunidades abiertas creadas hace más de N días."""
+        estado = await self._pool.execute(
+            "UPDATE alertas SET resuelta = TRUE "
+            "WHERE NOT resuelta AND tipo IN ('anomalia', 'oportunidad') "
+            "AND creada_en < now() - make_interval(days => $1)",
+            dias,
+        )
+        return int(estado.split()[-1])
+
     async def cuentas_sin_datos_recientes(self, dias: int) -> list[dict[str, Any]]:
         """Cuentas activas cuya última fila es de hace más de N días, o que nunca trajeron datos
         pese a llevar más de N días conectadas."""
