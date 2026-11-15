@@ -35,13 +35,16 @@ def _validar_proveedor(proveedor: str) -> None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Proveedor desconocido")
 
 
-def _config_con_api_url(config: Configuracion, request: Request) -> Configuracion:
-    """Seguro: si API_URL quedó en localhost pero la petición llega por un dominio real
-    (Railway detrás de proxy), usa ese dominio con https."""
-    host = request.headers.get("x-forwarded-host") or request.headers.get("host") or ""
-    if "localhost" in config.api_url and host and "localhost" not in host:
-        return config.model_copy(update={"api_url": f"https://{host}"})
-    return config
+def _exigir_api_url(config: Configuracion, request: Request) -> None:
+    """S-6: el redirect_uri de OAuth sale SOLO de API_URL (antes se armaba con la cabecera
+    X-Forwarded-Host, que manda el cliente). Si API_URL quedó en localhost pero la petición
+    llega por otro dominio, la configuración está mal: se avisa en vez de adivinar."""
+    host = (request.headers.get("host") or "").split(":")[0]
+    if "localhost" in config.api_url and host not in ("", "localhost", "127.0.0.1", "test"):
+        raise HTTPException(
+            status.HTTP_503_SERVICE_UNAVAILABLE,
+            "API_URL no está configurada con la dirección pública de la API",
+        )
 
 
 @router.get("/conectar/{proveedor}/iniciar")
@@ -51,7 +54,7 @@ async def iniciar(
     _validar_proveedor(proveedor)
     if await repo.cliente(cliente_id) is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Cliente no encontrado")
-    config = _config_con_api_url(config, request)
+    _exigir_api_url(config, request)
     try:
         estado = conectar.emitir_estado(config, proveedor, cliente_id, usuario.email)
         return {"url": conectar.url_inicio(config, proveedor, estado)}
@@ -72,7 +75,7 @@ async def retorno(
 ) -> RedirectResponse:
     """Llega el navegador desde el proveedor. Sin token de usuario: el `state` es la prueba."""
     _validar_proveedor(proveedor)
-    config = _config_con_api_url(config, request)  # el redirect_uri del canje debe coincidir
+    _exigir_api_url(config, request)  # el redirect_uri del canje debe coincidir
     front = config.frontend_url.rstrip("/")
     try:
         cliente_id, email = conectar.verificar_estado(config, state, proveedor)

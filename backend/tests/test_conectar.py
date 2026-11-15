@@ -172,19 +172,20 @@ async def test_iniciar_linkedin(http, usuario_equipo, cliente_a) -> None:  # typ
     assert conectar.credencial_para_guardar("linkedin", {"access_token": "li"}) == "li"
 
 
-async def test_api_url_localhost_se_reemplaza_por_el_host_real(
-    http, usuario_equipo, cliente_a
-) -> None:  # type: ignore[no-untyped-def]
+async def test_redirect_uri_sale_solo_de_api_url(http, usuario_equipo, cliente_a) -> None:  # type: ignore[no-untyped-def]
+    """S-6: la cabecera X-Forwarded-Host ya no decide a dónde vuelve el proveedor."""
+    r = await http.get(
+        f"/admin/conectar/google/iniciar?cliente_id={cliente_a.id}",
+        headers={**_auth(usuario_equipo), "x-forwarded-host": "otro-dominio.example"},
+    )
+    assert r.status_code == 200 and "otro-dominio" not in r.json()["url"]
+    assert "redirect_uri=http%3A%2F%2Flocalhost" in r.json()["url"]  # en local, API_URL local
+    # API_URL en localhost pero la petición llega por un dominio público: configuración mala
     r = await http.get(
         f"/admin/conectar/google/iniciar?cliente_id={cliente_a.id}",
         headers={**_auth(usuario_equipo), "host": "datio-production.up.railway.app"},
     )
-    assert "redirect_uri=https%3A%2F%2Fdatio-production.up.railway.app" in r.json()["url"]
-    r = await http.get(
-        f"/admin/conectar/google/iniciar?cliente_id={cliente_a.id}",
-        headers={**_auth(usuario_equipo), "host": "localhost:8000"},
-    )
-    assert "redirect_uri=http%3A%2F%2Flocalhost" in r.json()["url"]  # en local sigue igual
+    assert r.status_code == 503 and "API_URL" in r.json()["detail"]
 
 
 def test_credencial_google_exige_refresh_token() -> None:
