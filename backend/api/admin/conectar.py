@@ -26,9 +26,16 @@ from api.config import Configuracion
 DURACION_ESTADO = timedelta(minutes=10)
 PROVEEDORES = ("meta", "google", "linkedin")
 
-# Community Management API: lectura de páginas de empresa que el usuario administra.
-# Community Management API: r_organization_social (estadísticas y posts) + rw_organization_admin
-# (listar las páginas que el usuario administra). LINKEDIN_SCOPES en el entorno los sobreescribe.
+# LinkedIn, Community Management API (S-3). DatIO solo LEE:
+# - r_organization_social: publicaciones de la página y sus estadísticas.
+# - rw_organization_admin: listar las páginas que administra quien conecta
+#   (GET /rest/organizationAcls) y leer seguidores/visitas de la página. Es imprescindible
+#   porque LinkedIn rechazó para esta app la variante de solo lectura (r_organization_admin)
+#   y estos endpoints exigen uno de los dos. El permiso técnicamente permite administrar, pero
+#   el código solo hace GET con él (lo fija tests/test_conectar.py). Si LinkedIn aprueba
+#   r_organization_admin, reemplazarlo aquí y en LINKEDIN_SCOPES_PERMITIDOS sigue valiendo.
+# LINKEDIN_SCOPES en el entorno los sobreescribe, solo dentro de la lista blanca (N-2,
+# ver api/config.py LINKEDIN_SCOPES_PERMITIDOS).
 SCOPES_LINKEDIN = ("r_organization_social", "rw_organization_admin")
 
 SCOPES_GOOGLE = (

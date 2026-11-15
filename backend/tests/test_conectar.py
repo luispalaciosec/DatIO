@@ -279,3 +279,22 @@ async def test_reconectar_cuenta_del_mismo_cliente_renueva_token(  # B-1, camino
     )
     assert (fila["cliente_id"], fila["nombre_cuenta"]) == (cliente_a.id, "Nueva")
     assert fila["cred"] == f"token-{cliente_a.id}"
+
+
+def test_linkedin_solo_lee() -> None:  # S-3
+    """Con rw_organization_admin el código solo hace GET: el cliente del conector no expone
+    métodos de escritura y el único POST a LinkedIn es el canje del código OAuth."""
+    import inspect
+
+    from api.etl.conectores import linkedin
+
+    metodos = {n for n, _ in inspect.getmembers(linkedin.LinkedInBase, inspect.isfunction)}
+    assert not metodos & {"post", "put", "patch", "delete"}
+    fuente = inspect.getsource(linkedin)
+    assert not any(f"http.{v}(" in fuente for v in ("post", "put", "patch", "delete"))
+    oauth = inspect.getsource(conectar)
+    posts_linkedin = [
+        linea for linea in oauth.splitlines() if "linkedin.com" in linea and "/oauth/v2/" in linea
+    ]
+    assert any("accessToken" in linea for linea in posts_linkedin)
+    assert set(conectar.SCOPES_LINKEDIN) <= {"r_organization_social", "rw_organization_admin"}

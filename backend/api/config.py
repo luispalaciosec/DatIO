@@ -16,6 +16,13 @@ MODELOS_LLM_POR_DEFECTO: dict[str, dict[str, Any]] = {
 }
 
 
+# N-2: permisos de LinkedIn que DatIO puede pedir (todos de lectura de páginas de empresa;
+# rw_organization_admin se justifica en api/admin/conectar.py SCOPES_LINKEDIN).
+LINKEDIN_SCOPES_PERMITIDOS = frozenset(
+    {"r_organization_social", "r_organization_admin", "rw_organization_admin"}
+)
+
+
 class Configuracion(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
 
@@ -84,9 +91,19 @@ class Configuracion(BaseSettings):
     def _parsear_scopes(cls, valor: Any) -> list[str]:
         if not valor:
             return []
-        if isinstance(valor, str):
-            return [s for s in valor.replace(",", " ").split() if s]
-        return list(valor)
+        scopes = (
+            [s for s in valor.replace(",", " ").split() if s]
+            if isinstance(valor, str)
+            else [str(s) for s in valor]
+        )
+        # N-2: solo permisos conocidos y justificados; cualquier otro detiene el arranque.
+        fuera = sorted(set(scopes) - LINKEDIN_SCOPES_PERMITIDOS)
+        if fuera:
+            raise ValueError(
+                f"LINKEDIN_SCOPES contiene permisos no permitidos: {', '.join(fuera)}. "
+                f"Permitidos: {', '.join(sorted(LINKEDIN_SCOPES_PERMITIDOS))}"
+            )
+        return scopes
 
     # Alertas por correo (PT-14) vía Resend. Sin clave, las alertas solo se ven en el admin.
     resend_api_key: str = ""
