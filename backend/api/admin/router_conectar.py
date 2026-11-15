@@ -8,7 +8,7 @@ from fastapi.responses import RedirectResponse
 from pydantic import BaseModel
 
 from api.admin import conectar
-from api.admin.repositorio import RepositorioAdmin
+from api.admin.repositorio import CuentaDeOtroClienteError, RepositorioAdmin
 from api.admin.router import usuario_equipo
 from api.config import Configuracion
 from api.deps import UsuarioActual, obtener_config_app, obtener_pool
@@ -154,6 +154,11 @@ async def activar(
         raise HTTPException(status.HTTP_400_BAD_REQUEST, "Elige al menos un activo")
     try:
         ids = await repo.activar_conexion(conexion_id, elegidos, config.clave_cifrado)
+    except CuentaDeOtroClienteError as e:
+        # Mismo texto que la alta manual; no revela a qué cliente pertenece.
+        raise HTTPException(
+            status.HTTP_409_CONFLICT, "Esa cuenta ya está conectada a un cliente"
+        ) from e
     except LookupError as e:
         raise HTTPException(status.HTTP_409_CONFLICT, str(e)) from e
     return {"cuentas": ids}

@@ -17,6 +17,10 @@ CAMPOS_TEMA = (
 )
 
 
+class CuentaDeOtroClienteError(Exception):
+    """Una cuenta elegida al activar una conexión ya pertenece a otro cliente."""
+
+
 class RepositorioAdmin:
     def __init__(self, pool: asyncpg.Pool) -> None:
         self._pool = pool
@@ -290,9 +294,11 @@ class RepositorioAdmin:
                             token_expira_en, activo)
                     VALUES ($1, $2, $3, $4, pgp_sym_encrypt($5, $6), $7, TRUE)
                     ON CONFLICT (plataforma, id_externo) DO UPDATE
-                       SET cliente_id = EXCLUDED.cliente_id, nombre_cuenta = EXCLUDED.nombre_cuenta,
+                       SET nombre_cuenta = EXCLUDED.nombre_cuenta,
                            credencial_cifrada = EXCLUDED.credencial_cifrada,
                            token_expira_en = EXCLUDED.token_expira_en, activo = TRUE
+                     -- B-1: solo renueva cuentas del MISMO cliente; nunca las mueve de cliente
+                     WHERE cuentas_conectadas.cliente_id = EXCLUDED.cliente_id
                     RETURNING id
                     """,
                     fila["cliente_id"],
@@ -303,6 +309,10 @@ class RepositorioAdmin:
                     clave,
                     fila["token_expira_en"],
                 )
+                if cuenta_id is None:
+                    # La cuenta ya es de otro cliente: se revierte el lote entero y la conexión
+                    # sigue pendiente (la excepción aborta la transacción).
+                    raise CuentaDeOtroClienteError()
                 ids.append(int(cuenta_id))
             await con.execute(
                 "UPDATE conexiones_oauth SET estado = 'activada', token_cifrado = ''::bytea "
