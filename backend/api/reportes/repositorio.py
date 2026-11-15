@@ -77,6 +77,14 @@ class RepositorioReportes:
 
     # ---- editor del reporte ------------------------------------------------------------
 
+    async def metricas_existentes(self, codigos: list[str]) -> set[str]:
+        if not codigos:
+            return set()
+        filas = await self._pool.fetch(
+            "SELECT codigo FROM dim_metrica WHERE codigo = ANY($1::text[])", codigos
+        )
+        return {str(f["codigo"]) for f in filas}
+
     async def estructura(
         self, instancia_id: int, plantilla_id: int, cliente_id: int
     ) -> list[dict[str, Any]]:

@@ -238,3 +238,32 @@ async def test_envio_mensual_idempotente(
     await pool.execute("DELETE FROM usuarios WHERE email = $1", correo)
     await pool.execute("DELETE FROM narrativas WHERE cliente_id = $1", cliente_a.id)
     await _borrar_instancia(pool, plantilla)
+
+
+@requiere_db
+async def test_override_rechaza_metricas_inventadas(
+    pool, cliente_a, usuario_equipo, config
+) -> None:  # type: ignore[no-untyped-def]  # #14 + "no inventes métricas"
+    plantilla = await _instancia_de_prueba(pool, cliente_a.id)
+    bloque = await pool.fetchval(
+        "SELECT b.id FROM reporte_bloques b JOIN reporte_paginas p ON p.id = b.pagina_id "
+        "WHERE p.plantilla_id = $1 LIMIT 1",
+        plantilla,
+    )
+    app = crear_app(config)
+    equipo = {"Authorization": f"Bearer {token_para(usuario_equipo)}"}
+    try:
+        async with app.router.lifespan_context(app):
+            async with httpx.AsyncClient(
+                transport=httpx.ASGITransport(app=app), base_url="http://test"
+            ) as http:
+                url = f"/admin/clientes/{cliente_a.id}/reporte/bloques/{bloque}"
+                malo = {"oculto": False, "config": {"items": [{"metrica": "no_existe_xyz"}]}}
+                r = await http.put(url, json=malo, headers=equipo)
+                assert r.status_code == 400 and "no_existe_xyz" in r.json()["detail"]
+                r = await http.put(url, json={"config": {"limite": 9999}}, headers=equipo)
+                assert r.status_code == 400 and "limite" in r.json()["detail"]
+                bueno = {"config": {"items": [{"metrica": "alcance"}], "limite": 5}}
+                assert (await http.put(url, json=bueno, headers=equipo)).status_code == 200
+    finally:
+        await _borrar_instancia(pool, plantilla)

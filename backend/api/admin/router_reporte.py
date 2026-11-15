@@ -32,6 +32,48 @@ router = APIRouter(
 
 # Claves de config que el editor puede sobreescribir por cliente (lista blanca)
 EDITABLES = {"titulo", "bajada", "etiqueta", "etiqueta_propio", "objetivo", "limite", "ia", "items"}
+TEXTOS = {"titulo": 200, "bajada": 500, "etiqueta": 120, "etiqueta_propio": 120}
+MAX_ITEMS = 12
+
+
+def errores_override(config: dict[str, Any]) -> list[str]:
+    """#14: tipos y rangos de cada valor editable (además de la lista blanca de claves)."""
+    errores: list[str] = []
+    for clave, maximo in TEXTOS.items():
+        v = config.get(clave)
+        if v is not None and (not isinstance(v, str) or len(v) > maximo):
+            errores.append(f"{clave}: texto de hasta {maximo} caracteres")
+    if "limite" in config:
+        v = config["limite"]
+        if isinstance(v, bool) or not isinstance(v, int) or not 1 <= v <= 100:
+            errores.append("limite: entero entre 1 y 100")
+    if "objetivo" in config:
+        v = config["objetivo"]
+        if isinstance(v, bool) or not isinstance(v, int | float) or not 0 <= v <= 1e12:
+            errores.append("objetivo: número entre 0 y 1e12")
+    if "ia" in config and not isinstance(config["ia"], bool):
+        errores.append("ia: verdadero o falso")
+    if "items" in config:
+        items = config["items"]
+        validos = isinstance(items, list) and len(items) <= MAX_ITEMS
+        for i in items if isinstance(items, list) else []:
+            validos = validos and (
+                isinstance(i, dict)
+                and isinstance(i.get("metrica"), str)
+                and len(i) <= 8
+                and all(isinstance(k, str) and len(k) <= 40 for k in i)
+                and all(
+                    v is None
+                    or isinstance(v, bool | int | float)
+                    or (isinstance(v, str) and len(v) <= 120)
+                    for v in i.values()
+                )
+            )
+        if not validos:
+            errores.append(
+                f"items: lista de hasta {MAX_ITEMS} objetos con 'metrica' y valores simples"
+            )
+    return errores
 
 
 def _repo(pool: Annotated[asyncpg.Pool, Depends(obtener_pool)]) -> RepositorioReportes:
@@ -137,6 +179,16 @@ async def guardar_bloque(
     if ajenas:
         raise HTTPException(status.HTTP_400_BAD_REQUEST, f"Campos no editables: {sorted(ajenas)}")
     limpio = {k: v for k, v in cuerpo.config.items() if v not in (None, "")}
+    errores = errores_override(limpio)
+    if errores:
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, "; ".join(errores))
+    # "No inventes métricas": toda métrica de items tiene que existir en dim_metrica
+    codigos = [str(i["metrica"]) for i in limpio.get("items", [])]
+    desconocidas = sorted(set(codigos) - await repo.metricas_existentes(codigos))
+    if desconocidas:
+        raise HTTPException(
+            status.HTTP_400_BAD_REQUEST, f"Métricas desconocidas: {', '.join(desconocidas)}"
+        )
     await repo.guardar_override(inst["id"], bloque_id, cuerpo.oculto, limpio)
     return {"estado": "guardado"}
 
