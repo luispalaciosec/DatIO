@@ -11,7 +11,13 @@ from pydantic import BaseModel, EmailStr, Field
 from api.admin.router import usuario_equipo
 from api.auth.admin_supabase import asegurar_usuario_auth
 from api.config import Configuracion
-from api.deps import UsuarioActual, obtener_config_app, obtener_pool, vaciar_cache_tras_escritura
+from api.deps import (
+    UsuarioActual,
+    limite_por_usuario,
+    obtener_config_app,
+    obtener_pool,
+    vaciar_cache_tras_escritura,
+)
 from api.etl.conector_base import hoy_en
 from api.reportes.correo import enviar, html_invitacion
 from api.reportes.envio import COLOR_DEFECTO, enviar_reporte, mes_anterior
@@ -56,7 +62,7 @@ class Invitacion(BaseModel):
     enviar_correo: bool = True
 
 
-@router.post("/clientes/{cliente_id}/invitar")
+@router.post("/clientes/{cliente_id}/invitar", dependencies=[limite_por_usuario("invitar", 10)])
 async def invitar(
     cliente_id: int, cuerpo: Invitacion, _: Equipo, repo: Repo, config: Config
 ) -> dict[str, Any]:
@@ -152,7 +158,9 @@ class EnvioManual(BaseModel):
     mes: str | None = Field(default=None, pattern=r"^\d{4}-\d{2}$")  # None = mes anterior
 
 
-@router.post("/clientes/{cliente_id}/reporte/enviar")
+@router.post(
+    "/clientes/{cliente_id}/reporte/enviar", dependencies=[limite_por_usuario("enviar", 3)]
+)
 async def enviar_ahora(
     cliente_id: int, cuerpo: EnvioManual, _: Equipo, config: Config, pool: Pool
 ) -> dict[str, Any]:

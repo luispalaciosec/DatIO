@@ -8,7 +8,7 @@ from fastapi import APIRouter, Depends, HTTPException, Response, status
 
 from api.config import Configuracion
 from api.consulta.repositorio import Instancia
-from api.deps import instancia_autorizada, obtener_config_app
+from api.deps import instancia_autorizada, limite_por_usuario, obtener_config_app
 from api.pdf import render
 
 router = APIRouter(tags=["pdf"])
@@ -16,7 +16,8 @@ log = logging.getLogger(__name__)
 MENSAJE_FALLO = "No se pudo generar el PDF, intenta de nuevo"
 
 
-@router.get("/reportes/{slug_publico}/pdf")
+# #11: generar un PDF lanza Chromium; 6 por minuto y usuario es de sobra para uso real
+@router.get("/reportes/{slug_publico}/pdf", dependencies=[limite_por_usuario("pdf", 6)])
 async def pdf_reporte(
     slug_publico: str,
     desde: date,

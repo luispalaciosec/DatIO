@@ -3,7 +3,7 @@
 import logging
 from collections.abc import AsyncIterator
 from dataclasses import dataclass
-from typing import Annotated
+from typing import Annotated, Any
 
 import asyncpg
 from fastapi import Depends, Header, HTTPException, Request, status
@@ -13,6 +13,7 @@ from api.auth.supabase import TokenInvalidoError, correo_verificado, verificar_t
 from api.config import Configuracion
 from api.consulta.repositorio import Instancia, RepositorioConsulta
 from api.pdf.render import RenderInvalidoError, verificar_token_render
+from api.seguridad import LimiteVentana
 
 log = logging.getLogger(__name__)
 
@@ -198,3 +199,23 @@ async def vaciar_cache_tras_escritura(request: Request) -> AsyncIterator[None]:
         cache = getattr(request.app.state, "cache", None)
         if cache is not None:
             cache.vaciar()
+
+
+# ---- límites por usuario para acciones caras (#11) -------------------------------------
+
+
+def limite_por_usuario(nombre: str, maximo: int, segundos: float = 60.0) -> Any:
+    """Dependencia: como mucho `maximo` peticiones de la acción `nombre` por usuario en la
+    ventana. En memoria y por proceso, como el límite por IP de api/seguridad.py."""
+    ventana = LimiteVentana(maximo, segundos)
+
+    async def _limitar(usuario: Annotated[UsuarioActual, Depends(usuario_actual)]) -> None:
+        if not ventana.permitir(usuario.email):
+            log.warning("límite de %s alcanzado por %s", nombre, usuario.email)
+            raise HTTPException(
+                status.HTTP_429_TOO_MANY_REQUESTS,
+                "Demasiadas solicitudes seguidas, intenta en un minuto",
+                headers={"Retry-After": str(int(segundos))},
+            )
+
+    return Depends(_limitar)

@@ -6,6 +6,7 @@ instancia. El frontend lo usa en lugar de la sesión de Supabase cuando abre la 
 porque la API lo puso ahí, nunca porque el navegador lo mandó.
 """
 
+import asyncio
 import io
 import logging
 from dataclasses import dataclass
@@ -130,6 +131,20 @@ def url_impresion(config: Configuracion, slug: str, desde: str, hasta: str, toke
     return f"{base}/{slug}/imprimir?{consulta}"
 
 
+# #11: Chromium es caro. Como mucho MAX_RENDERS PDF a la vez por proceso (PDF bajo demanda,
+# envío manual y envío mensual); los demás esperan su turno. Un semáforo por event loop.
+MAX_RENDERS = 2
+_semaforos: dict[int, asyncio.Semaphore] = {}
+
+
+def _semaforo_render() -> asyncio.Semaphore:
+    clave = id(asyncio.get_running_loop())
+    if clave not in _semaforos:
+        _semaforos.clear()  # un loop nuevo (p. ej. tests) descarta los anteriores
+        _semaforos[clave] = asyncio.Semaphore(MAX_RENDERS)
+    return _semaforos[clave]
+
+
 # Script que lee el estado de la vista de impresión (ver frontend/src/reporte/Imprimir.tsx).
 _ESTADO_JS = """() => ({
   lista: document.querySelector('[data-impresion-lista="1"]') !== null,
@@ -158,7 +173,7 @@ async def generar_pdf(url: str, timeout_ms: int = 60_000) -> bytes:
     from playwright.async_api import TimeoutError as TimeoutPlaywright
     from playwright.async_api import async_playwright
 
-    async with async_playwright() as p:
+    async with _semaforo_render(), async_playwright() as p:
         navegador = await p.chromium.launch()
         try:
             pagina = await navegador.new_page(viewport={"width": 1240, "height": 1754})
