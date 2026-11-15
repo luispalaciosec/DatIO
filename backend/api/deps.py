@@ -37,35 +37,25 @@ class UsuarioActual:
     rol: str  # 'cliente' | 'equipo'
     cliente_id: int | None
     es_render: bool = False  # token de render de Playwright (PT-11), no una persona
+    instancia_render: int | None = None  # la única instancia que ese token puede leer
 
     @property
     def es_equipo(self) -> bool:
         return self.rol == "equipo"
 
 
-async def usuario_actual(
-    config: Annotated[Configuracion, Depends(obtener_config_app)],
-    repo: Annotated[RepositorioAuth, Depends(obtener_repo_auth)],
-    authorization: Annotated[str | None, Header()] = None,
-) -> UsuarioActual:
+def _token_bearer(authorization: str | None) -> str:
     if not authorization or not authorization.lower().startswith("bearer "):
         raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Falta el token de acceso")
-    token = authorization.split(" ", 1)[1].strip()
+    return authorization.split(" ", 1)[1].strip()
+
+
+async def _usuario_de_supabase(
+    token: str, config: Configuracion, repo: RepositorioAuth
+) -> UsuarioActual:
     try:
         claims = verificar_token(token, config)
     except TokenInvalidoError as e:
-        # Token de render (PT-11): lo emitió la propia API para Playwright, dura 5 minutos.
-        if config.pdf_secret:
-            try:
-                principal = verificar_token_render(token, config)
-                return UsuarioActual(
-                    email="render@datio",
-                    rol="cliente",
-                    cliente_id=principal.cliente_id,
-                    es_render=True,
-                )
-            except RenderInvalidoError:
-                pass
         # B-11: al cliente, mensaje genérico; el motivo concreto solo al log.
         log.info("token rechazado: %s", e)
         raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Token inválido o vencido") from e
@@ -83,6 +73,41 @@ async def usuario_actual(
     if usuario is None:
         raise HTTPException(status.HTTP_403_FORBIDDEN, "Usuario no autorizado en la plataforma")
     return UsuarioActual(email=usuario.email, rol=usuario.rol, cliente_id=usuario.cliente_id)
+
+
+async def usuario_actual(
+    config: Annotated[Configuracion, Depends(obtener_config_app)],
+    repo: Annotated[RepositorioAuth, Depends(obtener_repo_auth)],
+    authorization: Annotated[str | None, Header()] = None,
+) -> UsuarioActual:
+    """Usuario de Supabase. El token de render NO vale aquí (S-5): solo lo aceptan las rutas
+    de la vista de impresión, vía usuario_o_render."""
+    return await _usuario_de_supabase(_token_bearer(authorization), config, repo)
+
+
+async def usuario_o_render(
+    config: Annotated[Configuracion, Depends(obtener_config_app)],
+    repo: Annotated[RepositorioAuth, Depends(obtener_repo_auth)],
+    authorization: Annotated[str | None, Header()] = None,
+) -> UsuarioActual:
+    """Para GET /reportes/{slug} y POST /consulta: además de un usuario de Supabase acepta el
+    token de render (PT-11) que la API emite para Playwright. Ese principal queda atado a SU
+    instancia: autorizar_instancia rechaza cualquier otra (S-5)."""
+    token = _token_bearer(authorization)
+    if config.pdf_secret:
+        try:
+            principal = verificar_token_render(token, config)
+        except RenderInvalidoError:
+            pass
+        else:
+            return UsuarioActual(
+                email="render@datio",
+                rol="cliente",
+                cliente_id=principal.cliente_id,
+                es_render=True,
+                instancia_render=principal.instancia_id,
+            )
+    return await _usuario_de_supabase(token, config, repo)
 
 
 async def cliente_id_actual(
@@ -122,6 +147,8 @@ def autorizar_instancia(
     if instancia is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Reporte no encontrado")
     ajeno = not usuario.es_equipo and usuario.cliente_id != instancia.cliente_id
+    # S-5: el token de render solo abre la instancia para la que se emitió
+    ajeno = ajeno or (usuario.es_render and usuario.instancia_render != instancia.id)
     if ajeno or not instancia.cliente_activo:
         log.warning(
             "acceso denegado a reporte: usuario=%s rol=%s instancia=%s motivo=%s",
@@ -140,6 +167,16 @@ async def instancia_autorizada(
     pool: Annotated[asyncpg.Pool, Depends(obtener_pool)],
 ) -> Instancia:
     """Instancia de la ruta /reportes/{slug_publico}..., ya autorizada para el usuario."""
+    instancia = await RepositorioConsulta(pool).instancia_por_slug(slug_publico)
+    return autorizar_instancia(usuario, instancia, f"slug:{slug_publico}")
+
+
+async def instancia_autorizada_impresion(
+    slug_publico: str,
+    usuario: Annotated[UsuarioActual, Depends(usuario_o_render)],
+    pool: Annotated[asyncpg.Pool, Depends(obtener_pool)],
+) -> Instancia:
+    """Como instancia_autorizada, pero acepta también el token de render (vista de impresión)."""
     instancia = await RepositorioConsulta(pool).instancia_por_slug(slug_publico)
     return autorizar_instancia(usuario, instancia, f"slug:{slug_publico}")
 

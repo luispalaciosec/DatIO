@@ -80,10 +80,19 @@ async def test_endpoint_pdf_devuelve_archivo(http, cliente_a, instancia, monkeyp
     assert r.headers["content-type"] == "application/pdf"
     assert r.content.startswith(b"%PDF")
     assert f"/{cliente_a.slug}/imprimir?" in capturada["url"]
-    # el token de render embebido en la URL abre la API como ese cliente
+    # S-5: el token de render abre SOLO la vista de impresión de su instancia
     token = capturada["url"].split("render=")[1]
-    yo = await http.get("/yo", headers={"Authorization": f"Bearer {token}"})
-    assert yo.status_code == 200 and yo.json()["cliente_id"] == cliente_a.id
+    cab = {"Authorization": f"Bearer {token}"}
+    assert (await http.get(f"/reportes/{cliente_a.slug}", headers=cab)).status_code == 200
+    assert (await http.get("/yo", headers=cab)).status_code == 401
+    assert (await http.get("/mi/cuentas", headers=cab)).status_code == 401
+    pdf = await http.get(
+        f"/reportes/{cliente_a.slug}/pdf",
+        params={"desde": "2026-08-01", "hasta": "2026-08-28"},
+        headers=cab,
+    )
+    assert pdf.status_code == 401  # no puede pedir otro PDF ni nada del admin
+    assert (await http.get("/admin/clientes", headers=cab)).status_code == 401
 
 
 @requiere_db

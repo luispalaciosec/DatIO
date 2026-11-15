@@ -116,3 +116,34 @@ async def test_reporte_ajeno_403_y_queda_registrado(  # type: ignore[no-untyped-
 async def test_reporte_inexistente_404(http, cliente_a) -> None:  # type: ignore[no-untyped-def]
     r = await http.get("/reportes/no-existe-este-reporte", headers=_auth(cliente_a.email))
     assert r.status_code == 404
+
+
+@requiere_db
+async def test_token_de_render_atado_a_su_instancia(  # type: ignore[no-untyped-def]
+    http, pool, cliente_a, instancia
+) -> None:  # S-5
+    from api.pdf.render import emitir_token_render
+
+    inst, bloque = instancia
+    cfg = http._transport.app.state.config  # type: ignore[attr-defined]
+    propio = {"Authorization": f"Bearer {emitir_token_render(cfg, cliente_a.id, inst)}"}
+    # Mismo cliente pero OTRA instancia: el token no la abre
+    otra = {"Authorization": f"Bearer {emitir_token_render(cfg, cliente_a.id, inst + 999_999)}"}
+    cuerpo = {
+        "instancia_id": inst,
+        "bloque_id": bloque,
+        "desde": "2026-10-01",
+        "hasta": "2026-10-31",
+    }
+
+    assert (await http.get(f"/reportes/{cliente_a.slug}", headers=propio)).status_code == 200
+    assert (await http.post("/consulta", json=cuerpo, headers=propio)).status_code == 200
+    assert (await http.get(f"/reportes/{cliente_a.slug}", headers=otra)).status_code == 403
+    assert (await http.post("/consulta", json=cuerpo, headers=otra)).status_code == 403
+    # Playwright no cuenta como visita del cliente
+    visitas = await pool.fetchval(
+        "SELECT count(*) FROM reporte_visitas WHERE instancia_id = $1 AND usuario_email = $2",
+        inst,
+        "render@datio",
+    )
+    assert visitas == 0

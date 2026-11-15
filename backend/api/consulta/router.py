@@ -11,10 +11,10 @@ from api.consulta.cache import CacheConsulta
 from api.consulta.repositorio import Instancia, RepositorioConsulta
 from api.deps import (
     UsuarioActual,
-    instancia_autorizada,
+    instancia_autorizada_impresion,
     instancia_autorizada_por_id,
     obtener_pool,
-    usuario_actual,
+    usuario_o_render,
 )
 from api.resolvedores import REGISTRO, Contexto
 
@@ -42,7 +42,7 @@ def _cache(request: Request) -> CacheConsulta | None:
 async def resolver_bloque(
     req: ConsultaBloque,
     request: Request,
-    usuario: Annotated[UsuarioActual, Depends(usuario_actual)],
+    usuario: Annotated[UsuarioActual, Depends(usuario_o_render)],
     pool: Annotated[asyncpg.Pool, Depends(obtener_pool)],
     repo: Annotated[RepositorioConsulta, Depends(_repo)],
     cache: Annotated[CacheConsulta | None, Depends(_cache)],
@@ -128,12 +128,13 @@ async def imagen_competidor(
 
 @router.get("/reportes/{slug_publico}")
 async def estructura_reporte(
-    instancia: Annotated[Instancia, Depends(instancia_autorizada)],
-    usuario: Annotated[UsuarioActual, Depends(usuario_actual)],
+    instancia: Annotated[Instancia, Depends(instancia_autorizada_impresion)],
+    usuario: Annotated[UsuarioActual, Depends(usuario_o_render)],
     repo: Annotated[RepositorioConsulta, Depends(_repo)],
 ) -> dict[str, Any]:
     """Tema, páginas y bloques (con overrides) de un reporte. Sin datos: esos van por /consulta."""
-    await repo.registrar_visita(instancia.id, usuario.email)
+    if not usuario.es_render:  # Playwright no es una visita del cliente
+        await repo.registrar_visita(instancia.id, usuario.email)
 
     paginas = []
     for p in await repo.paginas(instancia.plantilla_id):
