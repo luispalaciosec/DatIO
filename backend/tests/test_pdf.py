@@ -8,7 +8,7 @@ import pytest
 from api.main import crear_app
 from api.pdf import render
 from api.pdf.render import RenderInvalidoError, emitir_token_render, verificar_token_render
-from tests.conftest import requiere_db, token_para
+from tests.conftest import pdf_valido, requiere_db, token_para
 
 
 def test_token_render_ida_y_vuelta(config) -> None:  # type: ignore[no-untyped-def]
@@ -68,7 +68,7 @@ async def test_endpoint_pdf_devuelve_archivo(http, cliente_a, instancia, monkeyp
 
     async def falso_pdf(url: str, timeout_ms: int = 0) -> bytes:
         capturada["url"] = url
-        return b"%PDF-1.4 falso"
+        return pdf_valido()
 
     monkeypatch.setattr(render, "generar_pdf", falso_pdf)
     r = await http.get(
@@ -107,4 +107,7 @@ async def test_endpoint_pdf_error_de_render_502(http, cliente_a, instancia, monk
         params={"desde": "2026-08-01", "hasta": "2026-08-28"},
         headers=_auth(cliente_a.email),
     )
-    assert r.status_code == 502 and "chromium" in r.json()["detail"]
+    # B-11: al cliente, mensaje genérico; el detalle interno solo va al log.
+    assert r.status_code == 502
+    assert r.json()["detail"] == "No se pudo generar el PDF, intenta de nuevo"
+    assert "chromium" not in r.text

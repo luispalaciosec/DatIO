@@ -169,3 +169,18 @@ def token_para(email: str, expirado: bool = False) -> str:
         os.environ["SUPABASE_JWT_SECRET"],
         algorithm="HS256",
     )
+
+
+def pdf_valido(paginas: int = 1) -> bytes:
+    """PDF real y legible por pypdf, con tamaño por encima del mínimo de render.validar_pdf."""
+    import io
+
+    from pypdf import PdfWriter
+
+    escritor = PdfWriter()
+    for _ in range(paginas):
+        escritor.add_blank_page(width=842, height=595)
+    escritor.add_metadata({"/Subject": "reporte de prueba " + "·" * 600})
+    salida = io.BytesIO()
+    escritor.write(salida)
+    return salida.getvalue()

@@ -15,7 +15,10 @@ const NOMBRES: Record<string, string> = {
 const NOMBRE_PAGINA: Record<string, string> = { metricas: "Métricas", publicaciones: "Publicaciones", benchmark: "Benchmark", audiencia: "Audiencia", busqueda: "Búsqueda" };
 
 // Vista de impresión (PT-11): todas las páginas del reporte seguidas, una por hoja.
-// Playwright espera a `data-impresion-lista="1"` y a que no quede ningún bloque cargando.
+// Contrato con api/pdf/render.py (generar_pdf):
+// - éxito: `data-impresion-lista="1"` en el contenedor y ningún `.bloque-cargando`;
+// - fallo: `data-impresion-error="1"` y NUNCA `data-impresion-lista` (el PDF no se imprime);
+// - un bloque que falla marca `data-bloque-error="1"` (ver Bloque.tsx) y el PDF se descarta.
 export function Imprimir() {
   const { slug = "" } = useParams();
   const [params] = useSearchParams();
@@ -32,7 +35,8 @@ export function Imprimir() {
     api.reporte(slug).then(setReporte).catch((e: ErrorApi) => setError(e.message));
   }, [slug]);
 
-  if (error) return <div className="bloque-error" data-impresion-lista="1">{error}</div>;
+  // Sin detalles técnicos: esta vista solo la lee el generador del PDF, que la descarta.
+  if (error) return <div className="bloque-error" data-impresion-error="1">No se pudo cargar el reporte.</div>;
   if (!reporte) return <div className="bloque-cargando" />;
 
   const generado = new Date().toLocaleDateString("es-EC", { day: "numeric", month: "long", year: "numeric" });

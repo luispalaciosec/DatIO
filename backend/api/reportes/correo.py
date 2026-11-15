@@ -48,6 +48,20 @@ def _boton(url: str, texto: str, color: str) -> str:
     )
 
 
+def html_fallo_envio(cliente: str, mes: str, motivo: str) -> str:
+    """Aviso interno al equipo: el reporte mensual de un cliente no salió."""
+    e = html.escape
+    return _marco(
+        "#dc2626",
+        f'<h1 style="font-weight:300;font-size:22px;margin:0 0 12px">No se envió el reporte de '
+        f"{e(mes)} de {e(cliente)}</h1>"
+        f"<p>Motivo: {e(motivo)}.</p>"
+        "<p>El cliente no recibió nada. El cron lo reintenta mañana mientras dure la ventana de "
+        "envío (días 1 a 5). Si el problema sigue, revisa el reporte y envíalo a mano desde "
+        "Administración → ficha del cliente → Reporte.</p>",
+    )
+
+
 def html_invitacion(cliente: str, url: str, color: str) -> str:
     e = html.escape
     return _marco(

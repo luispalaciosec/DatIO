@@ -12,7 +12,7 @@ from api.reportes import envio as envio_mod
 from api.reportes.correo import html_invitacion, html_mensual
 from api.reportes.envio import enviar_mensuales, enviar_reporte, limites, mes_anterior
 from api.reportes.repositorio import RepositorioReportes
-from tests.conftest import requiere_db, token_para
+from tests.conftest import pdf_valido, requiere_db, token_para
 
 
 async def _instancia_de_prueba(pool, cliente_id: int) -> int:  # type: ignore[no-untyped-def]
@@ -196,7 +196,7 @@ async def test_envio_mensual_idempotente(
     enviados: list[tuple[list[str], str, bool]] = []
 
     async def pdf_falso(url: str, timeout_ms: int = 0) -> bytes:
-        return b"%PDF-1.4 falso"
+        return pdf_valido()
 
     async def enviar_falso(cfg, para, asunto, html, adjunto=None):  # type: ignore[no-untyped-def]
         enviados.append((para, asunto, adjunto is not None))
