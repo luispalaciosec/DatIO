@@ -16,6 +16,7 @@ os.environ.setdefault("CRON_SECRET", "cron-solo-para-tests")
 os.environ.setdefault("AMBIENTE", "test")
 os.environ.setdefault("PDF_SECRET", "pdf-secreto-solo-para-tests")
 os.environ.setdefault("FRONTEND_URL", "http://front.test")
+os.environ.setdefault("LINKEDIN_CLIENT_ID", "linkedin-cliente-de-prueba")
 HAY_DB = bool(os.environ.get("DATABASE_URL"))
 os.environ.setdefault("DATABASE_URL", "postgresql://sin-base")
 
@@ -23,6 +24,9 @@ from api.config import Configuracion, obtener_config  # noqa: E402
 from api.db import crear_pool  # noqa: E402
 from api.etl.repositorio import Cuenta, RepositorioETL  # noqa: E402
 
+# Los tests nunca leen backend/.env: si lo hicieran, claves reales (Resend, LLM, OAuth)
+# entrarían a la suite y un test podría mandar correos o llamar APIs de verdad.
+Configuracion.model_config["env_file"] = None
 obtener_config.cache_clear()
 requiere_db = pytest.mark.skipif(not HAY_DB, reason="DATABASE_URL no definido")
 
