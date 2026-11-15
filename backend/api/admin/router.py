@@ -9,6 +9,7 @@ from pydantic import BaseModel, EmailStr, Field
 
 from api.admin.repositorio import RepositorioAdmin, UsuarioDeOtroClienteError
 from api.alertas.repositorio import RepositorioAlertas
+from api.auth.admin_supabase import asegurar_usuario_auth
 from api.config import Configuracion
 from api.deps import (
     UsuarioActual,
@@ -202,7 +203,12 @@ async def listar_usuarios(_: Equipo, repo: Repo) -> list[dict[str, Any]]:
 
 
 @router.post("/usuarios", status_code=status.HTTP_201_CREATED)
-async def guardar_usuario(cuerpo: UsuarioNuevo, _: Equipo, repo: Repo) -> dict[str, str]:
+async def guardar_usuario(
+    cuerpo: UsuarioNuevo,
+    _: Equipo,
+    repo: Repo,
+    config: Annotated[Configuracion, Depends(obtener_config_app)],
+) -> dict[str, str]:
     if cuerpo.rol == "cliente" and cuerpo.cliente_id is None:
         raise HTTPException(status.HTTP_400_BAD_REQUEST, "Un usuario cliente necesita cliente_id")
     if cuerpo.rol == "equipo" and cuerpo.cliente_id is not None:
@@ -215,7 +221,9 @@ async def guardar_usuario(cuerpo: UsuarioNuevo, _: Equipo, repo: Repo) -> dict[s
         raise HTTPException(
             status.HTTP_409_CONFLICT, "Ese correo ya pertenece a otro cliente o al equipo"
         ) from e
-    return {"email": cuerpo.email.lower()}
+    # #12: también en Supabase Auth, para que pueda entrar con enlace mágico
+    auth = await asegurar_usuario_auth(config, cuerpo.email.lower())
+    return {"email": cuerpo.email.lower(), "auth": auth}
 
 
 @router.delete("/usuarios/{email}")

@@ -59,6 +59,8 @@ class Configuracion(BaseSettings):
     # Supabase Auth (errata E-05)
     supabase_url: str = ""
     supabase_jwt_secret: str = ""
+    # Admin API de Supabase Auth (#12): crear usuarios invitados. Solo en el servidor.
+    supabase_service_role_key: str = ""
 
     # pgcrypto para cuentas_conectadas.credencial_cifrada
     clave_cifrado: str = ""

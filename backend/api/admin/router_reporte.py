@@ -9,6 +9,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel, EmailStr, Field
 
 from api.admin.router import usuario_equipo
+from api.auth.admin_supabase import asegurar_usuario_auth
 from api.config import Configuracion
 from api.deps import UsuarioActual, obtener_config_app, obtener_pool, vaciar_cache_tras_escritura
 from api.etl.conector_base import hoy_en
@@ -71,6 +72,18 @@ async def invitar(
             # N-1: nunca se mueve un usuario de cliente ni se toca uno del equipo. No se dice
             # a qué cliente pertenece.
             resultados.append({"email": email, "estado": estado, "detalle": NO_INVITABLES[estado]})
+            continue
+        # #12: el enlace mágico no crea usuarios; hay que darlo de alta en Supabase Auth.
+        auth = await asegurar_usuario_auth(config, email)
+        if auth in ("sin_clave_auth", "error_auth"):
+            resultados.append(
+                {
+                    "email": email,
+                    "estado": "habilitado_sin_auth",
+                    "detalle": "habilitado en DatIO, pero no se pudo crear su acceso en Supabase "
+                    f"Auth ({auth}); no podrá pedir el enlace hasta resolverlo",
+                }
+            )
             continue
         if not cuerpo.enviar_correo:
             resultados.append({"email": email, "estado": "habilitado", "detalle": estado})

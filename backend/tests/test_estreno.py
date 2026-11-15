@@ -102,8 +102,14 @@ def test_correos_y_periodos() -> None:
 
 @requiere_db
 async def test_invitar_editor_y_aislamiento(
-    pool, cliente_a, cliente_b, usuario_equipo, config
+    pool, cliente_a, cliente_b, usuario_equipo, config, monkeypatch: pytest.MonkeyPatch
 ) -> None:  # type: ignore[no-untyped-def]
+    from api.admin import router_reporte
+
+    async def auth_ok(cfg, email, http=None):  # type: ignore[no-untyped-def]
+        return "creado"
+
+    monkeypatch.setattr(router_reporte, "asegurar_usuario_auth", auth_ok)
     plantilla = await _instancia_de_prueba(pool, cliente_a.id)
     app = crear_app(config)
     equipo = {"Authorization": f"Bearer {token_para(usuario_equipo)}"}
