@@ -9,6 +9,7 @@ from api.etl import conectores  # noqa: F401 — importa y registra los conector
 from api.etl.conector_base import ResultadoCorrida, hoy_en
 from api.etl.registro import REGISTRO, REGISTRO_PUBLICACIONES
 from api.etl.repositorio import RepositorioETL
+from api.observabilidad import limpiar_texto
 
 log = logging.getLogger(__name__)
 
@@ -61,5 +62,7 @@ async def correr_todos(
                 resumen.resultados.append(await conector.correr(hasta, provisional_desde))
             except Exception as e:
                 log.exception("Conector %s falló para cuenta %s", clase.codigo, cuenta.id)
-                resumen.errores[cuenta.id] = f"{clase.codigo}: {type(e).__name__}: {e}"
+                resumen.errores[cuenta.id] = limpiar_texto(
+                    f"{clase.codigo}: {type(e).__name__}: {e}"
+                )
     return resumen

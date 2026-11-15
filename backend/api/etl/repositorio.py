@@ -8,6 +8,8 @@ from typing import Any
 
 import asyncpg
 
+from api.observabilidad import limpiar_texto
+
 
 @dataclass(frozen=True)
 class Cuenta:
@@ -82,6 +84,10 @@ class RepositorioETL:
     async def cerrar_job(
         self, job_id: int, estado: str, filas_escritas: int, error_detalle: str | None = None
     ) -> None:
+        # Un error de red o de JSON puede citar la URL con access_token (Graph API) o un JWT:
+        # se limpia antes de guardarlo (se muestra en el admin y en las alertas).
+        if error_detalle:
+            error_detalle = limpiar_texto(error_detalle)
         await self._pool.execute(
             "UPDATE jobs_ejecucion SET estado = $2, filas_escritas = $3, error_detalle = $4, "
             "finalizado_en = NOW() WHERE id = $1",

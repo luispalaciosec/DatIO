@@ -32,3 +32,11 @@ def test_limpia_tokens_correos_y_cabeceras() -> None:
 
 def test_limpiar_texto() -> None:
     assert limpiar_texto("state=abc&code=xyz") == "state=[filtrado]&code=[filtrado]"
+
+
+def test_error_de_conector_no_guarda_tokens() -> None:
+    """Logs sin secretos: lo que llega a jobs_ejecucion y al log del cron se limpia."""
+    texto = limpiar_texto(
+        "ReadTimeout: https://graph.facebook.com/v21.0/123/insights?access_token=EAAB123&metric=x"
+    )
+    assert "EAAB123" not in texto and "metric=x" in texto
