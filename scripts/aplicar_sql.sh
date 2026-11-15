@@ -40,7 +40,7 @@ SEEDS=(
 
 aplicar() {
   echo "→ $1"
-  psql "$URL" -q -v ON_ERROR_STOP=1 -f "$1" >/dev/null
+  PGOPTIONS="-c client_min_messages=warning" psql "$URL" -q -v ON_ERROR_STOP=1 -f "$1" >/dev/null
 }
 
 excluida() {

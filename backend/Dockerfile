@@ -1,8 +1,11 @@
 FROM python:3.12-slim
 WORKDIR /app
-COPY pyproject.toml ./
+# #20: dependencias fijadas con hashes (requirements.lock, generado con pip-compile
+# --generate-hashes desde pyproject.toml). El paquete propio va sin resolver dependencias.
+COPY pyproject.toml requirements.lock ./
 COPY api ./api
-RUN pip install --no-cache-dir . \
+RUN pip install --no-cache-dir --require-hashes -r requirements.lock \
+ && pip install --no-cache-dir --no-deps . \
  && playwright install --with-deps chromium \
  && rm -rf /var/lib/apt/lists/*
 # #11: --proxy-headers hace que request.client sea la IP real que informa el proxy de Railway

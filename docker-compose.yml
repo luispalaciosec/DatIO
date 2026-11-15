@@ -9,9 +9,10 @@ services:
       POSTGRES_DB: datio
     ports: ["5432:5432"]
     volumes:
-      - ./sql/001_schema_inicial.sql:/docker-entrypoint-initdb.d/001_schema_inicial.sql:ro
-      - ./sql/002_usuarios_llm_uso.sql:/docker-entrypoint-initdb.d/002_usuarios_llm_uso.sql:ro
-      - ./sql/seeds/metricas.sql:/docker-entrypoint-initdb.d/900_seed_metricas.sql:ro
+      # Mismo SQL que CI (scripts/aplicar_sql.sh): todas las migraciones compatibles + seeds.
+      - ./sql:/datio/sql:ro
+      - ./scripts:/datio/scripts:ro
+      - ./scripts/docker-initdb.sh:/docker-entrypoint-initdb.d/001_datio.sh:ro
       - pgdata:/var/lib/postgresql/data
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U datio"]
