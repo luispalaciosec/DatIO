@@ -57,18 +57,44 @@ def _buscar(conjunto: PyJWKSet, kid: str | None) -> PyJWK:
 _jwks = _CacheJWKS()
 
 
+# S-2: métodos de inicio de sesión de Supabase (claim `amr`) que prueban que quien entra
+# controla el correo: enlace mágico / código por correo y OAuth (Google verifica el correo).
+METODOS_QUE_VERIFICAN_CORREO = frozenset({"otp", "magiclink", "oauth"})
+
+
+def correo_verificado(claims: dict[str, Any]) -> bool:
+    """True si el token prueba que el correo del claim `email` está verificado.
+
+    Supabase emite, según el método: `amr` con el método de login, `email_verified` en la raíz
+    (versiones recientes) y `user_metadata.email_verified` (OAuth). Un usuario anónimo o un
+    registro con contraseña sin confirmar no pasa."""
+    if claims.get("is_anonymous") is True:
+        return False
+    if claims.get("email_verified") is True:
+        return True
+    metadatos = claims.get("user_metadata")
+    if isinstance(metadatos, dict) and metadatos.get("email_verified") is True:
+        return True
+    amr = claims.get("amr")
+    if isinstance(amr, list):
+        metodos = {str(m.get("method")) for m in amr if isinstance(m, dict)}
+        return bool(metodos & METODOS_QUE_VERIFICAN_CORREO)
+    return False
+
+
 def verificar_token(token: str, config: Configuracion) -> dict[str, Any]:
     try:
         cabecera = jwt.get_unverified_header(token)
         if cabecera.get("alg") == "HS256":
             if not config.supabase_jwt_secret:
-                raise TokenInvalidoError("Token HS256 pero SUPABASE_JWT_SECRET no está configurado")
+                # El detalle (qué variable falta) va al log en deps.usuario_actual (B-11)
+                raise TokenInvalidoError("Falta la configuración para validar tokens HS256")
             claims: dict[str, Any] = jwt.decode(
                 token, config.supabase_jwt_secret, algorithms=["HS256"], audience=AUDIENCIA
             )
             return claims
         if not config.supabase_url:
-            raise TokenInvalidoError("SUPABASE_URL no está configurado")
+            raise TokenInvalidoError("Falta la configuración para validar tokens firmados")
         clave = _jwks.clave(config.supabase_url, cabecera.get("kid"))
         claims = jwt.decode(token, clave.key, algorithms=ALGORITMOS_ASIMETRICOS, audience=AUDIENCIA)
         return claims

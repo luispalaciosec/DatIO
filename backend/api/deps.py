@@ -9,7 +9,7 @@ import asyncpg
 from fastapi import Depends, Header, HTTPException, Request, status
 
 from api.auth.repositorio import RepositorioAuth
-from api.auth.supabase import TokenInvalidoError, verificar_token
+from api.auth.supabase import TokenInvalidoError, correo_verificado, verificar_token
 from api.config import Configuracion
 from api.consulta.repositorio import Instancia, RepositorioConsulta
 from api.pdf.render import RenderInvalidoError, verificar_token_render
@@ -66,11 +66,18 @@ async def usuario_actual(
                 )
             except RenderInvalidoError:
                 pass
-        raise HTTPException(status.HTTP_401_UNAUTHORIZED, str(e)) from e
+        # B-11: al cliente, mensaje genérico; el motivo concreto solo al log.
+        log.info("token rechazado: %s", e)
+        raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Token inválido o vencido") from e
 
     email = str(claims.get("email") or "").lower()
     if not email:
         raise HTTPException(status.HTTP_401_UNAUTHORIZED, "El token no contiene email")
+    # S-2: toda la autorización (incluido el rol 'equipo') depende del correo: tiene que estar
+    # verificado por Supabase.
+    if not correo_verificado(claims):
+        log.warning("token con correo no verificado rechazado: %s", email)
+        raise HTTPException(status.HTTP_401_UNAUTHORIZED, "El correo no está verificado")
 
     usuario = await repo.usuario_por_email(email)
     if usuario is None:
