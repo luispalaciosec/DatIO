@@ -127,15 +127,27 @@ React + Vite + TypeScript + Recharts · Railway (API y cron) · Vercel (frontend
 
 ```bash
 cd backend
-python3 -m venv .venv && .venv/bin/pip install -e ".[dev]"
-cp .env.example .env            # DATABASE_URL (pooler de Supabase, puerto 5432) y secretos
+python3.12 -m venv .venv
+.venv/bin/pip install --require-hashes -r requirements-dev.lock && .venv/bin/pip install --no-deps -e .
+cp .env.example .env            # DATABASE_URL y secretos (los tests NUNCA leen este archivo)
 .venv/bin/uvicorn api.main:app --port 8000
-.venv/bin/ruff check . && .venv/bin/mypy && .venv/bin/pytest -q   # tests de base solo con DATABASE_URL
+
+# Tests: con una base desechable (nunca producción). Con Docker: docker compose up db.
+# Sin Docker: cualquier Postgres 17 local y el mismo SQL que usa CI:
+../scripts/aplicar_sql.sh postgresql://usuario@localhost:5432/datio_pruebas
+DATABASE_URL=postgresql://usuario@localhost:5432/datio_pruebas .venv/bin/pytest -q
+.venv/bin/ruff check . && .venv/bin/ruff format --check . && .venv/bin/mypy
 
 cd ../frontend
-cp .env.example .env            # VITE_API_URL, VITE_SUPABASE_URL, VITE_SUPABASE_KEY
-npm install && npx vite --port 5174
+cp .env.example .env            # VITE_API_URL, VITE_SUPABASE_URL, VITE_SUPABASE_KEY (+ opcionales)
+npm ci && npx vite --port 5174
+npx tsc --noEmit && npx vitest run && npm audit --audit-level=moderate
 ```
+
+Dependencias Python: `pyproject.toml` declara rangos y `requirements.lock` /
+`requirements-dev.lock` fijan versiones con hashes (`pip-compile --generate-hashes
+--strip-extras --allow-unsafe [--extra dev] pyproject.toml`). Dependabot propone las
+actualizaciones; CI (`backend`, `frontend`) audita y corre todo.
 
 Estructura del monorepo:
 
@@ -147,7 +159,7 @@ Estructura del monorepo:
 | `backend/api/alertas/`, `prediccion/`, `puente/`, `narrativa/`, `reportes/` | Anomalías y correo diario, pacing y evaluación, puente CRM, narrativa, invitaciones y envío mensual |
 | `backend/api/pdf/`, `llm/`, `datos/` | Export PDF, router LLM (`llm_uso`), explorador de datos |
 | `frontend/src/reporte/`, `bloques/`, `admin/` | Renderer white-label, biblioteca de bloques, administración |
-| `sql/` | `001` esquema canónico (no se edita), migraciones `002`–`014` y `seeds/` (métricas y plantilla) |
+| `sql/` | `001` esquema canónico (no se edita), migraciones `002`–`016` y `seeds/` (métricas y plantilla). `scripts/aplicar_sql.sh` aplica todo en orden (excluye las que dependen de auth/storage de Supabase: 003, 011, 016) |
 | `spec/` | Especificación original |
 
 Migraciones nuevas: `sql/0NN_<descripcion>.sql`, aplicadas en Supabase (panel SQL o MCP) y
