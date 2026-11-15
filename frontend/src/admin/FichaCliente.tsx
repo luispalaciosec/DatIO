@@ -270,7 +270,7 @@ function Marca({ cliente, alGuardar }: { cliente: ClienteDetalle; alGuardar: () 
             </label>
           </div>
         ))}
-        <p className="sutil">Logo: PNG o SVG con fondo transparente, cuadrado o apaisado. Banner: JPG apaisado, mínimo 1600 px de ancho. Máximo 5 MB.</p>
+        <p className="sutil">Logo: PNG o WebP con fondo transparente, cuadrado o apaisado (SVG no se acepta). Banner: JPG o WebP apaisado, mínimo 1600 px de ancho. Máximo 5 MB.</p>
         <div className="previa-tema" style={{ background: `linear-gradient(135deg, ${t.color_primario}, ${t.color_secundario})` }}>
           <span style={{ fontFamily: t.fuente_titulos }}>Así se ven las tarjetas héroe</span>
         </div>
