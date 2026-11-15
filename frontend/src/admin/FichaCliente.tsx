@@ -404,6 +404,7 @@ function UsuariosCliente({ cliente, alGuardar }: { cliente: ClienteDetalle; alGu
   const [aviso, setAviso] = useState<TextoAviso>(null);
   const [conCorreo, setConCorreo] = useState(true);
   const TEXTO: Record<string, string> = { invitado: "invitación enviada", habilitado: "acceso habilitado" };
+  const DETALLE: Record<string, string> = { reinvitado: "ya tenía acceso", reactivado: "estaba desactivado y se reactivó" };
   async function agregar(e: React.FormEvent) {
     e.preventDefault();
     const emails = email.split(/[\s,;]+/).map((x) => x.trim()).filter(Boolean);
@@ -412,8 +413,9 @@ function UsuariosCliente({ cliente, alGuardar }: { cliente: ClienteDetalle; alGu
       setEmail("");
       setAviso(r.resultados.map((x) => {
         if (x.estado === "habilitado_sin_correo") return `${x.email}: acceso habilitado, pero el correo no salió (${x.detalle ?? "sin detalle"})`;
-        if (x.estado === "omitido") return `${x.email}: omitido (${x.detalle})`;
-        return `${x.email}: ${TEXTO[x.estado] ?? x.estado}`;
+        if (x.estado === "pertenece_a_otro_cliente" || x.estado === "es_equipo") return `${x.email}: no se invitó, ${x.detalle}`;
+        const extra = x.detalle && DETALLE[x.detalle] ? ` (${DETALLE[x.detalle]})` : "";
+        return `${x.email}: ${TEXTO[x.estado] ?? x.estado}${extra}`;
       }).join(" · "));
       alGuardar();
     } catch (err) { setAviso({ error: (err as ErrorApi).message }); }

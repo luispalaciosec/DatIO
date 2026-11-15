@@ -39,6 +39,12 @@ async def _instancia(repo: RepositorioReportes, cliente_id: int) -> dict[str, An
     return inst
 
 
+NO_INVITABLES = {
+    "pertenece_a_otro_cliente": "ya es usuario de otro cliente; no se cambió",
+    "es_equipo": "es del equipo",
+}
+
+
 class Invitacion(BaseModel):
     emails: list[EmailStr] = Field(min_length=1, max_length=20)
     enviar_correo: bool = True
@@ -55,12 +61,14 @@ async def invitar(
     resultados: list[dict[str, str | None]] = []
     for crudo in cuerpo.emails:
         email = crudo.lower()
-        if await repo.rol_de(email) == "equipo":
-            resultados.append({"email": email, "estado": "omitido", "detalle": "es del equipo"})
+        estado = await repo.invitar(cliente_id, email)
+        if estado in NO_INVITABLES:
+            # N-1: nunca se mueve un usuario de cliente ni se toca uno del equipo. No se dice
+            # a qué cliente pertenece.
+            resultados.append({"email": email, "estado": estado, "detalle": NO_INVITABLES[estado]})
             continue
-        await repo.invitar(cliente_id, email)
         if not cuerpo.enviar_correo:
-            resultados.append({"email": email, "estado": "habilitado", "detalle": None})
+            resultados.append({"email": email, "estado": "habilitado", "detalle": estado})
             continue
         ok, error = await enviar(
             config,
@@ -72,7 +80,7 @@ async def invitar(
             {
                 "email": email,
                 "estado": "invitado" if ok else "habilitado_sin_correo",
-                "detalle": error,
+                "detalle": error if not ok else (estado if estado != "creado" else None),
             }
         )
     return {"url": url, "resultados": resultados}

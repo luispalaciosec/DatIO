@@ -132,7 +132,7 @@ async def test_invitar_editor_y_aislamiento(
             assert r.status_code == 200
             por = {x["email"]: x for x in r.json()["resultados"]}
             assert por[correo]["estado"] in ("invitado", "habilitado_sin_correo")
-            assert por[del_equipo]["estado"] == "omitido"  # nunca degrada a alguien del equipo
+            assert por[del_equipo]["estado"] == "es_equipo"  # nunca degrada a alguien del equipo
             fila = await pool.fetchrow(
                 "SELECT rol, cliente_id, invitado_en FROM usuarios WHERE email = $1", correo
             )

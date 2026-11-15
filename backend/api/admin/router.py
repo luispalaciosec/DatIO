@@ -7,7 +7,7 @@ import asyncpg
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel, EmailStr, Field
 
-from api.admin.repositorio import RepositorioAdmin
+from api.admin.repositorio import RepositorioAdmin, UsuarioDeOtroClienteError
 from api.alertas.repositorio import RepositorioAlertas
 from api.config import Configuracion
 from api.deps import UsuarioActual, obtener_config_app, obtener_pool, usuario_actual
@@ -198,7 +198,12 @@ async def guardar_usuario(cuerpo: UsuarioNuevo, _: Equipo, repo: Repo) -> dict[s
         raise HTTPException(status.HTTP_400_BAD_REQUEST, "Un usuario de equipo no lleva cliente_id")
     if cuerpo.cliente_id is not None and await repo.cliente(cuerpo.cliente_id) is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Cliente no encontrado")
-    await repo.guardar_usuario(cuerpo.email.lower(), cuerpo.rol, cuerpo.cliente_id)
+    try:
+        await repo.guardar_usuario(cuerpo.email.lower(), cuerpo.rol, cuerpo.cliente_id)
+    except UsuarioDeOtroClienteError as e:
+        raise HTTPException(
+            status.HTTP_409_CONFLICT, "Ese correo ya pertenece a otro cliente o al equipo"
+        ) from e
     return {"email": cuerpo.email.lower()}
 
 
