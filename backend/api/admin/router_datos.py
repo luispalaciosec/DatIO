@@ -7,8 +7,8 @@ from datetime import date
 from typing import Annotated, Any
 
 import asyncpg
-from fastapi import APIRouter, Depends, HTTPException, Response, status
-from pydantic import BaseModel, Field
+from fastapi import APIRouter, Depends, Response
+from pydantic import BaseModel, Field, model_validator
 
 from api.admin.router import usuario_equipo
 from api.datos.repositorio import RepositorioDatos
@@ -33,6 +33,25 @@ class Consulta(BaseModel):
     granularidad: str = Field(default="dia", pattern="^(dia|semana|mes|total)$")
     dimension: str | None = None
     limite: int = Field(default=5000, ge=1, le=50000)
+
+    @model_validator(mode="after")
+    def _rango_valido(self) -> "Consulta":
+        # B-9: vale para la consulta en pantalla y para el CSV
+        if self.hasta < self.desde:
+            raise ValueError("El rango de fechas es inválido: hasta es anterior a desde")
+        return self
+
+
+# S-4: una celda de texto que empieza con estos caracteres la interpreta como fórmula una hoja
+# de cálculo al abrir el CSV. Se antepone un apóstrofo. Los números reales (float/int) no se
+# tocan, así que los valores negativos siguen siendo números.
+INICIO_FORMULA = ("=", "+", "-", "@", "\t", "\r")
+
+
+def celda_segura(valor: Any) -> Any:
+    if isinstance(valor, str) and valor.startswith(INICIO_FORMULA):
+        return "'" + valor
+    return valor
 
 
 @router.get("/catalogo")
@@ -65,8 +84,6 @@ def pivotar(
 
 @router.post("/consulta")
 async def consultar(cuerpo: Consulta, _: Equipo, repo: Repo) -> dict[str, Any]:
-    if cuerpo.hasta < cuerpo.desde:
-        raise HTTPException(status.HTTP_400_BAD_REQUEST, "El rango de fechas es inválido")
     filas = await repo.consultar(
         cuerpo.cuentas,
         cuerpo.metricas,
@@ -95,10 +112,10 @@ async def consultar_csv(cuerpo: Consulta, _: Equipo, repo: Repo) -> Response:
     nombres = await repo.nombres_cuentas(cuerpo.cuentas)
     columnas, tabla = pivotar(filas, cuerpo.metricas, nombres)
     buffer = io.StringIO()
-    w = csv.DictWriter(buffer, fieldnames=columnas, extrasaction="ignore")
-    w.writeheader()
+    w = csv.writer(buffer)
+    w.writerow([celda_segura(c) for c in columnas])
     for fila in tabla:
-        w.writerow(fila)
+        w.writerow([celda_segura(fila.get(c)) for c in columnas])
     nombre = f"datio_{cuerpo.desde}_{cuerpo.hasta}.csv"
     return Response(
         content="﻿" + buffer.getvalue(),
