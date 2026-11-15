@@ -21,7 +21,7 @@ RAIZ="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 EXCLUIR=(
   003_storage_marcas.sql
   011_endurecer_acceso.sql
-  015_storage_marcas_sin_svg.sql
+  016_storage_marcas_sin_svg.sql
 )
 
 # Orden de los seeds: métricas primero; la plantilla base antes que sus extensiones;

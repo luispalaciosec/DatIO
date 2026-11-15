@@ -210,15 +210,21 @@ function Crm({ cliente, alGuardar }: { cliente: ClienteDetalle; alGuardar: () =>
   );
 }
 
+const EXTENSION_IMAGEN: Record<string, string> = { "image/png": "png", "image/jpeg": "jpg", "image/webp": "webp" };
+
 function Marca({ cliente, alGuardar }: { cliente: ClienteDetalle; alGuardar: () => void }) {
   const [t, setT] = useState<TemaAdmin>(cliente.tema);
   const [aviso, setAviso] = useState<TextoAviso>(null);
   const [subiendo, setSubiendo] = useState<string | null>(null);
 
   async function subir(campo: "logo_url" | "banner_url", archivo: File) {
+    // S-7/#16: solo PNG, JPEG o WebP (el bucket es público; SVG puede llevar scripts). La
+    // extensión sale del tipo validado y la ruta no usa el nombre que eligió el usuario.
+    const ext = EXTENSION_IMAGEN[archivo.type];
+    if (!ext) { setAviso({ error: "Formato no permitido: sube un PNG, JPG o WebP." }); return; }
+    if (archivo.size > 5 * 1024 * 1024) { setAviso({ error: "La imagen pesa más de 5 MB." }); return; }
     setSubiendo(campo);
-    const ext = archivo.name.split(".").pop()?.toLowerCase() ?? "png";
-    const ruta = `${cliente.slug}/${campo === "logo_url" ? "logo" : "banner"}-${Date.now()}.${ext}`;
+    const ruta = `${encodeURIComponent(cliente.slug)}/${campo === "logo_url" ? "logo" : "banner"}-${Date.now()}.${ext}`;
     const { error } = await supabase.storage.from("marcas").upload(ruta, archivo, { upsert: true, contentType: archivo.type });
     setSubiendo(null);
     if (error) { setAviso({ error: `No se pudo subir: ${error.message}` }); return; }
@@ -260,7 +266,7 @@ function Marca({ cliente, alGuardar }: { cliente: ClienteDetalle; alGuardar: () 
             </div>
             <label className="boton-pdf archivo">
               {subiendo === campo ? "Subiendo…" : campo === "logo_url" ? "Subir logo" : "Subir banner"}
-              <input type="file" accept="image/png,image/jpeg,image/svg+xml,image/webp" hidden onChange={(e) => e.target.files?.[0] && subir(campo, e.target.files[0])} />
+              <input type="file" accept="image/png,image/jpeg,image/webp" hidden onChange={(e) => e.target.files?.[0] && subir(campo, e.target.files[0])} />
             </label>
           </div>
         ))}
