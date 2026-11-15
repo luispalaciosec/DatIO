@@ -248,7 +248,7 @@ sesión `META_LOGIN_CONFIG_ID` definida en la app de Meta):
 | Google | `webmasters.readonly` | Search Console | Sí |
 | Google | `youtube.readonly`, `yt-analytics.readonly` | Canal y estadísticas de YouTube | Sí |
 | Google | `business.manage` | Estadísticas y reseñas del perfil de empresa | No en teoría: Google no ofrece variante de solo lectura. El código solo lee |
-| Meta | `pages_show_list`, `pages_read_engagement`, `pages_read_user_content`, `read_insights`, `instagram_basic`, `instagram_manage_insights`, `ads_read`, `business_management` | Páginas, Instagram y cuentas publicitarias, solo estadísticas | Sí (lectura de insights) |
+| Meta | Los de la configuración de inicio de sesión (`META_LOGIN_CONFIG_ID`) en el panel de la app de Meta; no están en el código. **Verificar en el panel** que sean solo de lectura de páginas, Instagram, insights y anuncios | Páginas, Instagram y cuentas publicitarias, solo estadísticas | Debe serlo: el código solo hace GET al Graph API |
 
 `LINKEDIN_SCOPES` en el entorno solo acepta valores de la lista blanca
 `LINKEDIN_SCOPES_PERMITIDOS` (`backend/api/config.py`); cualquier otro detiene el arranque.
