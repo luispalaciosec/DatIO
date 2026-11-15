@@ -1,5 +1,6 @@
 """Dependencias de FastAPI (PT-07). cliente_id se deriva SIEMPRE del token."""
 
+import logging
 from dataclasses import dataclass
 from typing import Annotated
 
@@ -9,7 +10,10 @@ from fastapi import Depends, Header, HTTPException, Request, status
 from api.auth.repositorio import RepositorioAuth
 from api.auth.supabase import TokenInvalidoError, verificar_token
 from api.config import Configuracion
+from api.consulta.repositorio import Instancia, RepositorioConsulta
 from api.pdf.render import RenderInvalidoError, verificar_token_render
+
+log = logging.getLogger(__name__)
 
 
 def obtener_config_app(request: Request) -> Configuracion:
@@ -93,3 +97,44 @@ async def cliente_autorizado(
     if not usuario.es_equipo and usuario.cliente_id != cliente.id:
         raise HTTPException(status.HTTP_403_FORBIDDEN, "Sin acceso a este cliente")
     return cliente.id
+
+
+# ---- acceso a un reporte (S-1): UNA regla para /reportes/{slug}, /consulta y el PDF -------
+
+
+def autorizar_instancia(
+    usuario: UsuarioActual, instancia: Instancia | None, pedida: str
+) -> Instancia:
+    """404 si el reporte no existe; 403 si es de otro cliente o si su cliente está desactivado
+    (Términos §9: al desactivar se revocan los accesos). Cada 403 queda en el log, sin token."""
+    if instancia is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Reporte no encontrado")
+    ajeno = not usuario.es_equipo and usuario.cliente_id != instancia.cliente_id
+    if ajeno or not instancia.cliente_activo:
+        log.warning(
+            "acceso denegado a reporte: usuario=%s rol=%s instancia=%s motivo=%s",
+            usuario.email,
+            usuario.rol,
+            pedida,
+            "cliente_inactivo" if not instancia.cliente_activo else "otro_cliente",
+        )
+        raise HTTPException(status.HTTP_403_FORBIDDEN, "Sin acceso a este reporte")
+    return instancia
+
+
+async def instancia_autorizada(
+    slug_publico: str,
+    usuario: Annotated[UsuarioActual, Depends(usuario_actual)],
+    pool: Annotated[asyncpg.Pool, Depends(obtener_pool)],
+) -> Instancia:
+    """Instancia de la ruta /reportes/{slug_publico}..., ya autorizada para el usuario."""
+    instancia = await RepositorioConsulta(pool).instancia_por_slug(slug_publico)
+    return autorizar_instancia(usuario, instancia, f"slug:{slug_publico}")
+
+
+async def instancia_autorizada_por_id(
+    instancia_id: int, usuario: UsuarioActual, pool: asyncpg.Pool
+) -> Instancia:
+    """Igual que instancia_autorizada, para POST /consulta (el id viene en el cuerpo)."""
+    instancia = await RepositorioConsulta(pool).instancia_por_id(instancia_id)
+    return autorizar_instancia(usuario, instancia, f"id:{instancia_id}")

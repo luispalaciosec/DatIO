@@ -30,6 +30,7 @@ class Instancia:
     plantilla_id: int
     nombre_publico: str | None
     slug_publico: str
+    cliente_activo: bool = True
 
 
 @dataclass(frozen=True)
@@ -114,16 +115,18 @@ class RepositorioConsulta:
 
     async def instancia_por_slug(self, slug_publico: str) -> Instancia | None:
         f = await self._pool.fetchrow(
-            "SELECT id, cliente_id, plantilla_id, nombre_publico, slug_publico "
-            "FROM reporte_instancias WHERE slug_publico = $1 AND activa",
+            "SELECT i.id, i.cliente_id, i.plantilla_id, i.nombre_publico, i.slug_publico, "
+            "c.activo FROM reporte_instancias i JOIN clientes c ON c.id = i.cliente_id "
+            "WHERE i.slug_publico = $1 AND i.activa",
             slug_publico,
         )
         return Instancia(*f) if f else None
 
     async def instancia_por_id(self, instancia_id: int) -> Instancia | None:
         f = await self._pool.fetchrow(
-            "SELECT id, cliente_id, plantilla_id, nombre_publico, slug_publico "
-            "FROM reporte_instancias WHERE id = $1 AND activa",
+            "SELECT i.id, i.cliente_id, i.plantilla_id, i.nombre_publico, i.slug_publico, "
+            "c.activo FROM reporte_instancias i JOIN clientes c ON c.id = i.cliente_id "
+            "WHERE i.id = $1 AND i.activa",
             instancia_id,
         )
         return Instancia(*f) if f else None
