@@ -10,13 +10,18 @@ from pydantic import BaseModel, EmailStr, Field
 
 from api.admin.router import usuario_equipo
 from api.config import Configuracion
-from api.deps import UsuarioActual, obtener_config_app, obtener_pool
+from api.deps import UsuarioActual, obtener_config_app, obtener_pool, vaciar_cache_tras_escritura
 from api.etl.conector_base import hoy_en
 from api.reportes.correo import enviar, html_invitacion
 from api.reportes.envio import COLOR_DEFECTO, enviar_reporte, mes_anterior
 from api.reportes.repositorio import RepositorioReportes
 
-router = APIRouter(prefix="/admin", tags=["admin-reporte"])
+router = APIRouter(
+    prefix="/admin",
+    tags=["admin-reporte"],
+    # B-7: las ediciones se ven en /consulta en la petición siguiente
+    dependencies=[Depends(vaciar_cache_tras_escritura)],
+)
 
 # Claves de config que el editor puede sobreescribir por cliente (lista blanca)
 EDITABLES = {"titulo", "bajada", "etiqueta", "etiqueta_propio", "objetivo", "limite", "ia", "items"}

@@ -1,6 +1,7 @@
 """Dependencias de FastAPI (PT-07). cliente_id se deriva SIEMPRE del token."""
 
 import logging
+from collections.abc import AsyncIterator
 from dataclasses import dataclass
 from typing import Annotated
 
@@ -35,6 +36,7 @@ class UsuarioActual:
     email: str
     rol: str  # 'cliente' | 'equipo'
     cliente_id: int | None
+    es_render: bool = False  # token de render de Playwright (PT-11), no una persona
 
     @property
     def es_equipo(self) -> bool:
@@ -57,7 +59,10 @@ async def usuario_actual(
             try:
                 principal = verificar_token_render(token, config)
                 return UsuarioActual(
-                    email="render@datio", rol="cliente", cliente_id=principal.cliente_id
+                    email="render@datio",
+                    rol="cliente",
+                    cliente_id=principal.cliente_id,
+                    es_render=True,
                 )
             except RenderInvalidoError:
                 pass
@@ -138,3 +143,14 @@ async def instancia_autorizada_por_id(
     """Igual que instancia_autorizada, para POST /consulta (el id viene en el cuerpo)."""
     instancia = await RepositorioConsulta(pool).instancia_por_id(instancia_id)
     return autorizar_instancia(usuario, instancia, f"id:{instancia_id}")
+
+
+async def vaciar_cache_tras_escritura(request: Request) -> AsyncIterator[None]:
+    """Dependencia de los routers del admin: tras cualquier escritura (no GET) vacía la cache
+    de /consulta de este proceso para que la edición se vea en la petición siguiente (B-7).
+    Los demás procesos la ven por config_version (sql/015) en <= 60 s."""
+    yield
+    if request.method not in ("GET", "HEAD", "OPTIONS"):
+        cache = getattr(request.app.state, "cache", None)
+        if cache is not None:
+            cache.vaciar()

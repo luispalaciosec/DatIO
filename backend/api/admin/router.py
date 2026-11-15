@@ -10,9 +10,20 @@ from pydantic import BaseModel, EmailStr, Field
 from api.admin.repositorio import RepositorioAdmin, UsuarioDeOtroClienteError
 from api.alertas.repositorio import RepositorioAlertas
 from api.config import Configuracion
-from api.deps import UsuarioActual, obtener_config_app, obtener_pool, usuario_actual
+from api.deps import (
+    UsuarioActual,
+    obtener_config_app,
+    obtener_pool,
+    usuario_actual,
+    vaciar_cache_tras_escritura,
+)
 
-router = APIRouter(prefix="/admin", tags=["admin"])
+router = APIRouter(
+    prefix="/admin",
+    tags=["admin"],
+    # B-7: las ediciones se ven en /consulta en la petición siguiente
+    dependencies=[Depends(vaciar_cache_tras_escritura)],
+)
 RE_SLUG = re.compile(r"^[a-z0-9]+(?:-[a-z0-9]+)*$")
 
 

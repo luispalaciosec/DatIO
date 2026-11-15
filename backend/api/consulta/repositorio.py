@@ -44,11 +44,14 @@ class RepositorioConsulta:
         self._pool = pool
 
     async def generacion_datos(self) -> str:
-        """Marca de la última captura cerrada; cambia cuando el ETL escribe algo nuevo."""
-        v = await self._pool.fetchval(
-            "SELECT max(finalizado_en) FROM jobs_ejecucion WHERE estado <> 'corriendo'"
+        """Marca para invalidar la cache de /consulta: cambia cuando el ETL cierra una captura
+        o cuando se edita cualquier configuración que afecta respuestas (B-7, sql/015)."""
+        f = await self._pool.fetchrow(
+            "SELECT (SELECT max(finalizado_en) FROM jobs_ejecucion WHERE estado <> 'corriendo') "
+            "AS etl, (SELECT version FROM config_version WHERE id = 1) AS config"
         )
-        return v.isoformat() if v else ""
+        etl = f["etl"].isoformat() if f and f["etl"] else ""
+        return f"{etl}|{f['config'] if f else ''}"
 
     @property
     def pool(self) -> asyncpg.Pool:

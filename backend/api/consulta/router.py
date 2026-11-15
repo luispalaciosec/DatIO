@@ -51,6 +51,10 @@ async def resolver_bloque(
         raise HTTPException(status.HTTP_400_BAD_REQUEST, "El rango de fechas es inválido")
     instancia = await instancia_autorizada_por_id(req.instancia_id, usuario, pool)
 
+    # El PDF (token de render) siempre consulta datos y configuración frescos: es lo que se
+    # envía al cliente y no puede salir con una edición vieja (B-7).
+    if usuario.es_render:
+        cache = None
     # El acceso ya se verificó: la clave no incluye al usuario porque la respuesta es la misma
     # para todo el que puede ver este reporte.
     clave = (

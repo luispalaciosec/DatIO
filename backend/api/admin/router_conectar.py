@@ -11,9 +11,14 @@ from api.admin import conectar
 from api.admin.repositorio import CuentaDeOtroClienteError, RepositorioAdmin
 from api.admin.router import usuario_equipo
 from api.config import Configuracion
-from api.deps import UsuarioActual, obtener_config_app, obtener_pool
+from api.deps import UsuarioActual, obtener_config_app, obtener_pool, vaciar_cache_tras_escritura
 
-router = APIRouter(prefix="/admin", tags=["admin-conectar"])
+router = APIRouter(
+    prefix="/admin",
+    tags=["admin-conectar"],
+    # B-7: las ediciones se ven en /consulta en la petición siguiente
+    dependencies=[Depends(vaciar_cache_tras_escritura)],
+)
 
 
 def _repo(pool: Annotated[asyncpg.Pool, Depends(obtener_pool)]) -> RepositorioAdmin:
