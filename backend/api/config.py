@@ -141,6 +141,9 @@ class Configuracion(BaseSettings):
     # Cache de /consulta (PT-12). 0 = desactivada.
     cache_ttl_seg: int = 900
 
+    # Sentry (errores). Vacío = apagado. Ver api/observabilidad.py
+    sentry_dsn: str = ""
+
     # Seguridad: peticiones por IP y minuto antes de responder 429
     limite_peticiones_min: int = 600
 

@@ -11,7 +11,7 @@
         { "key": "Permissions-Policy", "value": "camera=(), microphone=(), geolocation=(), payment=()" },
         {
           "key": "Content-Security-Policy",
-          "value": "default-src 'self'; script-src 'self' https://challenges.cloudflare.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: blob: https:; connect-src 'self' https://datio-production.up.railway.app https://bjsptjmmdpaoxgaycbyw.supabase.co wss://bjsptjmmdpaoxgaycbyw.supabase.co; frame-src https://challenges.cloudflare.com; frame-ancestors 'none'; base-uri 'self'; form-action 'self' https://accounts.google.com https://bjsptjmmdpaoxgaycbyw.supabase.co; object-src 'none'; upgrade-insecure-requests"
+          "value": "default-src 'self'; script-src 'self' https://challenges.cloudflare.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: blob: https:; connect-src 'self' https://datio-production.up.railway.app https://bjsptjmmdpaoxgaycbyw.supabase.co wss://bjsptjmmdpaoxgaycbyw.supabase.co https://*.ingest.sentry.io https://*.ingest.us.sentry.io https://challenges.cloudflare.com; frame-src https://challenges.cloudflare.com; frame-ancestors 'none'; base-uri 'self'; form-action 'self' https://accounts.google.com https://bjsptjmmdpaoxgaycbyw.supabase.co; object-src 'none'; upgrade-insecure-requests"
         }
       ]
     }
