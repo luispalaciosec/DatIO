@@ -296,7 +296,7 @@ function Cuentas({ cliente, catalogos, alGuardar }: { cliente: ClienteDetalle; c
     }).catch((e: ErrorApi) => setAviso({ error: e.message }));
   }, [conexionId]);
 
-  async function conectar(proveedor: "meta" | "google" | "linkedin") {
+  async function conectar(proveedor: "meta" | "google" | "linkedin" | "tiktok") {
     try {
       const { url } = await api.admin.iniciarConexion(proveedor, cliente.id);
       window.location.href = url;
@@ -326,7 +326,7 @@ function Cuentas({ cliente, catalogos, alGuardar }: { cliente: ClienteDetalle; c
     ga4: "Property ID numérico de GA4. Dar acceso de lectura al Service Account de DatIO.",
     gsc: "siteUrl exacto de Search Console: https://dominio.com/ o sc-domain:dominio.com",
     linkedin: "URN de la página: urn:li:organization:123456. Usa «Conectar con LinkedIn» para que la cuenta tenga su token (conector nativo); sin token sigue dependiendo del puente Metricool.",
-    tiktok: "Usuario de TikTok tal como aparece en Metricool.",
+    tiktok: "open_id de la cuenta. Usa «Conectar con TikTok» para que la cuenta tenga su token (conector nativo); sin token sigue dependiendo del puente Metricool.",
     youtube: "ID del canal (UC...). Conector pendiente.",
     google_ads: "Customer ID sin guiones. Conector pendiente.",
     app_store: "Apple ID de la app (número, en App Store Connect → App Information). Credencial: JSON {\"issuer_id\",\"key_id\",\"private_key\",\"vendor_number\"} de una clave de API con rol Sales and Reports.",
@@ -356,7 +356,7 @@ function Cuentas({ cliente, catalogos, alGuardar }: { cliente: ClienteDetalle; c
           <button className="boton-conectar business" onClick={importarBusiness} title="Lista lo que administra el Business Manager de Geeks con el token de la agencia">Importar desde Business Manager</button>
           <button className="boton-conectar google" onClick={() => conectar("google")}>Google Analytics · Search Console · YouTube</button>
           <button className="boton-conectar linkedin" onClick={() => conectar("linkedin")} title="Requiere que LinkedIn apruebe Community Management API">LinkedIn</button>
-          <button className="boton-conectar pendiente" disabled title="Pendiente de aprobación de TikTok">TikTok (vía Metricool)</button>
+          <button className="boton-conectar tiktok" onClick={() => conectar("tiktok")} title="Quien conecta inicia sesión con la cuenta de TikTok de la marca (Empresa o Creador)">TikTok</button>
         </div>
         {errorRetorno && <div className="bloque-error">No se pudo conectar: {errorRetorno}</div>}
       </div>
@@ -449,7 +449,7 @@ function UsuariosCliente({ cliente, alGuardar }: { cliente: ClienteDetalle; alGu
   );
 }
 
-const NOMBRE_PROVEEDOR: Record<string, string> = { meta: "Meta", google: "Google", linkedin: "LinkedIn" };
+const NOMBRE_PROVEEDOR: Record<string, string> = { meta: "Meta", google: "Google", linkedin: "LinkedIn", tiktok: "TikTok" };
 
 function SelectorActivos({ conexion, catalogos, elegidos, setElegidos, alActivar, alCancelar }: {
   conexion: Conexion; catalogos: Catalogos | null; elegidos: Set<string>;

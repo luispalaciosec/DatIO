@@ -36,6 +36,9 @@ INSERT INTO dim_metrica (codigo, nombre_es, unidad, agregacion, es_acumulada, pr
 ('tiempo_visualizacion_seg',  'Tiempo de visualización',           'segundos',   'suma',     FALSE, TRUE,  'contenido'),
 ('duracion_vista_promedio_seg','Duración promedio de vista',       'segundos',   'promedio', FALSE, FALSE, 'contenido'),
 ('publicaciones',             'Publicaciones',                     'conteo',     'suma',     FALSE, TRUE,  'contenido'),
+-- Totales "de por vida" que algunas API solo entregan acumulados (TikTok Display API)
+('me_gusta_totales',          'Me gusta acumulados',               'conteo',     'ultimo',   TRUE,  TRUE,  'audiencia'),
+('publicaciones_totales',     'Publicaciones totales',             'conteo',     'ultimo',   TRUE,  FALSE, 'contenido'),
 ('visualizaciones_pagina',    'Visualizaciones de la página',      'conteo',     'suma',     FALSE, TRUE,  'contenido'),
 ('descargas',                  'Descargas',                         'conteo',     'suma',     FALSE, TRUE,  'apps'),
 ('actualizaciones_app',       'Actualizaciones',                   'conteo',     'suma',     FALSE, TRUE,  'apps'),
@@ -165,6 +168,13 @@ INSERT INTO map_metrica_plataforma (plataforma, metrica_nativa, metrica_codigo, 
 ('tiktok', 'new_followers',              'seguidores_nuevos',       1),
 ('tiktok', 'profile_views',              'visitas_perfil',          1),
 ('tiktok', 'engagement',                 'interacciones',           1),
+-- TikTok nativo (Display API v2): totales de la cuenta y métricas por video
+('tiktok', 'likes_count',                'me_gusta_totales',        1),
+('tiktok', 'video_count',                'publicaciones_totales',   1),
+('tiktok', 'view_count',                 'reproducciones_video',    1),
+('tiktok', 'like_count',                 'me_gusta',                1),
+('tiktok', 'comment_count',              'comentarios',             1),
+('tiktok', 'share_count',                'compartidos',             1),
 -- LinkedIn (Pages / organizationalEntityShareStatistics). engagement viene 0-1.
 ('linkedin', 'impressionCount',          'impresiones',             1),
 ('linkedin', 'uniqueImpressionsCount',   'alcance',                 1),

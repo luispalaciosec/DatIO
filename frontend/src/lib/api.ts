@@ -89,7 +89,7 @@ export const api = {
       llamar<{ id: number; handle: string }>(`/admin/clientes/${cliente_id}/competidores`, { method: "POST", body: JSON.stringify(cuerpo) }),
     borrarCompetidor: (id: number) => llamar<{ estado: string }>(`/admin/competidores/${id}`, { method: "DELETE" }),
     catalogos: () => llamar<Catalogos>("/admin/catalogos"),
-    iniciarConexion: (proveedor: "meta" | "google" | "linkedin", cliente_id: number) =>
+    iniciarConexion: (proveedor: "meta" | "google" | "linkedin" | "tiktok", cliente_id: number) =>
       llamar<{ url: string }>(`/admin/conectar/${proveedor}/iniciar?cliente_id=${cliente_id}`),
     importarBusiness: (cliente_id: number) =>
       llamar<{ conexion_id: number; activos: number }>(`/admin/conectar/meta/business?cliente_id=${cliente_id}`, { method: "POST" }),

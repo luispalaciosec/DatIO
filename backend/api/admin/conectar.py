@@ -24,7 +24,7 @@ import jwt
 from api.config import Configuracion
 
 DURACION_ESTADO = timedelta(minutes=10)
-PROVEEDORES = ("meta", "google", "linkedin")
+PROVEEDORES = ("meta", "google", "linkedin", "tiktok")
 
 # LinkedIn, Community Management API (S-3). DatIO solo LEE:
 # - r_organization_social: publicaciones de la página y sus estadísticas.
@@ -37,6 +37,13 @@ PROVEEDORES = ("meta", "google", "linkedin")
 # LINKEDIN_SCOPES en el entorno los sobreescribe, solo dentro de la lista blanca (N-2,
 # ver api/config.py LINKEDIN_SCOPES_PERMITIDOS).
 SCOPES_LINKEDIN = ("r_organization_social", "rw_organization_admin")
+
+# TikTok for Developers (Login Kit + Display API). Solo lectura: perfil, estadísticas de la
+# cuenta y lista de videos públicos con sus métricas. Nada de publicar (Content Posting).
+SCOPES_TIKTOK = ("user.info.basic", "user.info.profile", "user.info.stats", "video.list")
+TIKTOK_AUTH = "https://www.tiktok.com/v2/auth/authorize/"
+TIKTOK_TOKEN = "https://open.tiktokapis.com/v2/oauth/token/"
+TIKTOK_USUARIO = "https://open.tiktokapis.com/v2/user/info/"
 
 SCOPES_GOOGLE = (
     "https://www.googleapis.com/auth/analytics.readonly",
@@ -153,6 +160,22 @@ def url_inicio(config: Configuracion, proveedor: str, estado: str) -> str:
                 "scope": " ".join(config.linkedin_scopes or SCOPES_LINKEDIN),
             }
         )
+    if proveedor == "tiktok":
+        if not config.tiktok_client_key:
+            raise ConexionError("TIKTOK_CLIENT_KEY no configurado")
+        return (
+            TIKTOK_AUTH
+            + "?"
+            + urlencode(
+                {
+                    "client_key": config.tiktok_client_key,
+                    "response_type": "code",
+                    "scope": ",".join(SCOPES_TIKTOK),  # TikTok separa los scopes con coma
+                    "redirect_uri": url_retorno(config, "tiktok"),
+                    "state": estado,
+                }
+            )
+        )
     raise ConexionError(f"Proveedor desconocido: {proveedor}")
 
 
@@ -170,6 +193,17 @@ async def intercambiar_codigo(config: Configuracion, proveedor: str, codigo: str
                     "client_secret": config.meta_app_secret,
                     "redirect_uri": url_retorno(config, "meta"),
                     "code": codigo,
+                },
+            )
+        elif proveedor == "tiktok":
+            r = await http.post(
+                TIKTOK_TOKEN,
+                data={
+                    "client_key": config.tiktok_client_key,
+                    "client_secret": config.tiktok_client_secret,
+                    "code": codigo,
+                    "grant_type": "authorization_code",
+                    "redirect_uri": url_retorno(config, "tiktok"),
                 },
             )
         elif proveedor == "linkedin":
@@ -208,7 +242,29 @@ async def listar_activos(
         return await _activos_meta(config, acceso)
     if proveedor == "linkedin":
         return await _activos_linkedin(config, acceso)
+    if proveedor == "tiktok":
+        return await _activos_tiktok(acceso)
     return await _activos_google(acceso)
+
+
+async def _activos_tiktok(acceso: str) -> list[Activo]:
+    """Login Kit autoriza UNA cuenta: la de quien inició sesión. id_externo = open_id."""
+    async with httpx.AsyncClient(timeout=30) as http:
+        r = await http.get(
+            TIKTOK_USUARIO,
+            params={"fields": "open_id,display_name,username"},
+            headers={"Authorization": f"Bearer {acceso}"},
+        )
+    try:
+        usuario = (r.json().get("data") or {}).get("user") or {}
+    except ValueError:
+        usuario = {}
+    if r.status_code >= 400 or not usuario.get("open_id"):
+        return [_aviso("Cuenta de TikTok", r)]
+    nombre = usuario.get("display_name") or usuario["open_id"]
+    if usuario.get("username"):
+        nombre = f"@{usuario['username']} · {nombre}"
+    return [Activo("tiktok", str(usuario["open_id"]), nombre, {})]
 
 
 async def _activos_linkedin(config: Configuracion, acceso: str) -> list[Activo]:
@@ -402,12 +458,35 @@ def credencial_para_guardar(proveedor: str, token: dict[str, Any]) -> str:
                 {"access_token": token["access_token"], "refresh_token": token["refresh_token"]}
             )
         return str(token["access_token"])
+    if proveedor == "tiktok":
+        # El access token dura 24 h: el conector lo renueva con el refresh token (365 días)
+        if not token.get("refresh_token"):
+            raise ConexionError("TikTok no devolvió refresh_token; repite la conexión")
+        return json.dumps(credencial_tiktok(token))
     if not token.get("refresh_token"):
         raise ConexionError("Google no devolvió refresh_token; repite la conexión")
     return json.dumps({"tipo": "oauth", "refresh_token": token["refresh_token"]})
 
 
+def credencial_tiktok(token: dict[str, Any]) -> dict[str, Any]:
+    """Forma que se cifra para TikTok; la usan la conexión y la renovación del conector."""
+    ahora = datetime.now(UTC)
+    return {
+        "access_token": token["access_token"],
+        "refresh_token": token["refresh_token"],
+        "access_expira_en": (
+            ahora + timedelta(seconds=int(token.get("expires_in", 0)))
+        ).isoformat(),
+        "open_id": token.get("open_id"),
+        "scope": token.get("scope"),
+    }
+
+
 def expiracion(proveedor: str, token: dict[str, Any]) -> datetime | None:
+    if proveedor == "tiktok":
+        # Lo que vence de verdad es el refresh token (el access se renueva solo cada día)
+        seg_refresh = token.get("refresh_expires_in")
+        return datetime.now(UTC) + timedelta(seconds=int(seg_refresh)) if seg_refresh else None
     seg = token.get("expires_in")
     if proveedor == "google" or not seg:
         return None  # refresh token: no expira; Meta business token: según respuesta

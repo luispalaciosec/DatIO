@@ -1,0 +1,14 @@
+{
+  "data": {
+    "user": {
+      "open_id": "-000abcOPENID",
+      "display_name": "Banco de Prueba",
+      "username": "bancoprueba.ec",
+      "follower_count": 12840,
+      "following_count": 15,
+      "likes_count": 98321,
+      "video_count": 214
+    }
+  },
+  "error": {"code": "ok", "message": "", "log_id": "20261119000000"}
+}
