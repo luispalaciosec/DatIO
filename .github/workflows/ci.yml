@@ -27,7 +27,7 @@ jobs:
       SUPABASE_URL: https://ci.supabase.co
       SUPABASE_JWT_SECRET: secreto-jwt-solo-para-ci-con-largo-suficiente-32b
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
@@ -60,7 +60,7 @@ jobs:
       run:
         working-directory: frontend
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: actions/setup-node@v4
         with:
           node-version: "22"
