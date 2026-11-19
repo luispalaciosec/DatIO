@@ -4,7 +4,7 @@ version = "0.1.0"
 description = "Plataforma de reportería de redes sociales y pauta — Geeks Ecuador / Stack-Studio"
 requires-python = ">=3.12"
 dependencies = [
-    "fastapi>=0.115",
+    "fastapi>=0.163.1",
     "uvicorn[standard]>=0.30",
     "pydantic[email]>=2.8",
     "pydantic-settings>=2.4",
