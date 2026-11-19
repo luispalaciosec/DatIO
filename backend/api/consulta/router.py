@@ -9,7 +9,13 @@ from pydantic import BaseModel
 
 from api.consulta.cache import CacheConsulta
 from api.consulta.repositorio import Instancia, RepositorioConsulta
-from api.deps import UsuarioActual, obtener_pool, usuario_actual
+from api.deps import (
+    UsuarioActual,
+    instancia_autorizada_impresion,
+    instancia_autorizada_por_id,
+    obtener_pool,
+    usuario_o_render,
+)
 from api.resolvedores import REGISTRO, Contexto
 
 router = APIRouter(tags=["consulta"])
@@ -27,12 +33,6 @@ def _repo(pool: Annotated[asyncpg.Pool, Depends(obtener_pool)]) -> RepositorioCo
     return RepositorioConsulta(pool)
 
 
-def _verificar_acceso(usuario: UsuarioActual, instancia: Instancia) -> None:
-    """La instancia pertenece a un cliente; el cliente_id del usuario viene del token."""
-    if not usuario.es_equipo and usuario.cliente_id != instancia.cliente_id:
-        raise HTTPException(status.HTTP_403_FORBIDDEN, "Sin acceso a este reporte")
-
-
 def _cache(request: Request) -> CacheConsulta | None:
     cache: CacheConsulta | None = getattr(request.app.state, "cache", None)
     return cache if cache is not None and cache.ttl_seg > 0 else None
@@ -42,17 +42,19 @@ def _cache(request: Request) -> CacheConsulta | None:
 async def resolver_bloque(
     req: ConsultaBloque,
     request: Request,
-    usuario: Annotated[UsuarioActual, Depends(usuario_actual)],
+    usuario: Annotated[UsuarioActual, Depends(usuario_o_render)],
+    pool: Annotated[asyncpg.Pool, Depends(obtener_pool)],
     repo: Annotated[RepositorioConsulta, Depends(_repo)],
     cache: Annotated[CacheConsulta | None, Depends(_cache)],
 ) -> dict[str, Any]:
     if req.hasta < req.desde:
         raise HTTPException(status.HTTP_400_BAD_REQUEST, "El rango de fechas es inválido")
-    instancia = await repo.instancia_por_id(req.instancia_id)
-    if instancia is None:
-        raise HTTPException(status.HTTP_404_NOT_FOUND, "Reporte no encontrado")
-    _verificar_acceso(usuario, instancia)
+    instancia = await instancia_autorizada_por_id(req.instancia_id, usuario, pool)
 
+    # El PDF (token de render) siempre consulta datos y configuración frescos: es lo que se
+    # envía al cliente y no puede salir con una edición vieja (B-7).
+    if usuario.es_render:
+        cache = None
     # El acceso ya se verificó: la clave no incluye al usuario porque la respuesta es la misma
     # para todo el que puede ver este reporte.
     clave = (
@@ -126,16 +128,13 @@ async def imagen_competidor(
 
 @router.get("/reportes/{slug_publico}")
 async def estructura_reporte(
-    slug_publico: str,
-    usuario: Annotated[UsuarioActual, Depends(usuario_actual)],
+    instancia: Annotated[Instancia, Depends(instancia_autorizada_impresion)],
+    usuario: Annotated[UsuarioActual, Depends(usuario_o_render)],
     repo: Annotated[RepositorioConsulta, Depends(_repo)],
 ) -> dict[str, Any]:
     """Tema, páginas y bloques (con overrides) de un reporte. Sin datos: esos van por /consulta."""
-    instancia = await repo.instancia_por_slug(slug_publico)
-    if instancia is None:
-        raise HTTPException(status.HTTP_404_NOT_FOUND, "Reporte no encontrado")
-    _verificar_acceso(usuario, instancia)
-    await repo.registrar_visita(instancia.id, usuario.email)
+    if not usuario.es_render:  # Playwright no es una visita del cliente
+        await repo.registrar_visita(instancia.id, usuario.email)
 
     paginas = []
     for p in await repo.paginas(instancia.plantilla_id):

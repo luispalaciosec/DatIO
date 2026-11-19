@@ -172,19 +172,20 @@ async def test_iniciar_linkedin(http, usuario_equipo, cliente_a) -> None:  # typ
     assert conectar.credencial_para_guardar("linkedin", {"access_token": "li"}) == "li"
 
 
-async def test_api_url_localhost_se_reemplaza_por_el_host_real(
-    http, usuario_equipo, cliente_a
-) -> None:  # type: ignore[no-untyped-def]
+async def test_redirect_uri_sale_solo_de_api_url(http, usuario_equipo, cliente_a) -> None:  # type: ignore[no-untyped-def]
+    """S-6: la cabecera X-Forwarded-Host ya no decide a dónde vuelve el proveedor."""
+    r = await http.get(
+        f"/admin/conectar/google/iniciar?cliente_id={cliente_a.id}",
+        headers={**_auth(usuario_equipo), "x-forwarded-host": "otro-dominio.example"},
+    )
+    assert r.status_code == 200 and "otro-dominio" not in r.json()["url"]
+    assert "redirect_uri=http%3A%2F%2Flocalhost" in r.json()["url"]  # en local, API_URL local
+    # API_URL en localhost pero la petición llega por un dominio público: configuración mala
     r = await http.get(
         f"/admin/conectar/google/iniciar?cliente_id={cliente_a.id}",
         headers={**_auth(usuario_equipo), "host": "datio-production.up.railway.app"},
     )
-    assert "redirect_uri=https%3A%2F%2Fdatio-production.up.railway.app" in r.json()["url"]
-    r = await http.get(
-        f"/admin/conectar/google/iniciar?cliente_id={cliente_a.id}",
-        headers={**_auth(usuario_equipo), "host": "localhost:8000"},
-    )
-    assert "redirect_uri=http%3A%2F%2Flocalhost" in r.json()["url"]  # en local sigue igual
+    assert r.status_code == 503 and "API_URL" in r.json()["detail"]
 
 
 def test_credencial_google_exige_refresh_token() -> None:
@@ -208,3 +209,93 @@ def test_error_de_listado_google_se_vuelve_aviso() -> None:
     a = _aviso("Google Analytics", r)
     assert a.plataforma == AVISO and a.extra == {"codigo": 403}
     assert a.nombre.startswith("Google Analytics: Google Analytics Admin API")
+
+
+async def _conexion_pendiente(http, config, cliente, equipo, activos, monkeypatch) -> int:  # type: ignore[no-untyped-def]
+    async def falso_intercambio(cfg: Any, proveedor: str, codigo: str) -> dict[str, Any]:
+        return {"access_token": f"token-{cliente.id}", "expires_in": 5183944}
+
+    async def falsos_activos(cfg: Any, proveedor: str, token: Any) -> list[conectar.Activo]:
+        return activos
+
+    monkeypatch.setattr(conectar, "intercambiar_codigo", falso_intercambio)
+    monkeypatch.setattr(conectar, "listar_activos", falsos_activos)
+    estado = conectar.emitir_estado(config, "meta", cliente.id, equipo)
+    r = await http.get("/admin/conectar/meta/retorno", params={"state": estado, "code": "c"})
+    return int(r.headers["location"].split("conexion=")[1])
+
+
+async def test_activar_no_mueve_cuentas_de_otro_cliente(  # B-1
+    http, pool, config, usuario_equipo, cliente_a, cliente_b, monkeypatch
+) -> None:  # type: ignore[no-untyped-def]
+    # La cuenta de cliente_a (creada por el fixture) aparece también en la conexión de cliente_b
+    ajena = conectar.Activo(cliente_a.cuenta.plataforma, cliente_a.cuenta.id_externo, "Ajena", {})
+    propia = conectar.Activo("meta_fb", f"pag-b-{cliente_b.id}", "Propia de B", {})
+    conexion = await _conexion_pendiente(
+        http, config, cliente_b, usuario_equipo, [propia, ajena], monkeypatch
+    )
+    r = await http.post(
+        f"/admin/conexiones/{conexion}/activar",
+        json={
+            "activos": [
+                {"plataforma": propia.plataforma, "id_externo": propia.id_externo},
+                {"plataforma": ajena.plataforma, "id_externo": ajena.id_externo},
+            ]
+        },
+        headers=_auth(usuario_equipo),
+    )
+    assert r.status_code == 409
+    assert r.json()["detail"] == "Esa cuenta ya está conectada a un cliente"
+    assert cliente_a.slug not in r.text
+    # La cuenta sigue en su cliente; ninguna del lote se creó; la conexión no quedó activada
+    duena = await pool.fetchval(
+        "SELECT cliente_id FROM cuentas_conectadas WHERE id = $1", cliente_a.cuenta.id
+    )
+    assert duena == cliente_a.id
+    assert not await pool.fetchval(
+        "SELECT count(*) FROM cuentas_conectadas WHERE id_externo = $1", propia.id_externo
+    )
+    estado = await pool.fetchval("SELECT estado FROM conexiones_oauth WHERE id = $1", conexion)
+    assert estado == "pendiente"
+
+
+async def test_reconectar_cuenta_del_mismo_cliente_renueva_token(  # B-1, camino feliz
+    http, pool, config, usuario_equipo, cliente_a, monkeypatch
+) -> None:  # type: ignore[no-untyped-def]
+    propia = conectar.Activo(cliente_a.cuenta.plataforma, cliente_a.cuenta.id_externo, "Nueva", {})
+    conexion = await _conexion_pendiente(
+        http, config, cliente_a, usuario_equipo, [propia], monkeypatch
+    )
+    r = await http.post(
+        f"/admin/conexiones/{conexion}/activar",
+        json={"activos": [{"plataforma": propia.plataforma, "id_externo": propia.id_externo}]},
+        headers=_auth(usuario_equipo),
+    )
+    assert r.status_code == 200 and r.json()["cuentas"] == [cliente_a.cuenta.id]
+    fila = await pool.fetchrow(
+        "SELECT cliente_id, nombre_cuenta, pgp_sym_decrypt(credencial_cifrada, $2) AS cred "
+        "FROM cuentas_conectadas WHERE id = $1",
+        cliente_a.cuenta.id,
+        config.clave_cifrado,
+    )
+    assert (fila["cliente_id"], fila["nombre_cuenta"]) == (cliente_a.id, "Nueva")
+    assert fila["cred"] == f"token-{cliente_a.id}"
+
+
+def test_linkedin_solo_lee() -> None:  # S-3
+    """Con rw_organization_admin el código solo hace GET: el cliente del conector no expone
+    métodos de escritura y el único POST a LinkedIn es el canje del código OAuth."""
+    import inspect
+
+    from api.etl.conectores import linkedin
+
+    metodos = {n for n, _ in inspect.getmembers(linkedin.LinkedInBase, inspect.isfunction)}
+    assert not metodos & {"post", "put", "patch", "delete"}
+    fuente = inspect.getsource(linkedin)
+    assert not any(f"http.{v}(" in fuente for v in ("post", "put", "patch", "delete"))
+    oauth = inspect.getsource(conectar)
+    posts_linkedin = [
+        linea for linea in oauth.splitlines() if "linkedin.com" in linea and "/oauth/v2/" in linea
+    ]
+    assert any("accessToken" in linea for linea in posts_linkedin)
+    assert set(conectar.SCOPES_LINKEDIN) <= {"r_organization_social", "rw_organization_admin"}

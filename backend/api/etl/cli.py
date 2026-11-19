@@ -24,6 +24,7 @@ from api.etl.mantenimiento import mantenimiento
 from api.etl.radar import ResumenRadar, correr_radar
 from api.etl.repositorio import RepositorioETL
 from api.etl.runner import ResumenCorrida, correr_todos
+from api.observabilidad import iniciar_sentry
 from api.prediccion.evaluacion import evaluar_proyecciones
 from api.puente.disparadores import ResumenPuente, correr_puente
 from api.puente.repositorio import RepositorioPuente
@@ -79,6 +80,7 @@ async def ejecutar(
 
 def main(argv: list[str] | None = None) -> int:
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
+    iniciar_sentry(obtener_config(), "cron")
     parser = argparse.ArgumentParser(description="Captura diaria de DatIO")
     parser.add_argument("--plataforma", default=None, help="solo esta plataforma (ej. meta_ig)")
     parser.add_argument("--hasta", type=date.fromisoformat, default=None, help="último día")

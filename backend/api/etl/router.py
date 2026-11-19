@@ -1,5 +1,6 @@
 """Endpoint que dispara la captura diaria (Railway Cron 06:00 Ecuador → POST /etl/correr)."""
 
+import hmac
 from datetime import date
 from typing import Annotated, Any
 
@@ -23,7 +24,10 @@ def verificar_cron(
 ) -> None:
     if not config.cron_secret:
         raise HTTPException(status.HTTP_503_SERVICE_UNAVAILABLE, "CRON_SECRET no configurado")
-    if x_cron_secret != config.cron_secret:
+    # Comparación en tiempo constante (checklist #6)
+    if not x_cron_secret or not hmac.compare_digest(
+        x_cron_secret.encode(), config.cron_secret.encode()
+    ):
         raise HTTPException(status.HTTP_403_FORBIDDEN, "Secreto de cron inválido")
 
 

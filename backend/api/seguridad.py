@@ -40,9 +40,10 @@ class CabecerasSeguridad(BaseHTTPMiddleware):
 
 
 def ip_cliente(request: Request) -> str:
-    xff = request.headers.get("x-forwarded-for")
-    if xff:
-        return xff.split(",")[0].strip()
+    """IP del cliente según uvicorn. Con --proxy-headers y --forwarded-allow-ips (ver
+    Dockerfile), uvicorn ya reemplaza request.client por la IP real que informa el proxy de
+    Railway. No se lee X-Forwarded-For a mano: cualquiera podría mandarlo y saltarse el
+    límite cambiando de "IP" en cada petición (#11)."""
     return request.client.host if request.client else "desconocida"
 
 

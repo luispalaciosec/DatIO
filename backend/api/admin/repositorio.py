@@ -17,6 +17,14 @@ CAMPOS_TEMA = (
 )
 
 
+class CuentaDeOtroClienteError(Exception):
+    """Una cuenta elegida al activar una conexión ya pertenece a otro cliente."""
+
+
+class UsuarioDeOtroClienteError(Exception):
+    """El correo ya es usuario de otro cliente o de otro rol."""
+
+
 class RepositorioAdmin:
     def __init__(self, pool: asyncpg.Pool) -> None:
         self._pool = pool
@@ -186,16 +194,23 @@ class RepositorioAdmin:
         return [dict(f) for f in filas]
 
     async def guardar_usuario(self, email: str, rol: str, cliente_id: int | None) -> None:
-        await self._pool.execute(
+        """Crea el usuario o lo reactiva si ya existe con el MISMO rol y cliente. Nunca cambia
+        cliente_id ni rol de uno existente (N-1): eso lanza UsuarioDeOtroClienteError. Mover
+        a alguien de cliente, si algún día hace falta, será una acción explícita aparte."""
+        fila = await self._pool.fetchrow(
             """
             INSERT INTO usuarios (email, rol, cliente_id, activo) VALUES ($1, $2, $3, TRUE)
-            ON CONFLICT (email) DO UPDATE SET rol = EXCLUDED.rol, cliente_id = EXCLUDED.cliente_id,
-                                              activo = TRUE
+            ON CONFLICT (email) DO UPDATE SET activo = TRUE
+             WHERE usuarios.rol = EXCLUDED.rol
+               AND usuarios.cliente_id IS NOT DISTINCT FROM EXCLUDED.cliente_id
+            RETURNING email
             """,
             email,
             rol,
             cliente_id,
         )
+        if fila is None:
+            raise UsuarioDeOtroClienteError()
 
     async def desactivar_usuario(self, email: str) -> None:
         await self._pool.execute("UPDATE usuarios SET activo = FALSE WHERE email = $1", email)
@@ -290,9 +305,11 @@ class RepositorioAdmin:
                             token_expira_en, activo)
                     VALUES ($1, $2, $3, $4, pgp_sym_encrypt($5, $6), $7, TRUE)
                     ON CONFLICT (plataforma, id_externo) DO UPDATE
-                       SET cliente_id = EXCLUDED.cliente_id, nombre_cuenta = EXCLUDED.nombre_cuenta,
+                       SET nombre_cuenta = EXCLUDED.nombre_cuenta,
                            credencial_cifrada = EXCLUDED.credencial_cifrada,
                            token_expira_en = EXCLUDED.token_expira_en, activo = TRUE
+                     -- B-1: solo renueva cuentas del MISMO cliente; nunca las mueve de cliente
+                     WHERE cuentas_conectadas.cliente_id = EXCLUDED.cliente_id
                     RETURNING id
                     """,
                     fila["cliente_id"],
@@ -303,6 +320,10 @@ class RepositorioAdmin:
                     clave,
                     fila["token_expira_en"],
                 )
+                if cuenta_id is None:
+                    # La cuenta ya es de otro cliente: se revierte el lote entero y la conexión
+                    # sigue pendiente (la excepción aborta la transacción).
+                    raise CuentaDeOtroClienteError()
                 ids.append(int(cuenta_id))
             await con.execute(
                 "UPDATE conexiones_oauth SET estado = 'activada', token_cifrado = ''::bytea "

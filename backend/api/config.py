@@ -4,7 +4,7 @@ import json
 from functools import lru_cache
 from typing import Annotated, Any
 
-from pydantic import AliasChoices, Field, field_validator
+from pydantic import AliasChoices, Field, field_validator, model_validator
 from pydantic_settings import BaseSettings, NoDecode, SettingsConfigDict
 
 MODELOS_LLM_POR_DEFECTO: dict[str, dict[str, Any]] = {
@@ -14,6 +14,16 @@ MODELOS_LLM_POR_DEFECTO: dict[str, dict[str, Any]] = {
     "agente": {"proveedor": "deepseek", "modelo": "deepseek-v4-flash"},
     "narrativa_regulado": {"proveedor": "together_ai", "modelo": "deepseek-v4-pro"},
 }
+
+
+# Valores de AMBIENTE que cuentan como producción (S-6).
+AMBIENTES_PRODUCCION = frozenset({"produccion", "producción", "production"})
+
+# N-2: permisos de LinkedIn que DatIO puede pedir (todos de lectura de páginas de empresa;
+# rw_organization_admin se justifica en api/admin/conectar.py SCOPES_LINKEDIN).
+LINKEDIN_SCOPES_PERMITIDOS = frozenset(
+    {"r_organization_social", "r_organization_admin", "rw_organization_admin"}
+)
 
 
 class Configuracion(BaseSettings):
@@ -49,6 +59,8 @@ class Configuracion(BaseSettings):
     # Supabase Auth (errata E-05)
     supabase_url: str = ""
     supabase_jwt_secret: str = ""
+    # Admin API de Supabase Auth (#12): crear usuarios invitados. Solo en el servidor.
+    supabase_service_role_key: str = ""
 
     # pgcrypto para cuentas_conectadas.credencial_cifrada
     clave_cifrado: str = ""
@@ -84,9 +96,42 @@ class Configuracion(BaseSettings):
     def _parsear_scopes(cls, valor: Any) -> list[str]:
         if not valor:
             return []
-        if isinstance(valor, str):
-            return [s for s in valor.replace(",", " ").split() if s]
-        return list(valor)
+        scopes = (
+            [s for s in valor.replace(",", " ").split() if s]
+            if isinstance(valor, str)
+            else [str(s) for s in valor]
+        )
+        # N-2: solo permisos conocidos y justificados; cualquier otro detiene el arranque.
+        fuera = sorted(set(scopes) - LINKEDIN_SCOPES_PERMITIDOS)
+        if fuera:
+            raise ValueError(
+                f"LINKEDIN_SCOPES contiene permisos no permitidos: {', '.join(fuera)}. "
+                f"Permitidos: {', '.join(sorted(LINKEDIN_SCOPES_PERMITIDOS))}"
+            )
+        return scopes
+
+    @property
+    def es_produccion(self) -> bool:
+        return self.ambiente.strip().lower() in AMBIENTES_PRODUCCION
+
+    @model_validator(mode="after")
+    def _https_en_produccion(self) -> "Configuracion":
+        """S-6/#19: en producción la API no arranca si sus URLs públicas no son https (el
+        redirect_uri de OAuth y CORS dependen de ellas)."""
+        if not self.es_produccion:
+            return self
+        malas = [
+            f"{nombre}={valor}"
+            for nombre, valor in (
+                ("API_URL", self.api_url),
+                ("FRONTEND_URL", self.frontend_url),
+                *(("ORIGENES_PERMITIDOS", o) for o in self.origenes_permitidos),
+            )
+            if not valor.startswith("https://")
+        ]
+        if malas:
+            raise ValueError(f"En producción estas URLs deben empezar con https://: {malas}")
+        return self
 
     # Alertas por correo (PT-14) vía Resend. Sin clave, las alertas solo se ven en el admin.
     resend_api_key: str = ""
@@ -95,6 +140,9 @@ class Configuracion(BaseSettings):
 
     # Cache de /consulta (PT-12). 0 = desactivada.
     cache_ttl_seg: int = 900
+
+    # Sentry (errores). Vacío = apagado. Ver api/observabilidad.py
+    sentry_dsn: str = ""
 
     # Seguridad: peticiones por IP y minuto antes de responder 429
     limite_peticiones_min: int = 600

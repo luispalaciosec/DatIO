@@ -30,6 +30,7 @@ class Instancia:
     plantilla_id: int
     nombre_publico: str | None
     slug_publico: str
+    cliente_activo: bool = True
 
 
 @dataclass(frozen=True)
@@ -43,11 +44,14 @@ class RepositorioConsulta:
         self._pool = pool
 
     async def generacion_datos(self) -> str:
-        """Marca de la última captura cerrada; cambia cuando el ETL escribe algo nuevo."""
-        v = await self._pool.fetchval(
-            "SELECT max(finalizado_en) FROM jobs_ejecucion WHERE estado <> 'corriendo'"
+        """Marca para invalidar la cache de /consulta: cambia cuando el ETL cierra una captura
+        o cuando se edita cualquier configuración que afecta respuestas (B-7, sql/015)."""
+        f = await self._pool.fetchrow(
+            "SELECT (SELECT max(finalizado_en) FROM jobs_ejecucion WHERE estado <> 'corriendo') "
+            "AS etl, (SELECT version FROM config_version WHERE id = 1) AS config"
         )
-        return v.isoformat() if v else ""
+        etl = f["etl"].isoformat() if f and f["etl"] else ""
+        return f"{etl}|{f['config'] if f else ''}"
 
     @property
     def pool(self) -> asyncpg.Pool:
@@ -114,16 +118,18 @@ class RepositorioConsulta:
 
     async def instancia_por_slug(self, slug_publico: str) -> Instancia | None:
         f = await self._pool.fetchrow(
-            "SELECT id, cliente_id, plantilla_id, nombre_publico, slug_publico "
-            "FROM reporte_instancias WHERE slug_publico = $1 AND activa",
+            "SELECT i.id, i.cliente_id, i.plantilla_id, i.nombre_publico, i.slug_publico, "
+            "c.activo FROM reporte_instancias i JOIN clientes c ON c.id = i.cliente_id "
+            "WHERE i.slug_publico = $1 AND i.activa",
             slug_publico,
         )
         return Instancia(*f) if f else None
 
     async def instancia_por_id(self, instancia_id: int) -> Instancia | None:
         f = await self._pool.fetchrow(
-            "SELECT id, cliente_id, plantilla_id, nombre_publico, slug_publico "
-            "FROM reporte_instancias WHERE id = $1 AND activa",
+            "SELECT i.id, i.cliente_id, i.plantilla_id, i.nombre_publico, i.slug_publico, "
+            "c.activo FROM reporte_instancias i JOIN clientes c ON c.id = i.cliente_id "
+            "WHERE i.id = $1 AND i.activa",
             instancia_id,
         )
         return Instancia(*f) if f else None

@@ -39,7 +39,8 @@
 
   <h2>3. Cuentas conectadas</h2>
   <ul>
-    <li>Al pulsar "Conectar" autorizas a DatIO a leer estadísticas de las cuentas que selecciones. DatIO solo solicita permisos de lectura y no publica, edita ni elimina contenido en tu nombre.</li>
+    <li>Al pulsar "Conectar" autorizas a DatIO a leer estadísticas de las cuentas que selecciones. DatIO solo usa esos permisos para leer: nunca publica, edita ni elimina contenido en tu nombre.</li>
+    <li>Por la forma en que algunas plataformas agrupan sus permisos, dos de los que pedimos técnicamente también permiten administrar, aunque DatIO solo los usa para leer: en LinkedIn, <code>rw_organization_admin</code> (necesario para listar las páginas de empresa que administras y leer sus seguidores y visitas; LinkedIn no ofrece a DatIO la variante de solo lectura), y en Google, <code>business.manage</code> (Google no tiene una variante de solo lectura para leer las estadísticas y reseñas de tu perfil de empresa). El resto de permisos son de solo lectura: en LinkedIn <code>r_organization_social</code>, y en Google Analytics, Search Console y YouTube los permisos <code>readonly</code>.</li>
     <li>Declaras tener autoridad para conectar cada cuenta que conectes.</li>
     <li>Puedes revocar la autorización en cualquier momento desde la plataforma correspondiente o siguiendo las <a href="/eliminacion-datos/">instrucciones de eliminación de datos</a>.</li>
     <li>El uso de datos de Meta, Google, LinkedIn y TikTok se rige además por los términos de cada plataforma para desarrolladores.</li>

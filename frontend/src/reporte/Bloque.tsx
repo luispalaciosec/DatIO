@@ -53,7 +53,15 @@ export function Bloque({ reporte, pagina, bloque, rango }: {
       return <Separador />;
   }
 
-  if (error) return <div className="bloque-error">No se pudo cargar este bloque: {error}</div>;
+  if (error) {
+    // En impresión no se muestra el detalle técnico y la marca hace que el PDF se descarte.
+    const impresion = document.body.classList.contains("modo-print");
+    return (
+      <div className="bloque-error" data-bloque-error="1">
+        {impresion ? "No se pudo cargar este bloque." : `No se pudo cargar este bloque: ${error}`}
+      </div>
+    );
+  }
   if (!respuesta) return <div className="bloque-cargando" />;
 
   const provisional = respuesta.estado === "provisional";

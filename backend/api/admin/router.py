@@ -7,12 +7,24 @@ import asyncpg
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel, EmailStr, Field
 
-from api.admin.repositorio import RepositorioAdmin
+from api.admin.repositorio import RepositorioAdmin, UsuarioDeOtroClienteError
 from api.alertas.repositorio import RepositorioAlertas
+from api.auth.admin_supabase import asegurar_usuario_auth
 from api.config import Configuracion
-from api.deps import UsuarioActual, obtener_config_app, obtener_pool, usuario_actual
+from api.deps import (
+    UsuarioActual,
+    obtener_config_app,
+    obtener_pool,
+    usuario_actual,
+    vaciar_cache_tras_escritura,
+)
 
-router = APIRouter(prefix="/admin", tags=["admin"])
+router = APIRouter(
+    prefix="/admin",
+    tags=["admin"],
+    # B-7: las ediciones se ven en /consulta en la petición siguiente
+    dependencies=[Depends(vaciar_cache_tras_escritura)],
+)
 RE_SLUG = re.compile(r"^[a-z0-9]+(?:-[a-z0-9]+)*$")
 
 
@@ -33,16 +45,25 @@ Repo = Annotated[RepositorioAdmin, Depends(_repo)]
 # ---- clientes ---------------------------------------------------------------
 
 
+# #14: validación de entradas del admin --------------------------------------------------
+
+# Logo/banner: una URL https o una ruta relativa a archivos del propio frontend (p. ej.
+# /clientes/logo.png). Vacío borra la imagen.
+PATRON_IMAGEN = r"^$|^https://[^\s\"'<>]{1,500}$|^/[A-Za-z0-9._/-]{1,200}$"
+# Nombre de una fuente de Google Fonts o del sistema: letras, números, espacios y guiones.
+PATRON_FUENTE = r"^[A-Za-z0-9 -]{1,60}$"
+
+
 class ClienteNuevo(BaseModel):
     nombre: str = Field(min_length=2, max_length=120)
-    slug: str = Field(min_length=2, max_length=60)
-    sector: str | None = None
+    slug: str = Field(min_length=2, max_length=60)  # formato: RE_SLUG en crear_cliente
+    sector: str | None = Field(default=None, max_length=60)
     plantilla_id: int | None = None
 
 
 class ClienteCambios(BaseModel):
     nombre: str | None = Field(default=None, min_length=2, max_length=120)
-    sector: str | None = None
+    sector: str | None = Field(default=None, max_length=60)
     activo: bool | None = None
 
 
@@ -94,13 +115,13 @@ async def editar_cliente(
 
 
 class TemaCambios(BaseModel):
-    logo_url: str | None = None
-    banner_url: str | None = None
+    logo_url: str | None = Field(default=None, pattern=PATRON_IMAGEN)
+    banner_url: str | None = Field(default=None, pattern=PATRON_IMAGEN)
     color_primario: str | None = Field(default=None, pattern=r"^#[0-9A-Fa-f]{6}$")
     color_secundario: str | None = Field(default=None, pattern=r"^#[0-9A-Fa-f]{6}$")
     color_acento: str | None = Field(default=None, pattern=r"^#[0-9A-Fa-f]{6}$")
-    fuente_titulos: str | None = None
-    fuente_cuerpo: str | None = None
+    fuente_titulos: str | None = Field(default=None, pattern=PATRON_FUENTE)
+    fuente_cuerpo: str | None = Field(default=None, pattern=PATRON_FUENTE)
     modo_oscuro: bool | None = None
 
 
@@ -117,14 +138,16 @@ async def guardar_tema(
 
 
 class CuentaNueva(BaseModel):
-    plataforma: str
-    id_externo: str = Field(min_length=1)
-    nombre_cuenta: str | None = None
-    credencial: str | None = None  # token; se cifra en el servidor y no se devuelve nunca
+    # Además se valida contra la tabla plataformas en crear_cuenta
+    plataforma: str = Field(min_length=2, max_length=40, pattern=r"^[a-z0-9_]+$")
+    id_externo: str = Field(min_length=1, max_length=300)
+    nombre_cuenta: str | None = Field(default=None, max_length=200)
+    # token o JSON de credenciales; se cifra en el servidor y no se devuelve nunca
+    credencial: str | None = Field(default=None, max_length=20_000)
 
 
 class CuentaCambios(BaseModel):
-    nombre_cuenta: str | None = None
+    nombre_cuenta: str | None = Field(default=None, max_length=200)
     activo: bool | None = None
     credencial: str | None = None
 
@@ -191,15 +214,27 @@ async def listar_usuarios(_: Equipo, repo: Repo) -> list[dict[str, Any]]:
 
 
 @router.post("/usuarios", status_code=status.HTTP_201_CREATED)
-async def guardar_usuario(cuerpo: UsuarioNuevo, _: Equipo, repo: Repo) -> dict[str, str]:
+async def guardar_usuario(
+    cuerpo: UsuarioNuevo,
+    _: Equipo,
+    repo: Repo,
+    config: Annotated[Configuracion, Depends(obtener_config_app)],
+) -> dict[str, str]:
     if cuerpo.rol == "cliente" and cuerpo.cliente_id is None:
         raise HTTPException(status.HTTP_400_BAD_REQUEST, "Un usuario cliente necesita cliente_id")
     if cuerpo.rol == "equipo" and cuerpo.cliente_id is not None:
         raise HTTPException(status.HTTP_400_BAD_REQUEST, "Un usuario de equipo no lleva cliente_id")
     if cuerpo.cliente_id is not None and await repo.cliente(cuerpo.cliente_id) is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Cliente no encontrado")
-    await repo.guardar_usuario(cuerpo.email.lower(), cuerpo.rol, cuerpo.cliente_id)
-    return {"email": cuerpo.email.lower()}
+    try:
+        await repo.guardar_usuario(cuerpo.email.lower(), cuerpo.rol, cuerpo.cliente_id)
+    except UsuarioDeOtroClienteError as e:
+        raise HTTPException(
+            status.HTTP_409_CONFLICT, "Ese correo ya pertenece a otro cliente o al equipo"
+        ) from e
+    # #12: también en Supabase Auth, para que pueda entrar con enlace mágico
+    auth = await asegurar_usuario_auth(config, cuerpo.email.lower())
+    return {"email": cuerpo.email.lower(), "auth": auth}
 
 
 @router.delete("/usuarios/{email}")
@@ -217,15 +252,15 @@ class CompetidorNuevo(BaseModel):
     plataforma: str = Field(pattern="^(meta_ig|meta_fb|tiktok|linkedin|youtube)$")
     nombre: str = Field(min_length=2, max_length=120)
     handle: str = Field(min_length=1, max_length=200)
-    logo_url: str | None = None
-    orden: int = 0
+    logo_url: str | None = Field(default=None, pattern=PATRON_IMAGEN)
+    orden: int = Field(default=0, ge=0, le=1000)
 
 
 class CompetidorCambios(BaseModel):
     nombre: str | None = Field(default=None, min_length=2, max_length=120)
     handle: str | None = Field(default=None, min_length=1, max_length=200)
-    logo_url: str | None = None
-    orden: int | None = None
+    logo_url: str | None = Field(default=None, pattern=PATRON_IMAGEN)
+    orden: int | None = Field(default=None, ge=0, le=1000)
 
 
 def _normalizar_handle(plataforma: str, handle: str) -> str:

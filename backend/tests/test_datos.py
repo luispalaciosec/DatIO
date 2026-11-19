@@ -3,6 +3,7 @@
 from datetime import date
 
 import httpx
+import pytest
 
 from api.admin.router_datos import pivotar
 from api.datos.repositorio import RepositorioDatos
@@ -127,3 +128,21 @@ async def test_catalogo_y_consulta(pool, cliente_a, config) -> None:  # type: ig
             )
             assert r.status_code == 403
     await pool.execute("DELETE FROM fct_metrica_dimension WHERE cuenta_id = $1", cid)
+
+
+def test_csv_neutraliza_formulas_y_respeta_numeros() -> None:  # S-4
+    from api.admin.router_datos import celda_segura
+
+    for peligrosa in ("=SUMA(A1)", "+1", "-x", "@algo", "\tcelda", "\rcelda"):
+        assert celda_segura(peligrosa) == "'" + peligrosa
+    assert celda_segura("Página normal") == "Página normal"
+    assert celda_segura(-12.5) == -12.5 and celda_segura(0) == 0 and celda_segura(None) is None
+
+
+def test_consulta_rechaza_rango_invertido() -> None:  # B-9
+    import pydantic
+
+    from api.admin.router_datos import Consulta
+
+    with pytest.raises(pydantic.ValidationError, match="rango"):
+        Consulta(cuentas=[1], metricas=["sesiones"], desde=date(2026, 9, 2), hasta=date(2026, 9, 1))

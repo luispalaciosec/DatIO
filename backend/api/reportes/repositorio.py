@@ -45,24 +45,45 @@ class RepositorioReportes:
         )
         return [str(f["email"]) for f in filas]
 
-    async def invitar(self, cliente_id: int, email: str) -> None:
-        await self._pool.execute(
-            """
-            INSERT INTO usuarios (email, rol, cliente_id, activo, invitado_en)
-            VALUES ($1, 'cliente', $2, TRUE, now())
-            ON CONFLICT (email) DO UPDATE SET cliente_id = EXCLUDED.cliente_id, activo = TRUE,
-                   invitado_en = now()
-            WHERE usuarios.rol = 'cliente'
-            """,
-            email,
-            cliente_id,
-        )
-
-    async def rol_de(self, email: str) -> str | None:
-        v = await self._pool.fetchval("SELECT rol FROM usuarios WHERE email = $1", email)
-        return str(v) if v else None
+    async def invitar(self, cliente_id: int, email: str) -> str:
+        """Habilita `email` como usuario del cliente. Nunca lo mueve de cliente ni cambia su rol
+        (N-1). Estados:
+        - 'creado': correo nuevo;
+        - 'reinvitado': ya era usuario activo de este cliente (se renueva invitado_en);
+        - 'reactivado': era usuario de este cliente y estaba desactivado. Decisión de producto:
+          invitarlo de nuevo desde SU cliente es una acción explícita del equipo y lo reactiva;
+        - 'pertenece_a_otro_cliente' / 'es_equipo': no se toca nada.
+        """
+        async with self._pool.acquire() as con, con.transaction():
+            fila = await con.fetchrow(
+                "SELECT rol, cliente_id, activo FROM usuarios WHERE email = $1 FOR UPDATE", email
+            )
+            if fila is None:
+                await con.execute(
+                    "INSERT INTO usuarios (email, rol, cliente_id, activo, invitado_en) "
+                    "VALUES ($1, 'cliente', $2, TRUE, now())",
+                    email,
+                    cliente_id,
+                )
+                return "creado"
+            if fila["rol"] == "equipo":
+                return "es_equipo"
+            if fila["cliente_id"] != cliente_id:
+                return "pertenece_a_otro_cliente"
+            await con.execute(
+                "UPDATE usuarios SET activo = TRUE, invitado_en = now() WHERE email = $1", email
+            )
+            return "reinvitado" if fila["activo"] else "reactivado"
 
     # ---- editor del reporte ------------------------------------------------------------
+
+    async def metricas_existentes(self, codigos: list[str]) -> set[str]:
+        if not codigos:
+            return set()
+        filas = await self._pool.fetch(
+            "SELECT codigo FROM dim_metrica WHERE codigo = ANY($1::text[])", codigos
+        )
+        return {str(f["codigo"]) for f in filas}
 
     async def estructura(
         self, instancia_id: int, plantilla_id: int, cliente_id: int

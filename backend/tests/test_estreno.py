@@ -12,7 +12,7 @@ from api.reportes import envio as envio_mod
 from api.reportes.correo import html_invitacion, html_mensual
 from api.reportes.envio import enviar_mensuales, enviar_reporte, limites, mes_anterior
 from api.reportes.repositorio import RepositorioReportes
-from tests.conftest import requiere_db, token_para
+from tests.conftest import pdf_valido, requiere_db, token_para
 
 
 async def _instancia_de_prueba(pool, cliente_id: int) -> int:  # type: ignore[no-untyped-def]
@@ -102,8 +102,14 @@ def test_correos_y_periodos() -> None:
 
 @requiere_db
 async def test_invitar_editor_y_aislamiento(
-    pool, cliente_a, cliente_b, usuario_equipo, config
+    pool, cliente_a, cliente_b, usuario_equipo, config, monkeypatch: pytest.MonkeyPatch
 ) -> None:  # type: ignore[no-untyped-def]
+    from api.admin import router_reporte
+
+    async def auth_ok(cfg, email, http=None):  # type: ignore[no-untyped-def]
+        return "creado"
+
+    monkeypatch.setattr(router_reporte, "asegurar_usuario_auth", auth_ok)
     plantilla = await _instancia_de_prueba(pool, cliente_a.id)
     app = crear_app(config)
     equipo = {"Authorization": f"Bearer {token_para(usuario_equipo)}"}
@@ -132,7 +138,7 @@ async def test_invitar_editor_y_aislamiento(
             assert r.status_code == 200
             por = {x["email"]: x for x in r.json()["resultados"]}
             assert por[correo]["estado"] in ("invitado", "habilitado_sin_correo")
-            assert por[del_equipo]["estado"] == "omitido"  # nunca degrada a alguien del equipo
+            assert por[del_equipo]["estado"] == "es_equipo"  # nunca degrada a alguien del equipo
             fila = await pool.fetchrow(
                 "SELECT rol, cliente_id, invitado_en FROM usuarios WHERE email = $1", correo
             )
@@ -196,7 +202,7 @@ async def test_envio_mensual_idempotente(
     enviados: list[tuple[list[str], str, bool]] = []
 
     async def pdf_falso(url: str, timeout_ms: int = 0) -> bytes:
-        return b"%PDF-1.4 falso"
+        return pdf_valido()
 
     async def enviar_falso(cfg, para, asunto, html, adjunto=None):  # type: ignore[no-untyped-def]
         enviados.append((para, asunto, adjunto is not None))
@@ -232,3 +238,32 @@ async def test_envio_mensual_idempotente(
     await pool.execute("DELETE FROM usuarios WHERE email = $1", correo)
     await pool.execute("DELETE FROM narrativas WHERE cliente_id = $1", cliente_a.id)
     await _borrar_instancia(pool, plantilla)
+
+
+@requiere_db
+async def test_override_rechaza_metricas_inventadas(
+    pool, cliente_a, usuario_equipo, config
+) -> None:  # type: ignore[no-untyped-def]  # #14 + "no inventes métricas"
+    plantilla = await _instancia_de_prueba(pool, cliente_a.id)
+    bloque = await pool.fetchval(
+        "SELECT b.id FROM reporte_bloques b JOIN reporte_paginas p ON p.id = b.pagina_id "
+        "WHERE p.plantilla_id = $1 LIMIT 1",
+        plantilla,
+    )
+    app = crear_app(config)
+    equipo = {"Authorization": f"Bearer {token_para(usuario_equipo)}"}
+    try:
+        async with app.router.lifespan_context(app):
+            async with httpx.AsyncClient(
+                transport=httpx.ASGITransport(app=app), base_url="http://test"
+            ) as http:
+                url = f"/admin/clientes/{cliente_a.id}/reporte/bloques/{bloque}"
+                malo = {"oculto": False, "config": {"items": [{"metrica": "no_existe_xyz"}]}}
+                r = await http.put(url, json=malo, headers=equipo)
+                assert r.status_code == 400 and "no_existe_xyz" in r.json()["detail"]
+                r = await http.put(url, json={"config": {"limite": 9999}}, headers=equipo)
+                assert r.status_code == 400 and "limite" in r.json()["detail"]
+                bueno = {"config": {"items": [{"metrica": "alcance"}], "limite": 5}}
+                assert (await http.put(url, json=bueno, headers=equipo)).status_code == 200
+    finally:
+        await _borrar_instancia(pool, plantilla)

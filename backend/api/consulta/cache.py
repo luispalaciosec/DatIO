@@ -1,8 +1,10 @@
 """Cache en proceso de /consulta (PT-12).
 
-Una entrada vive hasta `ttl_seg` o hasta que cambia la "generación" de datos: la última
-captura del ETL cerrada (jobs_ejecucion.finalizado_en), consultada como mucho cada 60 s.
-Así una corrida del cron (que vive en otro contenedor) invalida sin coordinación.
+Una entrada vive hasta `ttl_seg` o hasta que cambia la "generación": la última captura del
+ETL cerrada (jobs_ejecucion.finalizado_en) más la versión de configuración (config_version,
+sql/015, que suben triggers al editar reporte, tema, competidores, cuentas o clientes). Se
+consulta como mucho cada 60 s, así que otro proceso ve un cambio en <= 60 s; el proceso que
+hizo la edición lo ve en la petición siguiente porque el admin llama a vaciar() (B-7).
 Los resultados provisionales no se cachean: cambian con cada captura live.
 """
 
@@ -57,4 +59,6 @@ class CacheConsulta:
             self._entradas.popitem(last=False)
 
     def vaciar(self) -> None:
+        """Borra todo y obliga a re-leer la generación en la próxima consulta."""
         self._entradas.clear()
+        self._generacion_vista_en = 0.0

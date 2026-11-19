@@ -9,17 +9,71 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel, EmailStr, Field
 
 from api.admin.router import usuario_equipo
+from api.auth.admin_supabase import asegurar_usuario_auth
 from api.config import Configuracion
-from api.deps import UsuarioActual, obtener_config_app, obtener_pool
+from api.deps import (
+    UsuarioActual,
+    limite_por_usuario,
+    obtener_config_app,
+    obtener_pool,
+    vaciar_cache_tras_escritura,
+)
 from api.etl.conector_base import hoy_en
 from api.reportes.correo import enviar, html_invitacion
 from api.reportes.envio import COLOR_DEFECTO, enviar_reporte, mes_anterior
 from api.reportes.repositorio import RepositorioReportes
 
-router = APIRouter(prefix="/admin", tags=["admin-reporte"])
+router = APIRouter(
+    prefix="/admin",
+    tags=["admin-reporte"],
+    # B-7: las ediciones se ven en /consulta en la petición siguiente
+    dependencies=[Depends(vaciar_cache_tras_escritura)],
+)
 
 # Claves de config que el editor puede sobreescribir por cliente (lista blanca)
 EDITABLES = {"titulo", "bajada", "etiqueta", "etiqueta_propio", "objetivo", "limite", "ia", "items"}
+TEXTOS = {"titulo": 200, "bajada": 500, "etiqueta": 120, "etiqueta_propio": 120}
+MAX_ITEMS = 12
+
+
+def errores_override(config: dict[str, Any]) -> list[str]:
+    """#14: tipos y rangos de cada valor editable (además de la lista blanca de claves)."""
+    errores: list[str] = []
+    for clave, maximo in TEXTOS.items():
+        v = config.get(clave)
+        if v is not None and (not isinstance(v, str) or len(v) > maximo):
+            errores.append(f"{clave}: texto de hasta {maximo} caracteres")
+    if "limite" in config:
+        v = config["limite"]
+        if isinstance(v, bool) or not isinstance(v, int) or not 1 <= v <= 100:
+            errores.append("limite: entero entre 1 y 100")
+    if "objetivo" in config:
+        v = config["objetivo"]
+        if isinstance(v, bool) or not isinstance(v, int | float) or not 0 <= v <= 1e12:
+            errores.append("objetivo: número entre 0 y 1e12")
+    if "ia" in config and not isinstance(config["ia"], bool):
+        errores.append("ia: verdadero o falso")
+    if "items" in config:
+        items = config["items"]
+        validos = isinstance(items, list) and len(items) <= MAX_ITEMS
+        for i in items if isinstance(items, list) else []:
+            validos = validos and (
+                isinstance(i, dict)
+                and isinstance(i.get("metrica"), str)
+                and len(i) <= 8
+                and all(isinstance(k, str) and len(k) <= 40 for k in i)
+                and all(
+                    v is None
+                    or isinstance(v, bool | int | float)
+                    or (isinstance(v, str) and len(v) <= 120)
+                    for v in i.values()
+                )
+            )
+        if not validos:
+            errores.append(
+                f"items: lista de hasta {MAX_ITEMS} objetos con 'metrica' y valores simples"
+            )
+    return errores
 
 
 def _repo(pool: Annotated[asyncpg.Pool, Depends(obtener_pool)]) -> RepositorioReportes:
@@ -39,12 +93,18 @@ async def _instancia(repo: RepositorioReportes, cliente_id: int) -> dict[str, An
     return inst
 
 
+NO_INVITABLES = {
+    "pertenece_a_otro_cliente": "ya es usuario de otro cliente; no se cambió",
+    "es_equipo": "es del equipo",
+}
+
+
 class Invitacion(BaseModel):
     emails: list[EmailStr] = Field(min_length=1, max_length=20)
     enviar_correo: bool = True
 
 
-@router.post("/clientes/{cliente_id}/invitar")
+@router.post("/clientes/{cliente_id}/invitar", dependencies=[limite_por_usuario("invitar", 10)])
 async def invitar(
     cliente_id: int, cuerpo: Invitacion, _: Equipo, repo: Repo, config: Config
 ) -> dict[str, Any]:
@@ -55,12 +115,26 @@ async def invitar(
     resultados: list[dict[str, str | None]] = []
     for crudo in cuerpo.emails:
         email = crudo.lower()
-        if await repo.rol_de(email) == "equipo":
-            resultados.append({"email": email, "estado": "omitido", "detalle": "es del equipo"})
+        estado = await repo.invitar(cliente_id, email)
+        if estado in NO_INVITABLES:
+            # N-1: nunca se mueve un usuario de cliente ni se toca uno del equipo. No se dice
+            # a qué cliente pertenece.
+            resultados.append({"email": email, "estado": estado, "detalle": NO_INVITABLES[estado]})
             continue
-        await repo.invitar(cliente_id, email)
+        # #12: el enlace mágico no crea usuarios; hay que darlo de alta en Supabase Auth.
+        auth = await asegurar_usuario_auth(config, email)
+        if auth in ("sin_clave_auth", "error_auth"):
+            resultados.append(
+                {
+                    "email": email,
+                    "estado": "habilitado_sin_auth",
+                    "detalle": "habilitado en DatIO, pero no se pudo crear su acceso en Supabase "
+                    f"Auth ({auth}); no podrá pedir el enlace hasta resolverlo",
+                }
+            )
+            continue
         if not cuerpo.enviar_correo:
-            resultados.append({"email": email, "estado": "habilitado", "detalle": None})
+            resultados.append({"email": email, "estado": "habilitado", "detalle": estado})
             continue
         ok, error = await enviar(
             config,
@@ -72,7 +146,7 @@ async def invitar(
             {
                 "email": email,
                 "estado": "invitado" if ok else "habilitado_sin_correo",
-                "detalle": error,
+                "detalle": error if not ok else (estado if estado != "creado" else None),
             }
         )
     return {"url": url, "resultados": resultados}
@@ -105,6 +179,16 @@ async def guardar_bloque(
     if ajenas:
         raise HTTPException(status.HTTP_400_BAD_REQUEST, f"Campos no editables: {sorted(ajenas)}")
     limpio = {k: v for k, v in cuerpo.config.items() if v not in (None, "")}
+    errores = errores_override(limpio)
+    if errores:
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, "; ".join(errores))
+    # "No inventes métricas": toda métrica de items tiene que existir en dim_metrica
+    codigos = [str(i["metrica"]) for i in limpio.get("items", [])]
+    desconocidas = sorted(set(codigos) - await repo.metricas_existentes(codigos))
+    if desconocidas:
+        raise HTTPException(
+            status.HTTP_400_BAD_REQUEST, f"Métricas desconocidas: {', '.join(desconocidas)}"
+        )
     await repo.guardar_override(inst["id"], bloque_id, cuerpo.oculto, limpio)
     return {"estado": "guardado"}
 
@@ -126,7 +210,9 @@ class EnvioManual(BaseModel):
     mes: str | None = Field(default=None, pattern=r"^\d{4}-\d{2}$")  # None = mes anterior
 
 
-@router.post("/clientes/{cliente_id}/reporte/enviar")
+@router.post(
+    "/clientes/{cliente_id}/reporte/enviar", dependencies=[limite_por_usuario("enviar", 3)]
+)
 async def enviar_ahora(
     cliente_id: int, cuerpo: EnvioManual, _: Equipo, config: Config, pool: Pool
 ) -> dict[str, Any]:

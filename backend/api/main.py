@@ -17,12 +17,14 @@ from api.consulta.cache import CacheConsulta
 from api.consulta.router import router as router_consulta
 from api.db import crear_pool
 from api.etl.router import router as router_etl
+from api.observabilidad import iniciar_sentry
 from api.pdf.router import router as router_pdf
 from api.seguridad import CabecerasSeguridad, LimitePeticiones
 
 
 def crear_app(config: Configuracion | None = None) -> FastAPI:
     cfg = config or obtener_config()
+    iniciar_sentry(cfg, "api")
 
     @asynccontextmanager
     async def ciclo_de_vida(app: FastAPI) -> AsyncIterator[None]:

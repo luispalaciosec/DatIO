@@ -34,8 +34,15 @@ class RepositorioAuth:
         self._pool = pool
 
     async def usuario_por_email(self, email: str) -> Usuario | None:
+        """Usuario habilitado para entrar. Un usuario de rol cliente deja de existir para la
+        API en cuanto su cliente se desactiva (S-1); el equipo no depende de ningún cliente."""
         fila = await self._pool.fetchrow(
-            "SELECT email, rol, cliente_id FROM usuarios WHERE email = $1 AND activo", email
+            """
+            SELECT u.email, u.rol, u.cliente_id
+            FROM   usuarios u LEFT JOIN clientes c ON c.id = u.cliente_id
+            WHERE  u.email = $1 AND u.activo AND (u.rol = 'equipo' OR c.activo)
+            """,
+            email,
         )
         return Usuario(fila["email"], fila["rol"], fila["cliente_id"]) if fila else None
 

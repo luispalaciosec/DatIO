@@ -16,6 +16,7 @@ os.environ.setdefault("CRON_SECRET", "cron-solo-para-tests")
 os.environ.setdefault("AMBIENTE", "test")
 os.environ.setdefault("PDF_SECRET", "pdf-secreto-solo-para-tests")
 os.environ.setdefault("FRONTEND_URL", "http://front.test")
+os.environ.setdefault("LINKEDIN_CLIENT_ID", "linkedin-cliente-de-prueba")
 HAY_DB = bool(os.environ.get("DATABASE_URL"))
 os.environ.setdefault("DATABASE_URL", "postgresql://sin-base")
 
@@ -23,6 +24,9 @@ from api.config import Configuracion, obtener_config  # noqa: E402
 from api.db import crear_pool  # noqa: E402
 from api.etl.repositorio import Cuenta, RepositorioETL  # noqa: E402
 
+# Los tests nunca leen backend/.env: si lo hicieran, claves reales (Resend, LLM, OAuth)
+# entrarían a la suite y un test podría mandar correos o llamar APIs de verdad.
+Configuracion.model_config["env_file"] = None
 obtener_config.cache_clear()
 requiere_db = pytest.mark.skipif(not HAY_DB, reason="DATABASE_URL no definido")
 
@@ -150,9 +154,13 @@ async def usuario_equipo(pool: asyncpg.Pool) -> AsyncIterator[str]:
     await pool.execute("DELETE FROM usuarios WHERE email = $1", email)
 
 
-def token_para(email: str, expirado: bool = False) -> str:
+def token_para(
+    email: str, expirado: bool = False, metodo: str | None = "otp", **extra: object
+) -> str:
+    """Token como los de Supabase. `metodo` va en `amr` (otp = enlace mágico); None = sin amr."""
     ahora = datetime.now(UTC)
     exp = ahora - timedelta(hours=1) if expirado else ahora + timedelta(hours=1)
+    amr = [{"method": metodo, "timestamp": int(ahora.timestamp())}] if metodo else None
     return jwt.encode(
         {
             "sub": uuid.uuid4().hex,
@@ -161,7 +169,24 @@ def token_para(email: str, expirado: bool = False) -> str:
             "role": "authenticated",
             "iat": ahora,
             "exp": exp,
+            **({"amr": amr} if amr else {}),
+            **extra,
         },
         os.environ["SUPABASE_JWT_SECRET"],
         algorithm="HS256",
     )
+
+
+def pdf_valido(paginas: int = 1) -> bytes:
+    """PDF real y legible por pypdf, con tamaño por encima del mínimo de render.validar_pdf."""
+    import io
+
+    from pypdf import PdfWriter
+
+    escritor = PdfWriter()
+    for _ in range(paginas):
+        escritor.add_blank_page(width=842, height=595)
+    escritor.add_metadata({"/Subject": "reporte de prueba " + "·" * 600})
+    salida = io.BytesIO()
+    escritor.write(salida)
+    return salida.getvalue()
