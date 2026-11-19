@@ -15,7 +15,7 @@ dependencies = [
     "google-auth>=2.34",
     "litellm>=1.50",
     "playwright>=1.47",
-    "pypdf>=6.21,<7",  # validar el PDF del envío mensual (B-4)
+    "pypdf>=7.1.0,<8",  # validar el PDF del envío mensual (B-4)
     "sentry-sdk[fastapi]>=2.40,<3",  # apagado si no hay SENTRY_DSN
     "Pillow>=10.4",
 ]
