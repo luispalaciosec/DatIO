@@ -1,5 +1,10 @@
 FROM python:3.12-slim
 WORKDIR /app
+# El Node que trae Playwright (>= 1.65) necesita libatomic1, que la imagen slim no incluye;
+# sin ella `playwright install` falla antes de poder instalar sus propias dependencias.
+RUN apt-get update \
+ && apt-get install -y --no-install-recommends libatomic1 \
+ && rm -rf /var/lib/apt/lists/*
 # #20: dependencias fijadas con hashes (requirements.lock, generado con pip-compile
 # --generate-hashes desde pyproject.toml). El paquete propio va sin resolver dependencias.
 COPY pyproject.toml requirements.lock ./
