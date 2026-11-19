@@ -208,7 +208,7 @@ Ecuador, Grupo Jerilex, Jerivet). 141 tests.
 | PT-01 Base, PT-02 Semántica, PT-03 Núcleo ETL, PT-07 API y auth | listo |
 | PT-04 GA4 + Search Console (con dimensiones), PT-05 Meta IG + FB (+ publicaciones), PT-06 Meta Ads | listo, capturando |
 | PT-04d LinkedIn | **nativo** (Community Management API) para cuentas con token; puente Metricool para el resto |
-| PT-04e TikTok | puente Metricool (`POST /etl/importar/metricool`); app nativa pendiente de crear |
+| PT-04e TikTok | conector nativo (Login Kit + Display API, `api/etl/conectores/tiktok.py`) en sandbox hasta la aprobación de TikTok; las cuentas sin token siguen por el puente Metricool |
 | PT-04b Google Ads, PT-04c YouTube | mapeados; bloqueados por developer token y acceso al canal |
 | PT-08 Resolvedores, PT-09 Renderer, PT-10 Bloques, PT-11 PDF | listo (26 tipos de bloque) |
 | PT-12 Cache + live | listo (cache en proceso invalidada por la última captura; `--live` intradía provisional) |
@@ -256,6 +256,7 @@ sesión `META_LOGIN_CONFIG_ID` definida en la app de Meta):
 |---|---|---|---|
 | LinkedIn | `r_organization_social` | Publicaciones de la página de empresa y sus estadísticas | Sí |
 | LinkedIn | `rw_organization_admin` | Listar las páginas que administra quien conecta (`organizationAcls`) y leer seguidores y visitas | No en teoría: LinkedIn rechazó para la app la variante `r_organization_admin`. El código solo hace GET (test `test_linkedin_solo_lee`) |
+| TikTok | `user.info.basic`, `user.info.profile`, `user.info.stats`, `video.list` | Identificar la cuenta, totales diarios (seguidores, me gusta, videos) y videos con sus métricas | Sí |
 | Google | `analytics.readonly` | Métricas de GA4 | Sí |
 | Google | `webmasters.readonly` | Search Console | Sí |
 | Google | `youtube.readonly`, `yt-analytics.readonly` | Canal y estadísticas de YouTube | Sí |

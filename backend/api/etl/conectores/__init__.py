@@ -13,5 +13,6 @@ from api.etl.conectores import (  # noqa: F401
     meta_fb,
     meta_ig,
     meta_publicaciones,
+    tiktok,
     zoho,
 )

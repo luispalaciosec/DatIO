@@ -84,6 +84,9 @@ class Configuracion(BaseSettings):
         default="",
         validation_alias=AliasChoices("GOOGLE_OAUTH_CLIENT_SECRET", "GOOGLE_CLIENT_SECRET"),
     )
+    # TikTok for Developers (Login Kit + Display API). Sandbox o producción según la app.
+    tiktok_client_key: str = ""
+    tiktok_client_secret: str = ""
     linkedin_client_id: str = ""
     linkedin_client_secret: str = ""
     # Versión mensual de la API REST de LinkedIn (caducan al año). Ej: 202609

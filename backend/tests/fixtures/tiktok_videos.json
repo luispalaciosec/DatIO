@@ -1,0 +1,20 @@
+{
+  "data": {
+    "videos": [
+      {"id": "7310000000000000001", "create_time": 1794268800, "title": "Ahorra con tu tarjeta",
+       "video_description": "Ahorra con tu tarjeta #banco", "share_url": "https://www.tiktok.com/@bancoprueba.ec/video/7310000000000000001",
+       "cover_image_url": "https://p16-sign.tiktokcdn.com/portada1.jpeg", "duration": 21,
+       "view_count": 15400, "like_count": 320, "comment_count": 12, "share_count": 9},
+      {"id": "7310000000000000002", "create_time": 1793145600, "title": "",
+       "video_description": "Detrás de cámaras", "share_url": "https://www.tiktok.com/@bancoprueba.ec/video/7310000000000000002",
+       "cover_image_url": "https://p16-sign.tiktokcdn.com/portada2.jpeg", "duration": 35,
+       "view_count": 2100, "like_count": 45, "comment_count": 0, "share_count": 1},
+      {"id": "7310000000000000003", "create_time": 1780000000, "title": "Video viejo",
+       "share_url": "https://www.tiktok.com/@bancoprueba.ec/video/7310000000000000003",
+       "view_count": 999999, "like_count": 1, "comment_count": 1, "share_count": 1}
+    ],
+    "cursor": 1780000000000,
+    "has_more": false
+  },
+  "error": {"code": "ok", "message": "", "log_id": "20261119000001"}
+}
