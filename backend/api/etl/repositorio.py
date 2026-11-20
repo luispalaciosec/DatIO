@@ -274,6 +274,46 @@ class RepositorioETL:
             )
         return len(registros)
 
+    async def incrementos_publicaciones(
+        self, cuenta_id: int, fecha_snapshot: date, codigos: list[str], dias_nuevas: int = 2
+    ) -> dict[str, Decimal]:
+        """Cuánto crecieron, sumando todas las publicaciones de la cuenta, las métricas
+        acumuladas entre la foto del día anterior y la de `fecha_snapshot`.
+
+        Para APIs que solo dan totales por publicación (TikTok Display API). Si no existe la
+        foto del día anterior devuelve {}: un hueco no se reparte. Una publicación sin foto
+        previa cuenta entera solo si se publicó en los últimos `dias_nuevas` días (todo lo que
+        tiene lo ganó en ese lapso); si es vieja y recién aparece, no se puede saber cuánto
+        creció y no cuenta. Los decrementos (p. ej. un me gusta retirado) cuentan como 0.
+        """
+        filas = await self._pool.fetch(
+            """
+            WITH hoy AS (
+                SELECT d.id, d.publicado_en, f.metrica_codigo, f.valor
+                FROM   fct_publicacion_diaria f JOIN dim_publicacion d ON d.id = f.publicacion_id
+                WHERE  d.cuenta_id = $1 AND f.fecha_snapshot = $2
+                  AND  f.metrica_codigo = ANY($3::text[])
+            ), ayer AS (
+                SELECT f.publicacion_id AS id, f.metrica_codigo, f.valor
+                FROM   fct_publicacion_diaria f JOIN dim_publicacion d ON d.id = f.publicacion_id
+                WHERE  d.cuenta_id = $1 AND f.fecha_snapshot = $2 - 1
+                  AND  f.metrica_codigo = ANY($3::text[])
+            )
+            SELECT h.metrica_codigo,
+                   sum(CASE WHEN a.id IS NOT NULL THEN greatest(h.valor - a.valor, 0)
+                            WHEN h.publicado_en >= ($2 - $4::int)::timestamptz THEN h.valor
+                            ELSE 0 END) AS incremento
+            FROM   hoy h LEFT JOIN ayer a ON a.id = h.id AND a.metrica_codigo = h.metrica_codigo
+            WHERE  EXISTS (SELECT 1 FROM ayer)
+            GROUP  BY h.metrica_codigo
+            """,
+            cuenta_id,
+            fecha_snapshot,
+            codigos,
+            dias_nuevas,
+        )
+        return {str(f["metrica_codigo"]): Decimal(f["incremento"]) for f in filas}
+
     async def contar_publicaciones(self, cuenta_id: int) -> int:
         return int(
             await self._pool.fetchval(

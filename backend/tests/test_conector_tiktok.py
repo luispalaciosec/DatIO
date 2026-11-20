@@ -94,14 +94,16 @@ def test_cuenta_guarda_la_foto_del_dia(config) -> None:  # type: ignore[no-untyp
     assert not c.metricas_sin_mapeo
 
 
-def test_publicaciones_con_metricas_y_ventana(config) -> None:  # type: ignore[no-untyped-def]
+def test_publicaciones_guarda_todos_los_videos(config) -> None:  # type: ignore[no-untyped-def]
+    """Todos los videos (también los viejos): su crecimiento diario suma a la cuenta."""
     c = _con(ConectorTikTokPublicaciones, config)
     videos = json.loads((F / "tiktok_videos.json").read_text())["data"]["videos"]
-    pubs = c.normalizar_publicaciones([{"tipo": "videos", "videos": videos, "desde": "2026-10-21"}])
+    pubs = c.normalizar_publicaciones([{"tipo": "videos", "videos": videos}])
     assert [p.id_externo for p in pubs] == [
         "7310000000000000001",
         "7310000000000000002",
-    ]  # el viejo no
+        "7310000000000000003",
+    ]
     p1 = pubs[0]
     assert p1.tipo == "video" and p1.caption == "Ahorra con tu tarjeta"
     assert p1.publicado_en == datetime(2026, 11, 10, tzinfo=UTC)
@@ -197,3 +199,57 @@ def test_error_de_api_se_detecta() -> None:
     )
     with pytest.raises(TikTokError, match="scope_not_authorized"):
         tk._verificar(r, "user/info")
+
+
+# ---- incrementos diarios (con base) ------------------------------------------------------
+
+from tests.conftest import requiere_db  # noqa: E402
+
+
+@requiere_db
+async def test_incrementos_diarios_desde_las_fotos(repo, cliente_a) -> None:  # type: ignore[no-untyped-def]
+    """Crecimiento medido entre la foto de ayer y la de hoy, sumado sobre todos los videos."""
+    hoy, ayer = date(2026, 11, 20), date(2026, 11, 19)
+    cid = cliente_a.cuenta.id
+    viejo = {
+        "id_externo": "v-viejo",
+        "tipo": "video",
+        "publicado_en": datetime(2026, 9, 1, tzinfo=UTC),
+        "permalink": None,
+        "caption": None,
+        "thumbnail_url": None,
+    }
+    nuevo = {
+        **viejo,
+        "id_externo": "v-nuevo",
+        "publicado_en": datetime(2026, 11, 19, 15, tzinfo=UTC),
+    }
+    tardio = {**viejo, "id_externo": "v-tardio"}  # viejo pero aparece recién hoy
+    codigos = ["reproducciones_video", "me_gusta"]
+
+    # Sin foto de ayer no hay incremento (no se reparte un hueco)
+    ids = await repo.upsert_publicaciones(cid, [viejo], ayer)
+    await repo.upsert_metricas_publicacion(
+        [
+            (ids["v-viejo"], "reproducciones_video", Decimal(1000)),
+            (ids["v-viejo"], "me_gusta", Decimal(50)),
+        ],
+        ayer,
+    )
+    assert await repo.incrementos_publicaciones(cid, ayer, codigos) == {}
+
+    ids = await repo.upsert_publicaciones(cid, [viejo, nuevo, tardio], hoy)
+    await repo.upsert_metricas_publicacion(
+        [
+            (ids["v-viejo"], "reproducciones_video", Decimal(1300)),  # +300
+            (ids["v-viejo"], "me_gusta", Decimal(48)),  # bajó: cuenta 0
+            (ids["v-nuevo"], "reproducciones_video", Decimal(500)),  # nuevo: cuenta entero
+            (ids["v-nuevo"], "me_gusta", Decimal(20)),
+            (ids["v-tardio"], "reproducciones_video", Decimal(9999)),  # sin base: no cuenta
+        ],
+        hoy,
+    )
+    assert await repo.incrementos_publicaciones(cid, hoy, codigos) == {
+        "reproducciones_video": Decimal(800),
+        "me_gusta": Decimal(20),
+    }

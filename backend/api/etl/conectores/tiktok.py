@@ -9,18 +9,24 @@ Qué entrega Display API y cómo se guarda:
   No hay series diarias: cada corrida guarda la foto del día en la fecha `hasta` (ayer), igual
   que el total de seguidores de LinkedIn. La ventana de re-sync de 28 días no aplica a una foto:
   no se puede reconstruir el pasado, por eso el histórico empieza el día que se conecta.
-- Publicaciones: los videos recientes con vistas, me gusta, comentarios y compartidos.
-No entrega alcance, impresiones de cuenta ni visitas al perfil (eso es TikTok API for Business).
+- Publicaciones: todos los videos (hasta 200) con sus vistas, me gusta, comentarios y
+  compartidos acumulados, en una foto diaria por video.
+- Incrementos diarios de la cuenta: la diferencia entre la foto de hoy y la de ayer, sumada
+  sobre todos los videos, se guarda como impresiones (reproducciones, igual que el puente
+  Metricool), me gusta, comentarios, compartidos e interacciones del día anterior. Son cifras
+  medidas, no estimadas; empiezan con la segunda captura y un día sin captura queda en blanco.
+No entrega alcance ni visitas al perfil (eso es TikTok API for Business).
 Métricas nativas → seed 'tiktok' (nombres de la API).
 """
 
 import json
+from dataclasses import replace
 from datetime import UTC, date, datetime, timedelta
 from typing import Any
 
 import httpx
 
-from api.etl.conector_base import ConectorBase, Fila
+from api.etl.conector_base import ConectorBase, Fila, ResultadoCorrida, hoy_en
 from api.etl.conector_publicaciones import ConectorPublicacionesBase, Publicacion
 from api.etl.registro import registrar, registrar_publicaciones
 
@@ -33,7 +39,15 @@ CAMPOS_VIDEO = (
     "id,create_time,cover_image_url,share_url,video_description,title,duration,"
     "view_count,like_count,comment_count,share_count"
 )
-MAX_PAGINAS_VIDEOS = 10  # 20 videos por página
+MAX_PAGINAS_VIDEOS = 10  # 20 videos por página: hasta 200 videos por cuenta
+# Métrica por video (acumulada) → métrica diaria de la cuenta (lo que creció ese día)
+INCREMENTOS = {
+    "reproducciones_video": "impresiones",
+    "me_gusta": "me_gusta",
+    "comentarios": "comentarios",
+    "compartidos": "compartidos",
+    "interacciones": "interacciones",
+}
 MARGEN_RENOVACION = timedelta(minutes=10)
 
 
@@ -149,7 +163,8 @@ class ConectorTikTokPublicaciones(TikTokBase, ConectorPublicacionesBase):
     METRICAS_NATIVAS = ("view_count", "like_count", "comment_count", "share_count", "engagement")
 
     async def extraer(self, desde: date, hasta: date) -> list[dict[str, Any]]:
-        limite = int(datetime.combine(desde, datetime.min.time(), UTC).timestamp())
+        # Se siguen TODOS los videos (no solo los de la ventana de 28 días): los viejos también
+        # suman reproducciones cada día y sin su foto diaria ese crecimiento se perdería.
         videos: list[dict[str, Any]] = []
         cursor: int | None = None
         async with httpx.AsyncClient(timeout=self.timeout_seg) as http:
@@ -167,25 +182,20 @@ class ConectorTikTokPublicaciones(TikTokBase, ConectorPublicacionesBase):
                 datos = _verificar(r, "video/list").get("data") or {}
                 pagina = datos.get("videos") or []
                 videos.extend(pagina)
-                # Vienen del más nuevo al más viejo: se corta al pasar la ventana de re-sync
-                viejo = min((int(v.get("create_time") or 0) for v in pagina), default=0)
-                if not datos.get("has_more") or viejo < limite:
+                if not datos.get("has_more"):
                     break
                 cursor = datos.get("cursor")
-        return [{"tipo": "videos", "videos": videos, "desde": desde.isoformat()}]
+        return [{"tipo": "videos", "videos": videos}]
 
     def normalizar_publicaciones(self, payload: list[dict[str, Any]]) -> list[Publicacion]:
         salida: list[Publicacion] = []
         for bloque in payload:
-            desde = date.fromisoformat(bloque.get("desde") or "1970-01-01")
             for v in bloque.get("videos", []):
                 creado = (
                     datetime.fromtimestamp(int(v["create_time"]), tz=UTC)
                     if v.get("create_time")
                     else None
                 )
-                if creado is not None and creado.date() < desde:
-                    continue
                 nativas = {
                     k: v[k]
                     for k in ("view_count", "like_count", "comment_count", "share_count")
@@ -208,3 +218,17 @@ class ConectorTikTokPublicaciones(TikTokBase, ConectorPublicacionesBase):
                     )
                 )
         return salida
+
+    async def correr(
+        self, hasta: date | None = None, provisional_desde: date | None = None
+    ) -> ResultadoCorrida:
+        """Foto de los videos (base) y, con ella, los incrementos diarios de la cuenta."""
+        resultado = await super().correr(hasta, provisional_desde)
+        hoy = hoy_en(self.config.zona_horaria)
+        crecimiento = await self.repo.incrementos_publicaciones(
+            self.cuenta.id, hoy, list(INCREMENTOS)
+        )
+        ayer = hoy - timedelta(days=1)
+        filas = [(ayer, INCREMENTOS[codigo], valor) for codigo, valor in crecimiento.items()]
+        n = await self.repo.upsert_metricas(self.cuenta.id, filas, hoy)
+        return replace(resultado, filas_escritas=resultado.filas_escritas + n)
