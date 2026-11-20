@@ -473,3 +473,10 @@ table.tarjeta strong { font-weight: 500; color: var(--color-secundario); }
 .matriz-competidores td.falta { background: var(--gris-50, #f8fafc); }
 .enlace.peligro { color: var(--rojo); }
 .formulario input:disabled { opacity: .55; }
+
+/* Eliminar cliente */
+.zona-peligro { border: 1px solid #fecaca; margin-top: 16px; }
+.zona-peligro h3 { color: var(--rojo); }
+.zona-peligro form { display: flex; flex-direction: column; gap: 10px; }
+.boton-peligro { align-self: flex-start; padding: 9px 16px; border-radius: 999px; border: 0; background: var(--rojo); color: #fff; font: inherit; font-size: 13px; cursor: pointer; }
+.boton-peligro:disabled { opacity: .45; cursor: not-allowed; }

@@ -1,5 +1,6 @@
 """Endpoints del administrador. Todos exigen rol equipo (403 para clientes)."""
 
+import logging
 import re
 from typing import Annotated, Any
 
@@ -18,6 +19,8 @@ from api.deps import (
     usuario_actual,
     vaciar_cache_tras_escritura,
 )
+
+log = logging.getLogger(__name__)
 
 router = APIRouter(
     prefix="/admin",
@@ -109,6 +112,33 @@ async def editar_cliente(
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Cliente no encontrado")
     await repo.actualizar_cliente(cliente_id, cuerpo.model_dump(exclude_none=True))
     return await repo.cliente(cliente_id) or {}
+
+
+class EliminarCliente(BaseModel):
+    confirmar: str = Field(min_length=1, max_length=60)  # el slug del cliente, escrito a mano
+
+
+@router.delete("/clientes/{cliente_id}")
+async def eliminar_cliente(
+    cliente_id: int, cuerpo: EliminarCliente, usuario: Equipo, repo: Repo
+) -> dict[str, Any]:
+    """Elimina el cliente y todos sus datos. Irreversible: exige escribir el slug."""
+    cliente = await repo.cliente(cliente_id)
+    if cliente is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Cliente no encontrado")
+    if cuerpo.confirmar.strip() != cliente["slug"]:
+        raise HTTPException(
+            status.HTTP_400_BAD_REQUEST, "Para eliminar, escribe exactamente el slug del cliente"
+        )
+    borradas = await repo.eliminar_cliente(cliente_id)
+    log.warning(
+        "cliente eliminado: id=%s slug=%s por=%s filas=%s",
+        cliente_id,
+        cliente["slug"],
+        usuario.email,
+        borradas,
+    )
+    return {"eliminado": cliente["slug"], "filas": borradas}
 
 
 # ---- tema -------------------------------------------------------------------

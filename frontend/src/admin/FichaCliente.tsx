@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Link, useParams, useSearchParams } from "react-router-dom";
+import { Link, useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { api, ErrorApi } from "../lib/api";
 import type { EmpresaCrm, EvaluacionCrm, ActivoConexion, Catalogos, ClienteDetalle, Conexion, CuentaAdmin, TemaAdmin } from "../lib/tipos";
 import { supabase } from "../lib/supabase";
@@ -34,7 +34,7 @@ export function FichaCliente() {
         </div>
       </div>
       <PuestaEnMarcha cliente={cliente} irA={setPestana} />
-      {pestana === "datos" && <><Datos cliente={cliente} catalogos={catalogos} alGuardar={cargar} /><Crm cliente={cliente} alGuardar={cargar} /></>}
+      {pestana === "datos" && <><Datos cliente={cliente} catalogos={catalogos} alGuardar={cargar} /><Crm cliente={cliente} alGuardar={cargar} /><ZonaPeligro cliente={cliente} /></>}
       {pestana === "marca" && <Marca cliente={cliente} alGuardar={cargar} />}
       {pestana === "cuentas" && <Cuentas cliente={cliente} catalogos={catalogos} alGuardar={cargar} />}
       {pestana === "competidores" && <Competidores cliente={cliente} alGuardar={cargar} />}
@@ -98,6 +98,41 @@ function Datos({ cliente, catalogos, alGuardar }: { cliente: ClienteDetalle; cat
       <p className="sutil">El slug <code>{cliente.slug}</code> no se cambia: es la URL del reporte que ya tiene el cliente.</p>
       <button className="boton-pdf" type="submit">Guardar</button><Aviso texto={aviso} />
     </form>
+  );
+}
+
+// Eliminar el cliente y TODOS sus datos. Irreversible: se confirma escribiendo el slug.
+function ZonaPeligro({ cliente }: { cliente: ClienteDetalle }) {
+  const navigate = useNavigate();
+  const [abierta, setAbierta] = useState(false);
+  const [texto, setTexto] = useState("");
+  const [aviso, setAviso] = useState<TextoAviso>(null);
+  const [ocupado, setOcupado] = useState(false);
+  async function eliminar(e: React.FormEvent) {
+    e.preventDefault();
+    setOcupado(true);
+    try {
+      await api.admin.eliminarCliente(cliente.id, texto.trim());
+      navigate("/admin", { replace: true });
+    } catch (err) { setAviso({ error: (err as ErrorApi).message }); setOcupado(false); }
+  }
+  return (
+    <div className="tarjeta formulario estrecho zona-peligro">
+      <h3>Eliminar cliente</h3>
+      <p className="sutil">Borra para siempre a {cliente.nombre} y todo lo suyo: cuentas conectadas y sus tokens, métricas e histórico, publicaciones, reporte, usuarios, competidores y alertas. No se puede deshacer. Si solo quieres dejar de capturar, desmarca «Cliente activo».</p>
+      {!abierta ? (
+        <button type="button" className="boton-peligro" onClick={() => setAbierta(true)}>Eliminar cliente…</button>
+      ) : (
+        <form onSubmit={eliminar}>
+          <label>Para confirmar escribe <code>{cliente.slug}</code>
+            <input value={texto} onChange={(e) => setTexto(e.target.value)} autoComplete="off" /></label>
+          <button type="submit" className="boton-peligro" disabled={texto.trim() !== cliente.slug || ocupado}>
+            {ocupado ? "Eliminando…" : "Eliminar para siempre"}</button>
+          <button type="button" className="boton-pdf secundario" onClick={() => { setAbierta(false); setTexto(""); }}>Cancelar</button>
+          <Aviso texto={aviso} />
+        </form>
+      )}
+    </div>
   );
 }
 

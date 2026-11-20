@@ -74,6 +74,8 @@ export const api = {
       llamar<{ id: number; slug: string }>("/admin/clientes", { method: "POST", body: JSON.stringify(cuerpo) }),
     editarCliente: (id: number, cuerpo: Partial<{ nombre: string; sector: string | null; activo: boolean }>) =>
       llamar<ClienteAdmin>(`/admin/clientes/${id}`, { method: "PATCH", body: JSON.stringify(cuerpo) }),
+    eliminarCliente: (id: number, confirmar: string) =>
+      llamar<{ eliminado: string; filas: Record<string, number> }>(`/admin/clientes/${id}`, { method: "DELETE", body: JSON.stringify({ confirmar }) }),
     guardarTema: (id: number, cuerpo: Partial<TemaAdmin>) =>
       llamar<TemaAdmin>(`/admin/clientes/${id}/tema`, { method: "PUT", body: JSON.stringify(cuerpo) }),
     crearCuenta: (id: number, cuerpo: { plataforma: string; id_externo: string; nombre_cuenta?: string; credencial?: string }) =>

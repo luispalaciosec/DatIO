@@ -89,6 +89,51 @@ class RepositorioAdmin:
                 )
             return int(cliente_id)
 
+    async def eliminar_cliente(self, cliente_id: int) -> dict[str, int]:
+        """Borra el cliente y TODO lo suyo en una transacción: también raw_payloads. Es la
+        eliminación que promete la política de privacidad al terminar la relación; el raw solo
+        es append-only mientras el cliente existe.
+
+        Lo que cuelga de clientes se va en cascada (usuarios, reporte e historial de envíos,
+        tema, competidores y su radar, conexiones OAuth, narrativas, disparos CRM). Lo que
+        cuelga de sus cuentas no tiene cascada y se borra antes, en orden. llm_uso conserva el
+        costo con cliente_id NULL. Devuelve cuántas filas se borraron por tabla."""
+        borradas: dict[str, int] = {}
+        async with self._pool.acquire() as con, con.transaction():
+            cuentas = [
+                int(f["id"])
+                for f in await con.fetch(
+                    "SELECT id FROM cuentas_conectadas WHERE cliente_id = $1", cliente_id
+                )
+            ]
+            borradas["alertas"] = int(
+                (
+                    await con.execute(
+                        "DELETE FROM alertas WHERE cuenta_id = ANY($1::bigint[]) "
+                        "OR (cuenta_id IS NULL AND detalle->>'cliente_id' = $2::text)",
+                        cuentas,
+                        str(cliente_id),
+                    )
+                ).split()[-1]
+            )
+            for tabla in (
+                "disparos_crm",
+                "fct_proyeccion",
+                "jobs_ejecucion",
+                "fct_metrica_diaria",
+                "fct_metrica_dimension",
+                "dim_publicacion",
+                "raw_payloads",
+            ):
+                estado = await con.execute(
+                    f"DELETE FROM {tabla} WHERE cuenta_id = ANY($1::bigint[])", cuentas
+                )
+                borradas[tabla] = int(estado.split()[-1])
+            borradas["cuentas_conectadas"] = len(cuentas)
+            estado = await con.execute("DELETE FROM clientes WHERE id = $1", cliente_id)
+            borradas["clientes"] = int(estado.split()[-1])
+        return borradas
+
     async def actualizar_cliente(self, cliente_id: int, cambios: dict[str, Any]) -> None:
         permitidos = {k: v for k, v in cambios.items() if k in {"nombre", "sector", "activo"}}
         if not permitidos:
