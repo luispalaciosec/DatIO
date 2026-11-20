@@ -430,6 +430,12 @@ class RepositorioAdmin:
             *permitidos.values(),
         )
 
+    async def plataforma_competidor(self, competidor_id: int) -> str | None:
+        v = await self._pool.fetchval(
+            "SELECT plataforma FROM cliente_competidores WHERE id = $1", competidor_id
+        )
+        return str(v) if v is not None else None
+
     async def borrar_competidor(self, competidor_id: int) -> int | None:
         """Devuelve el cliente_id del competidor borrado (None si no existía)."""
         v = await self._pool.fetchval(

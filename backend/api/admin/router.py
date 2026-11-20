@@ -3,6 +3,7 @@
 import logging
 import re
 from typing import Annotated, Any
+from urllib.parse import parse_qs
 
 import asyncpg
 from fastapi import APIRouter, Depends, HTTPException, status
@@ -307,10 +308,26 @@ def _normalizar_handle(plataforma: str, handle: str) -> str:
                 h = h[len(prefijo) :]
         h = h.strip("/").split("/")[0].split("?")[0]
     if plataforma == "meta_fb":
-        for prefijo in ("https://www.facebook.com/", "https://facebook.com/"):
+        for prefijo in (
+            "https://www.facebook.com/",
+            "https://facebook.com/",
+            "https://m.facebook.com/",
+            "https://web.facebook.com/",
+        ):
             if h.startswith(prefijo):
                 h = h[len(prefijo) :]
-        h = h.strip("/").split("?")[0]
+        ruta, _, consulta = h.partition("?")
+        ruta = ruta.strip("/")
+        # Páginas sin usuario propio: facebook.com/profile.php?id=123. El id ES el handle.
+        if ruta == "profile.php":
+            ids = parse_qs(consulta).get("id")
+            if not ids or not ids[0].isdigit():
+                raise HTTPException(
+                    status.HTTP_422_UNPROCESSABLE_CONTENT,
+                    "Pega la URL completa de la página, con el ?id=…",
+                )
+            return f"profile.php?id={ids[0]}"
+        h = ruta
     return h
 
 
@@ -346,7 +363,13 @@ async def crear_competidor(
 async def editar_competidor(
     competidor_id: int, cuerpo: CompetidorCambios, _: Equipo, repo: Repo
 ) -> dict[str, str]:
-    await repo.actualizar_competidor(competidor_id, cuerpo.model_dump(exclude_none=True))
+    cambios = cuerpo.model_dump(exclude_none=True)
+    if "handle" in cambios:
+        plataforma = await repo.plataforma_competidor(competidor_id)
+        if plataforma is None:
+            raise HTTPException(status.HTTP_404_NOT_FOUND, "Competidor no encontrado")
+        cambios["handle"] = _normalizar_handle(plataforma, cambios["handle"])
+    await repo.actualizar_competidor(competidor_id, cambios)
     return {"estado": "ok"}
 
 

@@ -45,6 +45,34 @@ def test_normalizar_instagram_suma_ultimas_publicaciones() -> None:
     assert clave_perfil("meta_fb", {"pageUrl": "https://www.facebook.com/BancoX/"}) == "bancox"
 
 
+def test_paginas_facebook_sin_usuario_se_casan_por_id() -> None:
+    url = "https://www.facebook.com/profile.php?id=61550123456789"
+    clave = "profile.php?id=61550123456789"
+    assert (
+        clave_perfil("meta_fb", {"facebookUrl": url, "pageUrl": "https://www.facebook.com/x"})
+        == clave
+    )
+    assert clave_perfil("meta_fb_publicaciones", {"inputUrl": url}) == clave
+    assert clave_perfil("pauta", {"url": url + "&sk=about"}) == clave
+    assert entrada_actor("meta_fb", [clave]) == {"startUrls": [{"url": url}]}
+
+
+def test_normalizar_handle_facebook() -> None:
+    from fastapi import HTTPException
+
+    from api.admin.router import _normalizar_handle
+
+    url = "https://www.facebook.com/profile.php?id=61550123456789&mibextid=ZbWKwL"
+    assert _normalizar_handle("meta_fb", url) == "profile.php?id=61550123456789"
+    assert _normalizar_handle("meta_fb", "https://m.facebook.com/BancoX/?ref=1") == "BancoX"
+    try:
+        _normalizar_handle("meta_fb", "https://www.facebook.com/profile.php")
+    except HTTPException as e:
+        assert e.status_code == 422
+    else:
+        raise AssertionError("profile.php sin id debe rechazarse")
+
+
 @requiere_db
 async def test_benchmark_grid_compara_con_snapshots(pool, cliente_a) -> None:  # type: ignore[no-untyped-def]
     kid = await pool.fetchval(

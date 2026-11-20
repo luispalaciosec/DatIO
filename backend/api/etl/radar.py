@@ -24,6 +24,7 @@ from dataclasses import dataclass, field
 from datetime import UTC, date, datetime, timedelta
 from decimal import Decimal
 from typing import Any
+from urllib.parse import parse_qs
 
 import httpx
 
@@ -287,7 +288,13 @@ def entrada_actor(plataforma: str, handles: list[str]) -> dict[str, Any]:
 
 
 def _ultimo_segmento(url: str) -> str:
-    return url.rstrip("/").split("/")[-1].split("?")[0].lower()
+    ruta, _, consulta = url.partition("?")
+    segmento = ruta.rstrip("/").split("/")[-1].lower()
+    if segmento == "profile.php":  # página sin usuario: el handle guardado es profile.php?id=N
+        ids = parse_qs(consulta).get("id")
+        if ids:
+            return f"profile.php?id={ids[0]}"
+    return segmento
 
 
 def clave_perfil(plataforma: str, item: dict[str, Any]) -> str:
@@ -300,6 +307,11 @@ def clave_perfil(plataforma: str, item: dict[str, Any]) -> str:
         return _ultimo_segmento(str(item.get("inputUrl") or item.get("facebookUrl") or ""))
     if plataforma == "pauta":
         return _ultimo_segmento(str(item.get("url") or ""))
+    # Páginas profile.php?id=N: Apify puede devolver otra URL canónica; se casa por la de entrada.
+    for campo in ("inputUrl", "facebookUrl", "pageUrl", "url"):
+        clave = _ultimo_segmento(str(item.get(campo) or ""))
+        if clave.startswith("profile.php?id="):
+            return clave
     return _ultimo_segmento(
         str(item.get("pageUrl") or item.get("facebookUrl") or item.get("url") or "")
     )
